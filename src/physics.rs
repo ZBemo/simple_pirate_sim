@@ -1,6 +1,7 @@
-//! Physics updating and simulation for tile objects
+//! A tile-based Physics Engine for this project
 //!
-//!
+//! A good place to get started with internal systems is [`PhysicsPlugin`], and for components
+//! check out [`TotalVelocity`] and [`VelocityTicker`].
 
 use std::todo;
 
@@ -30,10 +31,12 @@ pub enum PhysicsSet {
 /// a total velocity per frame, used for updating movement
 /// this is rarely ever acurate except during FinalMovement set, and potentially afterwards
 ///
-/// Is not currently public, to avoid the impression that it is accurate outside of physics
-/// systems.
+/// If you want an object to "have" velocity, but not actually move, give it a TotalVelocity
+/// component, but no VelocityTicker
+///
+///  TotalVelocity.0 should never be changed outside of physics engine
 #[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
-struct TotalVelocity(pub Vec3);
+pub struct TotalVelocity(Vec3);
 
 /// Any component with a weight will have gravity applied to it on each physics update
 #[derive(Debug, Clone, Copy, Component, Deref, DerefMut)]
@@ -53,9 +56,12 @@ pub struct MantainedVelocity(pub Vec3);
 pub struct MovementGoal(pub Vec3);
 
 /// A Velocity Ticker, used to keep track of when to actually move a physics component, by
-/// buffering velocity into its ticker until at least a whole tile has been moved
+/// buffering velocity into its ticker until at least a whole tile has been moved.
 ///
-/// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0
+/// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0.
+///
+/// As this Ticker is meant to be wholely managed by the physics engine, it is not public, and must
+/// be instantiated trough a Bundle like [`PhysicsComponentBase`]
 #[derive(Debug, Component, Clone, Copy, Default, Deref, DerefMut)]
 struct VelocityTicker(Vec3);
 

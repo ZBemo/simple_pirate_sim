@@ -1,7 +1,7 @@
 //! Controllers for the player and AI characters
 //!
-//! Final output of controllers will be "requests" to actually change physical world, like
-//! MovementGoal is a request to change entities location trough velocity.
+//! The final output of controllers will be "requests" to actually change physical world, like
+//! how MovementGoals are a request to change entities location trough velocity.
 
 use bevy::prelude::*;
 
