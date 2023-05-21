@@ -13,7 +13,10 @@
     - [ ] cull sprites on other layers.
        - [ ] add camera viewports for events above/below 
        - [ ] let player look around
-    - [ ] spritesheet preproccessing\(?)
+    - [ ] spritesheet processing
+     - [ ] probably needs a mix of preprocessing and processing on tile update
+     - [ ] preprocessing
+     - [ ] tile update processing
     - [ ] dynamically update spritesheet colors
     - [ ] dynamically update tile sprites
  - [ ] "full" tile physics engine
