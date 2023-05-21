@@ -48,7 +48,6 @@ fn main() {
         // .add_system(
         //     controllers::player::camera_follow_player
         //         .after(PhysicsSet::FinalMovement)
-        //         .run_if(on_event::<PlayerMoved>()),
         // )
         .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalMovement))
         // add system here

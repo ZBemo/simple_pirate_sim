@@ -51,13 +51,13 @@ pub mod player {
 
     /// a system to make the player the center of the screen
     pub fn camera_follow_player(
-        player: Query<(&Controller, &Transform), Without<Camera>>,
+        player: Query<(&Controller, &Transform), (Without<Camera>, Changed<Transform>)>,
         mut cameras: Query<(&mut Transform, &Camera), Without<Controller>>,
     ) {
-        let player = player.get_single().unwrap();
-        let mut camera = cameras.get_single_mut().unwrap();
+        if let Ok(player) = player.get_single() {
+            // in the future with multi camera system this will need to iterate
+            let mut camera = cameras.get_single_mut().unwrap();
 
-        if camera.0.translation != player.1.translation {
             camera.0.translation = player.1.translation.clone();
         }
     }
