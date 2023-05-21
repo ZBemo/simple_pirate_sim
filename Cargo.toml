@@ -10,9 +10,28 @@ opt-level = 3
 # rustflags = ["-Ctarget-cpu=native"]
 
 [dependencies]
-# TODO: strip out features like pbr that we clearly do not need
-bevy = {version = "^0.10", features = ["dynamic_linking","wayland"]}
-# bevy = {version = "^0.10", features = ["wayland"]} # for release builds
 bracket-random = "^0.8"
 
+[dependencies.bevy]
+version = "^0.10"
+default-features = false
+features = [
+  "dynamic_linking", # comment out for release builds 
+
+  # bevy features we make use of 
+  "bevy_asset",
+  "bevy_core_pipeline",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_text",
+  "bevy_winit",
+  "bevy_ui",
+  "subpixel_glyph_atlas",
+
+  "png", 
+
+  # support both to be safe. If you're building for yourself you probably know which one to remove
+  "x11",
+  "wayland"
+]
 
