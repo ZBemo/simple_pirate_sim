@@ -1,5 +1,5 @@
 # General code cleanliness
- - [ ] use IVec3 in places where it makes sense (like everywhere)
+ - [x] use IVec3 in places where it makes sense (like everywhere)
 
 # Big feautures
  - [ ] Player and AI interaction 

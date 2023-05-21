@@ -15,6 +15,9 @@ pub struct ObjectName(pub String);
 #[derive(Component, Debug)]
 pub struct DynWallObject();
 
+/// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
+/// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
+/// the right grid.
 #[derive(Resource)]
 pub struct TileStretch(pub u8, pub u8);
 
@@ -23,21 +26,29 @@ pub struct TileStretch(pub u8, pub u8);
 pub struct TileObject();
 
 impl TileStretch {
-    pub fn into_vec2(&self) -> Vec2 {
+    pub fn into_ivec2(&self) -> IVec2 {
         self.into()
     }
 
-    pub fn bevy_translation_to_tile(&self, t: &Vec3) -> Vec3 {
-        Vec3::new(t.x / self.0 as f32, t.y / self.1 as f32, t.z)
+    pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
+        IVec3::new(
+            t.x as i32 / self.0 as i32,
+            t.y as i32 / self.1 as i32,
+            t.z as i32,
+        )
     }
-    pub fn tile_translation_to_bevy(&self, t: &Vec3) -> Vec3 {
-        Vec3::new(t.x * self.0 as f32, t.y * self.1 as f32, t.z)
+    pub fn tile_translation_to_bevy(&self, t: &IVec3) -> Vec3 {
+        Vec3::new(
+            t.x as f32 * self.0 as f32,
+            t.y as f32 * self.1 as f32,
+            t.z as f32,
+        )
     }
 }
 
-impl Into<Vec2> for &TileStretch {
-    fn into(self) -> Vec2 {
-        Vec2::new(self.0 as f32, self.1 as f32)
+impl Into<IVec2> for &TileStretch {
+    fn into(self) -> IVec2 {
+        IVec2::new(self.0 as i32, self.1 as i32)
     }
 }
 
@@ -83,6 +94,8 @@ pub fn cull_non_camera_layer_sprites(
         if !camera_layers.contains(&(r.1.translation.z as i64)) {
             // should not be renderable
             *r.0 = Visibility::Hidden;
+        } else {
+            *r.0 = Visibility::Visible;
         }
     }
 }

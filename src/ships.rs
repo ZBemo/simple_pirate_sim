@@ -58,7 +58,7 @@ pub struct Ship;
 
 /// this doesn't belong here. the sea level of the world
 #[derive(Debug, Resource, Deref)]
-pub struct SeaLevel(f32);
+pub struct SeaLevel(i32);
 
 // setup ships system
 fn setup_ships(
@@ -68,18 +68,28 @@ fn setup_ships(
     asset_server: Res<AssetServer>,
     sea_level: Res<SeaLevel>,
 ) {
+    // TODO: multiply these by the ship size or something
+    const FIRST_SHIP_RANGE: i32 = 200;
+    const SECOND_SHIP_OFFSET_MAX: i32 = 20;
+    const SECOND_SHIP_OFFSET_MIN: i32 = 10;
+
     let mut g = generator;
-    let first_ship_translate_tile_space =
-        &Vec3::new(g.next_u64() as f32, g.next_u64() as f32, sea_level.0);
+    let first_ship_translate_tile_space = &IVec3::new(
+        g.range(-FIRST_SHIP_RANGE, FIRST_SHIP_RANGE),
+        g.range(-FIRST_SHIP_RANGE, FIRST_SHIP_RANGE),
+        sea_level.0,
+    );
 
     // if statement maps {0,1} => {-1,1} to get ship 2 below or to the left as well
-    let x_offset = g.range(10, 20) * if g.range(0, 1) == 1 { -1 } else { 1 };
-    let y_offset = g.range(20 - x_offset, 30 - x_offset) * if g.range(0, 1) == 1 { -1 } else { 1 };
+    let x_offset = g.range(SECOND_SHIP_OFFSET_MIN, SECOND_SHIP_OFFSET_MAX)
+        * if g.range(0, 1) == 1 { -1 } else { 1 };
+    let y_offset = g.range(SECOND_SHIP_OFFSET_MIN, SECOND_SHIP_OFFSET_MAX)
+        * if g.range(0, 1) == 1 { -1 } else { 1 };
 
-    let second_ship_translate_tile_space = &Vec3::new(
-        x_offset as f32 + first_ship_translate_tile_space.x,
-        y_offset as f32 + first_ship_translate_tile_space.y,
-        1.,
+    let second_ship_translate_tile_space = &IVec3::new(
+        x_offset + first_ship_translate_tile_space.x,
+        y_offset + first_ship_translate_tile_space.y,
+        1,
     );
 
     todo!()
@@ -137,7 +147,7 @@ fn spawn_wall(
     let texture_atlas_handle = sprites.get_handle(sprites.iter().next().unwrap().0);
 
     commands.spawn((
-        Collider(Vec3::ONE),
+        Collider(IVec3::ONE),
         PhysicsComponentBase::default(),
         LinkVelocity(*parent),
         DynWallObject(),

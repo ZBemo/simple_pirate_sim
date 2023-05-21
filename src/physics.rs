@@ -17,7 +17,7 @@ pub struct LinkVelocity(pub Entity);
 /// a tile collider
 /// specified in tile_space
 #[derive(Component, Debug, Deref, DerefMut)]
-pub struct Collider(pub Vec3);
+pub struct Collider(pub IVec3);
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
 /// physics system sets

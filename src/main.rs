@@ -43,7 +43,7 @@ fn main() {
         .add_startup_system(gui::setup_coords_display)
         .add_startup_system(random::setup_generator)
         .add_system(gui::update_coords_display)
-        .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
+        // .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
         .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalMovement))
         // .add_system(
         //     controllers::player::camera_follow_player
@@ -83,8 +83,14 @@ pub fn setup(
 
     // TODO: image manipulation & get data for tilestretch
 
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, tilestretch.into_vec2(), 16, 16, None, None);
+    let texture_atlas = TextureAtlas::from_grid(
+        texture_handle,
+        tilestretch.into_ivec2().as_vec2(),
+        16,
+        16,
+        None,
+        None,
+    );
 
     let texture_atlas_handle = sprites.add(texture_atlas);
 
@@ -101,7 +107,7 @@ pub fn setup(
             texture_atlas: texture_atlas_handle.clone_weak(),
             sprite: TextureAtlasSprite::new(5),
             transform: Transform::from_translation(
-                tilestretch.tile_translation_to_bevy(&Vec3::new(1., 0., 0.)),
+                tilestretch.tile_translation_to_bevy(&IVec3::new(1, 0, 1)),
             ),
             ..default()
         },
