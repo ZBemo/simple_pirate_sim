@@ -1,7 +1,7 @@
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
 
-# Big feautures
+# Big features
  - [ ] Player and AI interaction 
     - [ ] ladders
     - [ ] guns
@@ -11,8 +11,9 @@
  - [ ] tile rendering and sprite features
     - [ ] Custom spritesheet somehow
     - [ ] cull sprites on other layers.
-       - [ ] add camera viewports for events above/below 
-       - [ ] let player look around
+        - [ ] add camera viewports for events above/below 
+            - [ ]  rework code to be aware of >1 camera
+        - [ ] let player look around
     - [ ] spritesheet processing
      - [ ] probably needs a mix of preprocessing and processing on tile update
      - [ ] preprocessing
