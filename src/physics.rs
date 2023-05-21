@@ -6,20 +6,17 @@ use std::todo;
 
 use bevy::prelude::*;
 
-use crate::{
-    controllers::{self, player::PlayerMoved},
-    tile_objects::TileStretch,
-};
+use crate::{controllers, tile_objects::TileStretch};
 
 /// allows you to take on the velocity of another entity, useful for ships, etc
 ///
 /// this should probably be re-architected in the future
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Deref, DerefMut)]
 pub struct LinkVelocity(pub Entity);
 
 /// a tile collider
 /// specified in tile_space
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Deref, DerefMut)]
 pub struct Collider(pub Vec3);
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
@@ -35,16 +32,16 @@ pub enum PhysicsSet {
 ///
 /// Is not currently public, to avoid the impression that it is accurate outside of physics
 /// systems.
-#[derive(Debug, Component, Clone, Default)]
+#[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
 struct TotalVelocity(pub Vec3);
 
 /// Any component with a weight will have gravity applied to it on each physics update
-#[derive(Debug, Clone, Copy, Component)]
+#[derive(Debug, Clone, Copy, Component, Deref, DerefMut)]
 pub struct Weight(pub f32);
 
 /// A mantained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
-#[derive(Debug, Clone, Component, Default)]
+#[derive(Debug, Clone, Component, Default, Deref, DerefMut)]
 pub struct MantainedVelocity(pub Vec3);
 
 /// a tile velocity that is wiped after every update, for willfully moving characters, usually
@@ -52,17 +49,14 @@ pub struct MantainedVelocity(pub Vec3);
 ///
 /// As valid movement is different for each entity, The physics engine does not check for "invalid" movement goals,
 /// and it is the responsibility of  whoever is controlling an entity to make sure movement goals are valid.
-#[derive(Debug, Component, Clone, Default)]
-pub struct MovementGoal {
-    // x, y +/-1 +/-1
-    pub goal: Vec3,
-}
+#[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
+pub struct MovementGoal(pub Vec3);
 
 /// A Velocity Ticker, used to keep track of when to actually move a physics component, by
 /// buffering velocity into its ticker until at least a whole tile has been moved
 ///
 /// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0
-#[derive(Debug, Component, Clone, Copy, Default)]
+#[derive(Debug, Component, Clone, Copy, Default, Deref, DerefMut)]
 struct VelocityTicker(Vec3);
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
@@ -92,7 +86,7 @@ fn calculate_total_velocity(
 
         // it is up to the controller to ensure that the movement goal is reasonable
         if let Some(movement_goal) = movement_goal {
-            new_total_velocity += movement_goal.goal * delta_time;
+            new_total_velocity += movement_goal.0 * delta_time;
         }
 
         // maybe gravity should be part of mantained velocity
@@ -147,7 +141,6 @@ fn apply_total_velocity(
         &TotalVelocity,
         Option<&controllers::player::Controller>,
     )>,
-    mut player_moved_writer: EventWriter<PlayerMoved>,
     tile_stretch: Res<TileStretch>,
 ) {
     // this will make it so entities only move a tile once an entire tiles worth of movement
@@ -177,10 +170,6 @@ fn apply_total_velocity(
             transform.translation.x += tile_stretch.0 as f32 * ticker.0.x.signum();
             ticker.0.x -= 1. * ticker.0.x.signum();
             ticker_ticked = true;
-        }
-
-        if ticker_ticked {
-            player_moved_writer.send(PlayerMoved());
         }
 
         // this might break things in the future!
@@ -244,7 +233,7 @@ pub struct PhysicsComponentFull {
 /// Any system that wants to use the results of a physics engine update should not run until after
 /// [`PhysicsSet::FinalMovement`] has been completed
 ///
-/// Any systems that want to affect the physics engine in a given frame must run `FinalMovement`.
+/// Any systems that want to affect the physics engine in a given frame must run before `FinalMovement`.
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {

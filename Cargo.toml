@@ -10,9 +10,9 @@ opt-level = 3
 # rustflags = ["-Ctarget-cpu=native"]
 
 [dependencies]
-# TODO: strip out shit like pbr that we clearly do not need
+# TODO: strip out features like pbr that we clearly do not need
 bevy = {version = "^0.10", features = ["dynamic_linking","wayland"]}
+# bevy = {version = "^0.10", features = ["wayland"]} # for release builds
 bracket-random = "^0.8"
-# bevy = "^0.10"
 
 

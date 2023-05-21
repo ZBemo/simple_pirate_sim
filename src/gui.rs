@@ -10,15 +10,18 @@ use crate::{controllers, tile_objects::TileStretch};
 pub struct CoordsText();
 
 pub fn update_coords_display(
-    player: Query<(&controllers::player::Controller, &Transform)>,
+    player: Query<(&controllers::player::Controller, &Transform), Changed<Transform>>,
     mut query: Query<(&mut Text), With<CoordsText>>,
     tile_stretch: Res<TileStretch>,
 ) {
-    let pos = tile_stretch.bevy_translation_to_tile(&player.get_single().unwrap().1.translation);
-    let new_text = format!("{}, {}, {}", pos.x, pos.y, pos.z);
+    if let Ok(player) = &player.get_single() {
+        let pos = tile_stretch.bevy_translation_to_tile(&player.1.translation);
 
-    for mut text in &mut query {
-        text.sections[0].value = new_text.clone();
+        let new_text = format!("{}, {}, {}", pos.x, pos.y, pos.z);
+
+        for mut text in &mut query {
+            text.sections[0].value = new_text.clone();
+        }
     }
 }
 

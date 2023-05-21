@@ -11,12 +11,14 @@
 //! 'c' = canon
 //!
 //! ' ' = open space
+use std::ops::Add;
+
 use bevy::prelude::*;
 
 use crate::{
     physics::{self, Collider, LinkVelocity, PhysicsComponentBase},
     random::{RandomGenerator, Seed},
-    tile_objects::{DynWallSprite, ObjectName, TileStretch},
+    tile_objects::{DynWallObject, ObjectName, TileStretch},
 };
 
 /// a basic template for a ship. not piratey at all because I suck at art
@@ -54,13 +56,33 @@ const BASIC_SHIP: [&str; 3] = [
 #[derive(Component)]
 pub struct Ship;
 
+/// this doesn't belong here. the sea level of the world
+#[derive(Debug, Resource, Deref)]
+pub struct SeaLevel(f32);
+
 // setup ships system
 fn setup_ships(
     mut commands: Commands,
     tile_stretch: Res<TileStretch>,
-    generator: ResMut<RandomGenerator>,
+    mut generator: ResMut<RandomGenerator>,
     asset_server: Res<AssetServer>,
+    sea_level: Res<SeaLevel>,
 ) {
+    let mut g = generator;
+    let first_ship_translate_tile_space =
+        &Vec3::new(g.next_u64() as f32, g.next_u64() as f32, sea_level.0);
+
+    // if statement maps {0,1} => {-1,1} to get ship 2 below or to the left as well
+    let x_offset = g.range(10, 20) * if g.range(0, 1) == 1 { -1 } else { 1 };
+    let y_offset = g.range(20 - x_offset, 30 - x_offset) * if g.range(0, 1) == 1 { -1 } else { 1 };
+
+    let second_ship_translate_tile_space = &Vec3::new(
+        x_offset as f32 + first_ship_translate_tile_space.x,
+        y_offset as f32 + first_ship_translate_tile_space.y,
+        1.,
+    );
+
+    todo!()
 }
 
 fn spawn_ship_from_blueprint(
@@ -118,7 +140,7 @@ fn spawn_wall(
         Collider(Vec3::ONE),
         PhysicsComponentBase::default(),
         LinkVelocity(*parent),
-        DynWallSprite(),
+        DynWallObject(),
         ObjectName("Ship Wall".into()),
         SpriteSheetBundle {
             // TODO: dynamically update walls or something

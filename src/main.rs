@@ -9,9 +9,9 @@ mod tile_objects;
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use controllers::{player::PlayerMoved, MovementGoalTimeout, WalkSpeed};
+use controllers::{MovementGoalTimeout, WalkSpeed};
 use physics::{MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight};
-use tile_objects::TileStretch;
+use tile_objects::{cull_non_camera_layer_sprites, TileObject, TileStretch};
 
 /// an unused gamestate system
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -39,10 +39,11 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(PhysicsPlugin)
         .add_state::<GameState>()
-        .add_event::<PlayerMoved>()
         .add_startup_system(setup)
         .add_startup_system(gui::setup_coords_display)
-        .add_system(gui::update_coords_display.run_if(on_event::<PlayerMoved>()))
+        .add_startup_system(random::setup_generator)
+        .add_system(gui::update_coords_display)
+        .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
         .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalMovement))
         // .add_system(
         //     controllers::player::camera_follow_player
@@ -50,7 +51,7 @@ fn main() {
         //         .run_if(on_event::<PlayerMoved>()),
         // )
         .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalMovement))
-        // add systems here
+        // add system here
         .run();
 }
 
@@ -74,10 +75,7 @@ pub fn setup(
     let window = window_q.get_single().unwrap();
 
     // dwarfs (0,2)
-    // TODO: ACTUAL Sprite sheet
-    //
-    //
-    //
+    // TODO: ACTUAL Sprite sheet code
     let tilestretch = TileStretch(32, 32);
     commands.insert_resource(TileStretch(32, 32));
 
@@ -93,26 +91,52 @@ pub fn setup(
     //TODO: Save atlas handle as a resource
 
     commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(0., 0., 0.),
+        transform: Transform::from_xyz(0., 0., 2.),
         ..default()
     });
 
+    // random wall one layer down
+    commands.spawn((
+        SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle.clone_weak(),
+            sprite: TextureAtlasSprite::new(5),
+            transform: Transform::from_translation(
+                tilestretch.tile_translation_to_bevy(&Vec3::new(1., 0., 0.)),
+            ),
+            ..default()
+        },
+        tile_objects::TileObject(),
+        tile_objects::ObjectName("Random Wall".into()),
+    ));
+
+    // player
     commands.spawn(
         (PlayerBundle {
             sprite: SpriteSheetBundle {
                 texture_atlas: texture_atlas_handle,
                 sprite: TextureAtlasSprite::new(2),
-                transform: Transform::from_xyz(0., 0., 0.),
+                transform: Transform::from_xyz(0., 0., 1.),
                 ..default()
             },
             physics_component: PhysicsComponentBase::default(),
             controller: controllers::player::Controller(),
-            movement_goal: MovementGoal { goal: Vec3::ZERO },
+            movement_goal: MovementGoal(Vec3::ZERO),
             m_goal_timeout: MovementGoalTimeout(0.),
             weight: Weight(0.),
-            // TODO: figure out why 1. isn't 1 grid per second
+            //TODO: figure out if 1. speed is really 1 grid per second
             walkspeed: WalkSpeed(5.),
         }),
     );
     // continue this
+}
+
+fn check_wall_player(
+    wall: Query<&Transform, With<TileObject>>,
+    player: Query<&Transform, With<controllers::player::Controller>>,
+) {
+    warn!(
+        "player: {}; wall: {}",
+        player.single().translation,
+        wall.single().translation
+    )
 }

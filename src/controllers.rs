@@ -31,7 +31,7 @@ pub fn update_goal_timeout(
             timeout.0 -= delta_time;
 
             if timeout.0 < 0. {
-                goal.goal = Vec3::ZERO;
+                goal.0 = Vec3::ZERO;
             }
         }
     }
@@ -44,13 +44,6 @@ pub mod player {
     use crate::{controllers::DIAG_SPEED, physics::MovementGoal};
     use bevy::prelude::*;
     use std::todo;
-
-    /// an empty event to notify other systems that the player has moved.
-    /// is sent out in physics loop
-    ///
-    /// Could be extrapolated into a generic "subscriber" for when an entity is moved, but that would
-    /// be less efecient.
-    pub struct PlayerMoved();
 
     /// A marker for an entity controlled as a player
     #[derive(Component, Default)]
@@ -85,61 +78,54 @@ pub mod player {
         for event in char_input_events.iter() {
             match event.char {
                 'w' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += Vec3::Y * walk_speed.0;
+                    **movement_goal = Vec3::Y * walk_speed.0;
                     // should go one tile
                     movement_timeout.0 = 1. / walk_speed.0 as f64;
                 }
                 'a' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += Vec3::X * walk_speed.0 * -1.;
+                    **movement_goal = Vec3::X * walk_speed.0 * -1.;
                     // should go one tile
                     movement_timeout.0 = 1. / walk_speed.0 as f64;
                 }
                 'x' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += Vec3::Y * walk_speed.0 * -1.;
+                    **movement_goal = Vec3::Y * walk_speed.0 * -1.;
                     // should go one tile
                     movement_timeout.0 = 1. / walk_speed.0 as f64;
                 }
                 'd' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += Vec3::X * walk_speed.0;
+                    **movement_goal = Vec3::X * walk_speed.0;
                     // should go one tile
                     movement_timeout.0 = 1. / walk_speed.0 as f64;
                 }
                 'e' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += (Vec3::Y + Vec3::X) * walk_speed.0 * DIAG_SPEED;
+                    **movement_goal = (Vec3::Y + Vec3::X) * walk_speed.0 * DIAG_SPEED;
                     // should go one tile
                     movement_timeout.0 = 1. / (walk_speed.0 as f64 * DIAG_SPEED as f64);
                 }
                 'q' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += (Vec3::Y + Vec3::X * -1.) * walk_speed.0 * DIAG_SPEED;
+                    **movement_goal = (Vec3::Y + Vec3::X * -1.) * walk_speed.0 * DIAG_SPEED;
                     // should go one tile
                     movement_timeout.0 = 1. / (walk_speed.0 as f64 * DIAG_SPEED as f64);
                 }
                 'z' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += (Vec3::Y + Vec3::X) * -1. * walk_speed.0 * DIAG_SPEED;
+                    **movement_goal = (Vec3::Y + Vec3::X) * -1. * walk_speed.0 * DIAG_SPEED;
                     // should go one tile
                     movement_timeout.0 = 1. / (walk_speed.0 as f64 * DIAG_SPEED as f64);
                 }
                 'c' => {
-                    movement_goal.goal = Vec3::ZERO;
-                    movement_goal.goal += (Vec3::Y * -1. + Vec3::X) * walk_speed.0 * DIAG_SPEED;
+                    **movement_goal = (Vec3::Y * -1. + Vec3::X) * walk_speed.0 * DIAG_SPEED;
                     // should go one tile
                     movement_timeout.0 = 1. / (walk_speed.0 as f64 * DIAG_SPEED as f64);
                 }
                 c => {
-                    trace!("Ignoring unregistered char '{}'", c)
+                    debug!("Ignoring unregistered char '{}'", c)
                 }
             }
         }
-        warn!(
+        trace!(
             "current movement goal: {}. current movement timeout: {}",
-            movement_goal.goal, movement_timeout.0
+            **movement_goal,
+            movement_timeout.0
         );
     }
 }
