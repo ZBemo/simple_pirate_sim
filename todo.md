@@ -1,3 +1,6 @@
+# General code cleanliness
+ - [ ] use IVec3 in places where it makes sense (like everywhere)
+
 # Big feautures
  - [ ] Player and AI interaction 
     - [ ] ladders
@@ -6,6 +9,7 @@
     - [ ] swords
     - [ ] player and AI view and memory simulation
  - [ ] tile rendering and sprite features
+    - [ ] Custom spritesheet somehow
     - [ ] cull sprites on other layers.
        - [ ] add camera viewports for events above/below 
        - [ ] let player look around
