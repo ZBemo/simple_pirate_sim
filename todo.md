@@ -1,5 +1,6 @@
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
+ - [ ] split physics.rs into multiple modules
  - [ ] chunk out startup systems, allowing doing startups after necessary resources are set up more easily
  - [ ] change query function parameters to $NAME_q. will make code far more readable
  - [ ] set up cargo clippy and lint 

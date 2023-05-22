@@ -29,16 +29,33 @@ impl Collider {
             going_to_collide_with: Vec::new(),
         }
     }
+
+    /// Returns true if the collider is projected to collide with
+    pub fn is_colliding(&self) -> bool {
+        return !self.going_to_collide_with.is_empty();
+    }
+
+    /// get all entities that the collider is projected to collide with
+    pub fn get_colliding_with(&self) -> &[Entity] {
+        &self.going_to_collide_with
+    }
+
+    pub fn is_colliding_with(&self, e: &Entity) -> bool {
+        self.going_to_collide_with.contains(e)
+    }
 }
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
-/// physics system sets
-/// register all velocity wants for the current frame before [`PhysicsSet::FinalizeVelocity`]
-/// if wanting to use previously updated locations, run after [`PhysicsSet::FinalizeMovement`]
+/// We recommend running any system that plans to input into the Physics system before
+/// [`PhysicsSet::FinalizeVelocity`], although some may be able to run before
+/// [`PhysicsSet::CollisionCheck`] and be fine.
 ///
-/// Currently, only FinalizeMovement is used by the Physics engine, and setting anything relative
-/// to FinalizeVelocity or CollisionCheck will break things.
+/// If wanting to use previously newly update locations, run after [`PhysicsSet::FinalizeMovement`]
+///
+/// systems making use of collision checking should run after [`PhysicsSet::CollisionCheck`], or
+/// collision data may be wildly inaccurate
 pub enum PhysicsSet {
+    // PhysicsInput,
     FinalizeVelocity,
     CollisionCheck,
     FinalizeMovement,
@@ -520,6 +537,7 @@ impl Plugin for PhysicsPlugin {
             )
                 .in_set(PhysicsSet::FinalizeVelocity),
         )
+        // might need to constrain this more in order for collision to actually be useful
         .add_system(
             clear_collisions
                 .before(perform_collision_checks)
