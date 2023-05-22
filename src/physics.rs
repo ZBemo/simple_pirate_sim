@@ -21,6 +21,12 @@ pub struct Collider {
     going_to_collide_with: Vec<Entity>,
 }
 
+impl Default for Collider {
+    fn default() -> Self {
+        Self::new(IVec3::ZERO, ColliderType::Solid)
+    }
+}
+
 impl Collider {
     pub fn new(size: IVec3, collision_type: ColliderType) -> Self {
         Self {
@@ -30,16 +36,17 @@ impl Collider {
         }
     }
 
-    /// Returns true if the collider is projected to collide with
+    /// Returns true if the collider was projected to collide with
     pub fn is_colliding(&self) -> bool {
         return !self.going_to_collide_with.is_empty();
     }
 
-    /// get all entities that the collider is projected to collide with
+    /// get all entities that the collider was projected to collide with
     pub fn get_colliding_with(&self) -> &[Entity] {
         &self.going_to_collide_with
     }
 
+    /// returns true if the collider was projected to collide with e
     pub fn is_colliding_with(&self, e: &Entity) -> bool {
         self.going_to_collide_with.contains(e)
     }
@@ -127,6 +134,7 @@ struct VelocityTicker(Vec3);
 
 /// clears all potential collisions
 fn clear_collisions(mut collider_q: Query<&mut Collider>) {
+    trace!("zeroing collisions");
     collider_q
         .par_iter_mut()
         .for_each_mut(|mut c| c.going_to_collide_with = Vec::new());
@@ -140,20 +148,22 @@ fn clear_collisions(mut collider_q: Query<&mut Collider>) {
 ///
 /// All this system does is update the Colliders' list of who they'll collide with, which will then
 /// be used by other systems to do things like avoid collision
-fn perform_collision_checks(
+fn check_collisions(
     mut collider_query: Query<(Entity, &mut Collider)>,
     velocity_query: Query<(&TotalVelocity, Option<&VelocityTicker>)>,
     transform_query: Query<&GlobalTransform>,
     tile_stretch: Res<TileStretch>,
     time: Res<Time>,
 ) {
+    trace!("starting collision check");
+
     /// gets a range to n..=0 that will start at n if n is negative, or start at zero otherwise
     /// so you will always get the same amount of steps regardless of n's sign
-    fn range_to_n(n: i32) -> std::ops::Range<i32> {
+    fn range_to_n(n: i32) -> std::ops::RangeInclusive<i32> {
         if n.is_negative() {
-            n..0
+            n..=0
         } else {
-            0..n
+            0..=n
         }
     }
 
@@ -163,7 +173,7 @@ fn perform_collision_checks(
 
     // could loop concurrently to create a Vec of expected tiles, and then loop that in single
     // thread to populate inhabited hashmap?
-    let collected_entities = collider_query.iter().for_each(|(entity, collider)| {
+    for (entity, collider) in collider_query.iter() {
         // start off by getting any velocities, the absolute transform of the entity, and its
         // collider and entity id
 
@@ -203,6 +213,9 @@ fn perform_collision_checks(
             for y in range_to_n(collider.size.x) {
                 for z in range_to_n(collider.size.x) {
                     let inhabiting = projected_tile_location + IVec3::new(x, y, z);
+
+                    trace!("pushing inhabiting of {}", inhabiting);
+
                     if let Some(mut inhabited_vec) = inhabited_tiles.get_mut(&inhabiting) {
                         inhabited_vec.push(entity);
                     } else {
@@ -211,12 +224,19 @@ fn perform_collision_checks(
                 }
             }
         }
-    });
+    }
 
     // next, iterate through all tiles that will be inhabited and check if a collision will take
     // place on that tile
     for (location, entities) in inhabited_tiles.iter() {
+        trace!("checking location {}", location);
         if entities.len() > 1 {
+            trace!(
+                "collision of {} entities on tile {}",
+                entities.len(),
+                location
+            );
+
             // there is a collision
             // loop through entitites and update their colliding list
 
@@ -540,11 +560,11 @@ impl Plugin for PhysicsPlugin {
         // might need to constrain this more in order for collision to actually be useful
         .add_system(
             clear_collisions
-                .before(perform_collision_checks)
+                .before(check_collisions)
                 .in_set(PhysicsSet::CollisionCheck),
         )
         .add_system(
-            perform_collision_checks
+            check_collisions
                 .after(propogate_velocities)
                 .in_set(PhysicsSet::CollisionCheck),
         )

@@ -32,6 +32,7 @@ struct PlayerBundle {
     m_goal_timeout: MovementGoalTimeout,
     weight: Weight,
     walkspeed: WalkSpeed,
+    collider: Collider,
 }
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Clone)]
@@ -115,7 +116,7 @@ pub fn setup(
         },
         tile_objects::TileObject(),
         tile_objects::ObjectName("Random Wall".into()),
-        Collider::new(IVec3::ONE, physics::ColliderType::Solid),
+        Collider::new(IVec3::ZERO, physics::ColliderType::Solid),
     ));
 
     // player
@@ -134,6 +135,7 @@ pub fn setup(
             weight: Weight(0.),
             //TODO: figure out if 1. speed is really 1 grid per second
             walkspeed: WalkSpeed(5.),
+            collider: Collider::new(IVec3::ZERO, physics::ColliderType::Solid),
         }),
     );
 
