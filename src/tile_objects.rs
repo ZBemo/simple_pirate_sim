@@ -34,6 +34,12 @@ impl TileStretch {
     }
 
     pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
+        // common sense check that t contains only whole numbers before casting
+        assert!(
+            t.round() == *t,
+            "attempted translation of vector with non-whole numbers into tilespace"
+        );
+
         IVec3::new(
             t.x as i32 / self.0 as i32,
             t.y as i32 / self.1 as i32,

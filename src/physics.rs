@@ -3,7 +3,7 @@
 //! See [`PhysicsPlugin`], and its build function to get started with the source code, or you can
 //! likely read the file from top-down and understand it decently well.
 
-use std::{assert_eq, todo};
+use std::{assert_eq, mem, todo};
 
 use bevy::{prelude::*, utils::HashMap};
 
@@ -19,12 +19,7 @@ pub struct Collider {
     pub size: IVec3,
     collision_type: ColliderType,
     going_to_collide_with: Vec<Entity>,
-}
-
-impl Default for Collider {
-    fn default() -> Self {
-        Self::new(IVec3::ZERO, ColliderType::Solid)
-    }
+    was_colliding_with: Vec<Entity>,
 }
 
 impl Collider {
@@ -33,6 +28,7 @@ impl Collider {
             size,
             collision_type,
             going_to_collide_with: Vec::new(),
+            was_colliding_with: Vec::new(),
         }
     }
 
@@ -49,6 +45,14 @@ impl Collider {
     /// returns true if the collider was projected to collide with e
     pub fn is_colliding_with(&self, e: &Entity) -> bool {
         self.going_to_collide_with.contains(e)
+    }
+
+    /// clear old collision list, then swap it with new collision list
+    ///
+    /// there should be some way to do this with [`std::mem::swap`] or something similar
+    fn update_own_lists(&mut self) {
+        self.going_to_collide_with = self.was_colliding_with.clone();
+        self.was_colliding_with = Vec::new();
     }
 }
 
@@ -68,13 +72,21 @@ pub enum PhysicsSet {
     FinalizeMovement,
 }
 
-/// Both types of colliders will keep track of any collisions, but a Solid collider will attempt to
-/// avoid moving into or having another collision enabled entity move into it, while a sensor will
-/// simply keep track of any collisions.
+/// `Wall` will function as takking up the entire tile
+///
+/// `Floor` will function as a floor, stopping downward motion
+///
+/// `Ragdoll` will stop movement to avoid collisions, but won't stop collision into it.
+///
+/// `Sensor` will not interact with movement at all, but will keep track of any collisions
+///
+/// This definetly needs to be re-architected somehow in the future
 #[derive(Debug, Clone, Default)]
 pub enum ColliderType {
     #[default]
-    Solid,
+    Wall,
+    Floor,
+    Ragdoll,
     Sensor,
 }
 
@@ -133,11 +145,12 @@ pub struct MovementGoal(pub Vec3);
 struct VelocityTicker(Vec3);
 
 /// clears all potential collisions
-fn clear_collisions(mut collider_q: Query<&mut Collider>) {
+fn update_collision_lists(mut collider_q: Query<&mut Collider>) {
     trace!("zeroing collisions");
-    collider_q
-        .par_iter_mut()
-        .for_each_mut(|mut c| c.going_to_collide_with = Vec::new());
+    collider_q.par_iter_mut().for_each_mut(|mut c| {
+        // clear was_colliding with. irrelevant
+        c.update_own_lists();
+    });
 }
 
 /// This function performs collision checking on any entity with a TotalVelocity, GlobalTransform,
@@ -198,10 +211,6 @@ fn check_collisions(
         // its projected movement will just be however much the ticker is already filled, along
         // with its total velocity
         let projected_movement = (total_velocity * time.delta_seconds() + ticked_velocity).floor();
-
-        /// assert actual translation is only whole numbers, so that projection to tilespace will
-        /// be correct
-        assert!(transform.translation() == transform.translation().floor());
 
         // add projected_movement to absolute location to get projected absolute location. then
         // translate to tile space.
@@ -320,9 +329,15 @@ fn calculate_relative_velocity(
 /// This will reset any tickers with a totalVelocity of 0 to 0,0,0. This may lead to bugs in the
 /// future
 ///
-/// delta time should be applied here?
-fn apply_total_movement(
-    mut phsyics_components: Query<(&mut Transform, &mut VelocityTicker, &RelativeVelocity)>,
+/// This will also avoid moving two [`ColliderType::Solid`] into each other by lessening their
+/// velocity.
+fn finalize_movement(
+    mut phsyics_components: Query<(
+        &mut Transform,
+        &mut VelocityTicker,
+        &RelativeVelocity,
+        Option<&Collider>,
+    )>,
     tile_stretch: Res<TileStretch>,
     time: Res<Time>,
 ) {
@@ -331,7 +346,7 @@ fn apply_total_movement(
     //
     // also converts to 32x32
 
-    for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
+    for (mut transform, mut ticker, total_velocity, collider) in phsyics_components.iter_mut() {
         // update ticker, only apply velocity * delta to keep time consistent
         ticker.0 += total_velocity.0 * time.delta_seconds();
 
@@ -559,7 +574,7 @@ impl Plugin for PhysicsPlugin {
         )
         // might need to constrain this more in order for collision to actually be useful
         .add_system(
-            clear_collisions
+            update_collision_lists
                 .before(check_collisions)
                 .in_set(PhysicsSet::CollisionCheck),
         )
@@ -569,7 +584,7 @@ impl Plugin for PhysicsPlugin {
                 .in_set(PhysicsSet::CollisionCheck),
         )
         .add_system(
-            apply_total_movement
+            finalize_movement
                 .in_set(PhysicsSet::FinalizeMovement)
                 .after(PhysicsSet::CollisionCheck),
         );

@@ -9,8 +9,10 @@
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
   - [x] propogate velocities
-  - [ ] Collision checking
+  - [x] Collision checking
    - [ ] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
+  - [ ] Collision resolution
+  - [ ] Collision event system
   - [ ] "take" velocity from floor
   - [ ] finalize, and probably re-architect continous velocity
   - [ ] fine tune gravity
