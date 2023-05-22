@@ -1,22 +1,15 @@
 //! A tile-based Physics Engine for this project
 //!
-//! A good place to get started with internal systems is [`PhysicsPlugin`], and for components
-//! check out [`TotalVelocity`] and [`VelocityTicker`].
+//! See [`PhysicsPlugin`], and its build function to get started with the source code, or you can
+//! likely read the file from top-down and understand it decently well.
 
-use std::todo;
+use std::{assert_eq, todo};
 
 use bevy::prelude::*;
 
 use crate::{controllers, tile_objects::TileStretch};
 
-/// allows you to take on the velocity of another entity, useful for ships, etc
-///
-/// this should probably be re-architected in the future
-#[derive(Component, Debug, Deref, DerefMut)]
-pub struct LinkVelocity(pub Entity);
-
-/// a tile collider
-/// specified in tile_space
+/// a tile collider, specified in tile space. use a z of 0 to have it at the bottom of its x,y tile
 #[derive(Component, Debug, Deref, DerefMut)]
 pub struct Collider(pub IVec3);
 
@@ -24,18 +17,32 @@ pub struct Collider(pub IVec3);
 /// physics system sets
 /// register all velocity wants for the current frame before FinalMovement
 /// if wanting to use previously updated locations, run after FinalMovement
+///
+/// Currently, only FinalizeMovement is used by the Physics engine, and setting anything relative
+/// to FinalizeVelocity or CollisionCheck will break things.
 pub enum PhysicsSet {
-    FinalMovement,
+    FinalizeVelocity,
+    CollisionCheck,
+    FinalizeMovement,
 }
 
-/// a total velocity per frame, used for updating movement
-/// this is rarely ever acurate except during FinalMovement set, and potentially afterwards
+/// Velocity for current frame relative to its parents velocity
 ///
-/// If you want an object to "have" velocity, but not actually move, give it a TotalVelocity
-/// component, but no VelocityTicker
+/// this is rarely ever acurate except during FinalMovement set, and potentially afterwards.
 ///
-///  TotalVelocity.0 should never be changed outside of physics engine
-#[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
+/// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
+/// Bundle but no ticker
+///
+///  Relative Velocity should likely not be chnaged outside of the physics engine
+#[derive(Debug, Component, Clone, Default, Deref)]
+pub struct RelativeVelocity(Vec3);
+
+/// RelativeVelocity + parent's TotalVelocity
+///
+/// TotalVelocity will = RelativeVelocity when an entity has no parents
+///
+/// All of an entity's parents must have a Velocity bundle in order for the entity to have one
+#[derive(Debug, Component, Clone, Default, Deref)]
 pub struct TotalVelocity(Vec3);
 
 /// Any component with a weight will have gravity applied to it on each physics update
@@ -57,38 +64,49 @@ pub struct MovementGoal(pub Vec3);
 
 /// A Velocity Ticker, used to keep track of when to actually move a physics component, by
 /// buffering velocity into its ticker until at least a whole tile has been moved.
+/// This makes it so that speeds of less than 1 tile per second can be used without a complex
+/// movement system or something, and in real time, as it will essentially buffer all movements
+/// until they're enough to move at least a full tile.
 ///
-/// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0.
+/// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0. In the future this
+/// might be changed so that you can reset your ticker trough a request like RequestResetTicker.
 ///
 /// As this Ticker is meant to be wholely managed by the physics engine, it is not public, and must
 /// be instantiated trough a Bundle like [`PhysicsComponentBase`]
 #[derive(Debug, Component, Clone, Copy, Default, Deref, DerefMut)]
 struct VelocityTicker(Vec3);
 
+/// "Raycast out" based on current velocity ticker and then "trim" the ticker down if an object is
+/// likely to be collided with
+///
+/// in the future consider having collision events?
+///
+/// entities will be at something like TotalVel - RelVol + Ticker
+fn perform_collision_checks_and_cancelling() {
+    todo!()
+}
+
 /// Takes all factors that could affect a physics component's velocity on each frame and then
 /// calculates a "total velocity" as a function of all of these factors
 ///
 /// This does not move any components, nor update their ticker
-fn calculate_total_velocity(
+fn calculate_relative_velocity(
     mut commands: Commands,
     mut phsyics_components: Query<(
-        &mut TotalVelocity,
+        &mut RelativeVelocity,
         Option<&MovementGoal>,
         Option<&Weight>,
         Option<&MantainedVelocity>,
         Option<&Collider>,
-        Option<&LinkVelocity>,
     )>,
     time: Res<Time>,
 ) {
     let delta_time = time.delta().as_secs_f32();
 
-    let mut to_calc_linked = Vec::new();
-
     for component in phsyics_components.iter_mut() {
         let mut new_total_velocity = Vec3::splat(0.);
 
-        let (mut total_velocity, movement_goal, weight, mantained, collider, link) = component;
+        let (mut total_velocity, movement_goal, weight, mantained, collider) = component;
 
         // it is up to the controller to ensure that the movement goal is reasonable
         if let Some(movement_goal) = movement_goal {
@@ -108,30 +126,7 @@ fn calculate_total_velocity(
             todo!("Collision not yet implemented")
         }
 
-        if let Some(linked) = link {
-            to_calc_linked.push((linked.0, commands.get_entity(linked.0).unwrap().id()));
-        }
-
         total_velocity.0 = new_total_velocity;
-    }
-
-    // post pass any linked velocities to ensure they use updated velocities
-    // doesn't support "nested" linked velocities, which could be a problem later
-    // might need to recurse through and force linked velocities to update based on dependencie
-    // order
-    for (linked, linked_to) in to_calc_linked.iter() {
-        // there's got to be a way to not have to clone this..
-        // cheap clone I guess
-        let linked_to_vel = phsyics_components
-            .get_component::<TotalVelocity>(*linked_to)
-            .unwrap()
-            .clone();
-
-        let mut linked_vel = phsyics_components
-            .get_component_mut::<TotalVelocity>(*linked)
-            .unwrap();
-
-        linked_vel.0 += linked_to_vel.0;
     }
 }
 
@@ -140,11 +135,11 @@ fn calculate_total_velocity(
 ///
 /// This will reset any tickers with a totalVelocity of 0 to 0,0,0. This may lead to bugs in the
 /// future
-fn apply_total_velocity(
+fn apply_total_movement(
     mut phsyics_components: Query<(
         &mut Transform,
         &mut VelocityTicker,
-        &TotalVelocity,
+        &RelativeVelocity,
         Option<&controllers::player::Controller>,
     )>,
     tile_stretch: Res<TileStretch>,
@@ -219,11 +214,136 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
-/// The components necessary for internal physics engine systems to take affect on an entity.
+/// Propogate velocities down from an entities parents so that its Total and Relative Velocity remains accurate
+///
+/// needs parent total and child relative along with child total
+///
+/// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
+/// license. see (https://github.com/bevyengine/bevy/LICENSE-APACHE) for more details.
+///
+/// Also see (./credits/bevy)
+fn propogate_velocities(
+    mut root_query: Query<
+        (Entity, &Children, Ref<RelativeVelocity>, &mut TotalVelocity),
+        Without<Parent>,
+    >,
+    velocity_query: Query<
+        (Ref<RelativeVelocity>, &mut TotalVelocity, Option<&Children>),
+        With<Parent>,
+    >,
+    parent_query: Query<(Entity, Ref<Parent>)>,
+) {
+    trace!("starting velocity propagataion");
+
+    // TODO: par iter
+    root_query
+        .par_iter_mut()
+        .for_each_mut(|(entity, children, relative, mut total)| {
+            let changed = relative.is_changed();
+            if changed {
+                total.0 = relative.0;
+            }
+
+            for (child, actual_parent) in parent_query.iter_many(children) {
+                assert_eq!(actual_parent.get(), entity, "Bad hierarchy");
+                propagate_recursive(
+                    &total,
+                    &velocity_query,
+                    &parent_query,
+                    child,
+                    changed || actual_parent.is_changed(),
+                );
+            }
+        });
+}
+
+/// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
+/// license. see (https://github.com/bevyengine/bevy/LICENSE-APACHE) for more details.
+///
+/// Also see (./credits/bevy)
+fn propagate_recursive(
+    parent_total: &TotalVelocity,
+    velocity_query: &Query<
+        (Ref<RelativeVelocity>, &mut TotalVelocity, Option<&Children>),
+        With<Parent>,
+    >,
+    parent_query: &Query<(Entity, Ref<Parent>)>,
+    entity: Entity,
+    mut changed: bool,
+) {
+    let (global_matrix, children) = {
+        let Ok((relative, mut total, children)) =
+            // SAFETY: This call cannot create aliased mutable references.
+            //   - The top level iteration parallelizes on the roots of the hierarchy.
+            //   - The caller ensures that each child has one and only one unique parent throughout the entire
+            //     hierarchy.
+            //
+            // For example, consider the following malformed hierarchy:
+            //
+            //     A
+            //   /   \
+            //  B     C
+            //   \   /
+            //     D
+            //
+            // D has two parents, B and C. If the propagation passes through C, but the Parent component on D points to B,
+            // the above check will panic as the origin parent does match the recorded parent.
+            //
+            // Also consider the following case, where A and B are roots:
+            //
+            //  A       B
+            //   \     /
+            //    C   D
+            //     \ /
+            //      E
+            //
+            // Even if these A and B start two separate tasks running in parallel, one of them will panic before attempting
+            // to mutably access E.
+            (unsafe { velocity_query.get_unchecked(entity) }) else {
+                return;
+            };
+
+        changed |= relative.is_changed();
+        if changed {
+            total.0 = parent_total.0 + relative.0;
+        }
+        (parent_total, children)
+    };
+
+    let Some(children) = children else { return };
+    for (child, actual_parent) in parent_query.iter_many(children) {
+        assert_eq!(
+            actual_parent.get(), entity,
+            "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
+        );
+        // SAFETY: The caller guarantees that `transform_query` will not be fetched
+        // for any descendants of `entity`, so it is safe to call `propagate_recursive` for each child.
+        //
+        // The above assertion ensures that each child has one and only one unique parent throughout the
+        // entire hierarchy.
+        unsafe {
+            propagate_recursive(
+                &global_matrix,
+                velocity_query,
+                parent_query,
+                child,
+                changed || actual_parent.is_changed(),
+            );
+        }
+    }
+}
+
+/// The components necessary for movement by the physics engine to take place on an entity's
+/// transform.
+///
+/// You must provide a transform yourself in order to get movement, in order to stay compatible
+/// with other bundles.
+///
+/// TODO: consider clearing ticker even if not attached to a Transform
 #[derive(Bundle, Debug, Default)]
 pub struct PhysicsComponentBase {
     ticker: VelocityTicker,
-    total_velocity: TotalVelocity,
+    total_velocity: VelocityBundle,
 }
 
 #[derive(Debug, Bundle)]
@@ -234,23 +354,42 @@ pub struct PhysicsComponentFull {
     pub collider: Collider,
 }
 
+/// Allows an entity to exist in the physics system with a velocity
+/// Total velocity is the total velocity that the object should be moved, while relative velocity
+/// is how it is moving relative to its parent in the object hierarchy
+#[derive(Bundle, Debug, Default)]
+pub struct VelocityBundle {
+    total: RelativeVelocity,
+    relative_total: TotalVelocity,
+}
+
 /// A plugin to setup essential physics systems
 ///
 /// Any system that wants to use the results of a physics engine update should not run until after
 /// [`PhysicsSet::FinalMovement`] has been completed
 ///
-/// Any systems that want to affect the physics engine in a given frame must run before `FinalMovement`.
+/// Any systems that want to affect the physics engine in a given frame must run before
+/// [`PhysicsSet::FinalizeVelocity].
+///
+/// See [`PhysicsPlugin::build`] for the flow of the physics update
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             (
-                calculate_total_velocity,
-                apply_total_velocity.after(calculate_total_velocity),
-                decay_persistent_velocity.after(calculate_total_velocity),
+                calculate_relative_velocity,
+                propogate_velocities.after(calculate_relative_velocity),
+                decay_persistent_velocity.after(calculate_relative_velocity),
             )
-                .in_set(PhysicsSet::FinalMovement),
+                .in_set(PhysicsSet::FinalizeVelocity),
+        )
+        // collision here
+        .add_system(
+            // other movement stuff here
+            apply_total_movement
+                .in_set(PhysicsSet::FinalizeMovement)
+                .after(PhysicsSet::FinalizeVelocity),
         );
     }
 }

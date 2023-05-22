@@ -21,6 +21,9 @@ pub struct DynWallObject();
 #[derive(Resource)]
 pub struct TileStretch(pub u8, pub u8);
 
+#[derive(Resource, Deref)]
+pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
+
 /// Marks that an entity should be managed as a viewable/interactable tile object
 #[derive(Component)]
 pub struct TileObject();

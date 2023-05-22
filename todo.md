@@ -1,7 +1,14 @@
 # General code cleanliness
- - [x] use IVec3 in places where it makes sense (like everywhere)
+ - [ ] chunk out startup systems, allowing doing startups after necessary resources are set up more easily
+- [x] use IVec3 in places where it makes sense (like everywhere)
 
 # Big features
+ - [ ] "full" tile physics engine (roughly in order)
+  - [x] propogate velocities
+  - [ ] Collision checking
+  - [ ] "take" velocity from floor
+  - [ ] finalize, and probably re-architect continous velocity
+  - [ ] fine tune gravity
  - [ ] Player and AI interaction 
     - [ ] ladders
     - [ ] guns
@@ -20,11 +27,6 @@
      - [ ] tile update processing
     - [ ] dynamically update spritesheet colors
     - [ ] dynamically update tile sprites
- - [ ] "full" tile physics engine
-  - [ ] linked velocities
-  - [ ] "take" velocity from floor
-  - [ ] finalize continous velocity
-  - [ ] fine tune gravity
  - [ ] ships
     - requires certain spritesheet features
     - [ ] ship rotate along z axis with half-steps

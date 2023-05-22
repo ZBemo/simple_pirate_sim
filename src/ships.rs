@@ -16,7 +16,7 @@ use std::ops::Add;
 use bevy::prelude::*;
 
 use crate::{
-    physics::{self, Collider, LinkVelocity, PhysicsComponentBase},
+    physics::{self, Collider, PhysicsComponentBase},
     random::{RandomGenerator, Seed},
     tile_objects::{DynWallObject, ObjectName, TileStretch},
 };
@@ -146,18 +146,19 @@ fn spawn_wall(
     // only one spritesheet lol
     let texture_atlas_handle = sprites.get_handle(sprites.iter().next().unwrap().0);
 
-    commands.spawn((
-        Collider(IVec3::ONE),
-        physics::TotalVelocity::default(),
-        LinkVelocity(*parent),
-        DynWallObject(),
-        ObjectName("Ship Wall".into()),
-        SpriteSheetBundle {
-            // TODO: dynamically update walls or something
-            sprite: TextureAtlasSprite::new(202),
-            texture_atlas: texture_atlas_handle,
-            transform: Transform::from_translation(location),
-            ..default()
-        },
-    ));
+    commands
+        .spawn((
+            Collider(IVec3::ONE),
+            physics::VelocityBundle::default(),
+            DynWallObject(),
+            ObjectName("Ship Wall".into()),
+            SpriteSheetBundle {
+                // TODO: dynamically update walls or something
+                sprite: TextureAtlasSprite::new(202),
+                texture_atlas: texture_atlas_handle,
+                transform: Transform::from_translation(location),
+                ..default()
+            },
+        ))
+        .set_parent(*parent);
 }

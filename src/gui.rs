@@ -2,7 +2,7 @@ use std::format;
 
 use bevy::prelude::*;
 
-const DEFAULT_FONT_PATH: &str = "fonts/FiraCode/FiraCodeNerdFont-Bold.ttf";
+pub const DEFAULT_FONT_PATH: &str = "fonts/FiraCode/FiraCodeNerdFont-Bold.ttf";
 
 use crate::{controllers, tile_objects::TileStretch};
 
@@ -19,7 +19,7 @@ pub fn update_coords_display(
 
         let new_text = format!("{}, {}, {}", pos.x, pos.y, pos.z);
 
-        for mut text in &mut query {
+        for mut text in query.iter_mut() {
             text.sections[0].value = new_text.clone();
         }
     }

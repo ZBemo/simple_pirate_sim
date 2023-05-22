@@ -34,6 +34,13 @@ struct PlayerBundle {
     walkspeed: WalkSpeed,
 }
 
+#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Clone)]
+pub enum StartupSets {
+    Random,
+    Rendering,
+    // WorldSetUp,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -44,21 +51,14 @@ fn main() {
         .add_startup_system(random::setup_generator)
         .add_system(gui::update_coords_display)
         // .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
-        .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalMovement))
+        .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalizeMovement))
         // .add_system(
         //     controllers::player::camera_follow_player
         //         .after(PhysicsSet::FinalMovement)
         // )
-        .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalMovement))
+        .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalizeMovement))
         // add system here
         .run();
-}
-
-fn setup_menu(mut commands: Commands) -> () {
-    // start button
-
-    // take seed for ship generation ?
-    // crew size slider?
 }
 
 /// behemoth setup system needs to be chunked way out
@@ -92,6 +92,9 @@ pub fn setup(
     );
 
     let texture_atlas_handle = sprites.add(texture_atlas);
+    commands.insert_resource(tile_objects::SpriteSheetHandle(
+        texture_atlas_handle.clone(),
+    ));
 
     //TODO: Save atlas handle as a resource
 
@@ -118,7 +121,7 @@ pub fn setup(
     commands.spawn(
         (PlayerBundle {
             sprite: SpriteSheetBundle {
-                texture_atlas: texture_atlas_handle,
+                texture_atlas: texture_atlas_handle.clone_weak(),
                 sprite: TextureAtlasSprite::new(2),
                 transform: Transform::from_xyz(0., 0., 1.),
                 ..default()
@@ -132,6 +135,7 @@ pub fn setup(
             walkspeed: WalkSpeed(5.),
         }),
     );
+
     // continue this
 }
 

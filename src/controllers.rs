@@ -10,10 +10,9 @@ use crate::physics::MovementGoal;
 // make diagonals a little slower so they're less desireable
 const DIAG_SPEED: f32 = 1. / 1.5;
 
-pub mod npc {
-    use bevy::prelude::*;
-}
-
+/// This should probably be a f32 as it is exponentially more granular than necessary
+#[derive(Component, Default)]
+pub struct MovementGoalTimeout(pub f64);
 #[derive(Component, Default)]
 pub struct WalkSpeed(pub f32);
 
@@ -36,9 +35,10 @@ pub fn update_goal_timeout(
         }
     }
 }
-// might need to be vec3?
-#[derive(Component, Default)]
-pub struct MovementGoalTimeout(pub f64);
+
+pub mod npc {
+    use bevy::prelude::*;
+}
 
 pub mod player {
     use crate::{controllers::DIAG_SPEED, physics::MovementGoal};
