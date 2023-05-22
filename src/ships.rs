@@ -148,7 +148,7 @@ fn spawn_wall(
 
     commands
         .spawn((
-            Collider(IVec3::ONE),
+            Collider::new(IVec3::ONE, physics::CollisionType::Solid),
             physics::VelocityBundle::default(),
             DynWallObject(),
             ObjectName("Ship Wall".into()),

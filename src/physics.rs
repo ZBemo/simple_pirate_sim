@@ -1,4 +1,4 @@
-//! A tile-based Physics Engine for this project
+//! A tile-based, realtime Physics Engine for this project
 //!
 //! See [`PhysicsPlugin`], and its build function to get started with the source code, or you can
 //! likely read the file from top-down and understand it decently well.
@@ -9,14 +9,31 @@ use bevy::prelude::*;
 
 use crate::{controllers, tile_objects::TileStretch};
 
+/// The gravity constant used for weight velocity gain
+pub const GRAVITY: f32 = 9.8;
+
 /// a tile collider, specified in tile space. use a z of 0 to have it at the bottom of its x,y tile
-#[derive(Component, Debug, Deref, DerefMut)]
-pub struct Collider(pub IVec3);
+#[derive(Component, Debug)]
+pub struct Collider {
+    pub size: IVec3,
+    collision_type: CollisionType,
+    has_collided: bool,
+}
+
+impl Collider {
+    pub fn new(size: IVec3, collision_type: CollisionType) -> Self {
+        Self {
+            size,
+            collision_type,
+            has_collided: false,
+        }
+    }
+}
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
 /// physics system sets
-/// register all velocity wants for the current frame before FinalMovement
-/// if wanting to use previously updated locations, run after FinalMovement
+/// register all velocity wants for the current frame before [`PhysicsSet::FinalizeVelocity`]
+/// if wanting to use previously updated locations, run after [`PhysicsSet::FinalizeMovement`]
 ///
 /// Currently, only FinalizeMovement is used by the Physics engine, and setting anything relative
 /// to FinalizeVelocity or CollisionCheck will break things.
@@ -26,9 +43,16 @@ pub enum PhysicsSet {
     FinalizeMovement,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub enum CollisionType {
+    #[default]
+    Solid,
+    // send out an event or something
+    // or callback or something
+    Sensor,
+}
+
 /// Velocity for current frame relative to its parents velocity
-///
-/// this is rarely ever acurate except during FinalMovement set, and potentially afterwards.
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
 /// Bundle but no ticker
@@ -46,6 +70,9 @@ pub struct RelativeVelocity(Vec3);
 pub struct TotalVelocity(Vec3);
 
 /// Any component with a weight will have gravity applied to it on each physics update
+///
+/// Any entity with a Weight will have a velocity of [`GRAVITY`] * weight added to its relative
+/// velocity during calculation.
 #[derive(Debug, Clone, Copy, Component, Deref, DerefMut)]
 pub struct Weight(pub f32);
 
@@ -55,41 +82,71 @@ pub struct Weight(pub f32);
 pub struct MantainedVelocity(pub Vec3);
 
 /// a tile velocity that is wiped after every update, for willfully moving characters, usually
-/// trough controllers
+/// through controllers
+///
+/// Each axis on the inner Vec3 represents the entities requested speed in that direction, similar
+/// to a force diagram.
 ///
 /// As valid movement is different for each entity, The physics engine does not check for "invalid" movement goals,
-/// and it is the responsibility of  whoever is controlling an entity to make sure movement goals are valid.
+/// so it is the responsibility of  whoever is controlling an entity to make sure movement goals are valid before setting them.
 #[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
 pub struct MovementGoal(pub Vec3);
 
-/// A Velocity Ticker, used to keep track of when to actually move a physics component, by
+/// A Velocity Ticker, used to keep track of when to actually move a physics component by
 /// buffering velocity into its ticker until at least a whole tile has been moved.
-/// This makes it so that speeds of less than 1 tile per second can be used without a complex
-/// movement system or something, and in real time, as it will essentially buffer all movements
-/// until they're enough to move at least a full tile.
+///
+/// This makes it so that velocities of less than 1 tile per second can be represented in the
+/// engine in real time.
 ///
 /// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0. In the future this
-/// might be changed so that you can reset your ticker trough a request like RequestResetTicker.
+/// should be changed so that you can reset your ticker trough a request like RequestResetTicker.
 ///
 /// As this Ticker is meant to be wholely managed by the physics engine, it is not public, and must
 /// be instantiated trough a Bundle like [`PhysicsComponentBase`]
 #[derive(Debug, Component, Clone, Copy, Default, Deref, DerefMut)]
 struct VelocityTicker(Vec3);
 
-/// "Raycast out" based on current velocity ticker and then "trim" the ticker down if an object is
-/// likely to be collided with
-///
 /// in the future consider having collision events?
 ///
-/// entities will be at something like TotalVel - RelVol + Ticker
-fn perform_collision_checks_and_cancelling() {
-    todo!()
+/// entities will be at something like (total_vel  + ticker).floor() after movement finalization, so
+/// use that for collision checking
+///
+/// this might need to request world?
+///
+/// This should be ran before any movement of local transforms, to keep global locations accurate.
+fn perform_collision_checks(
+    collider_query: Query<(Entity, &Collider)>,
+    velocity_query: Query<(&TotalVelocity, Option<&VelocityTicker>)>,
+    transform_query: Query<&GlobalTransform>,
+) {
+    // map colliders to colliders, moving colliders
+
+    let colliders: Vec<_> = collider_query
+        .iter()
+        .map(|(entity, collider)| {
+            let velocities = velocity_query.get(entity).ok();
+            let transform = velocity_query.get(entity).expect(
+                "Entity with Collider has no transform. Any collider should also have a transform.",
+            );
+
+            (entity, collider, velocities, transform)
+        })
+        .map(|(entity, collider, velocities, transform)| {})
+        .collect();
+
+    // map clliders to rays
+
+    // check collisions.
 }
+
+struct RayCollider {}
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
 /// calculates a "total velocity" as a function of all of these factors
 ///
 /// This does not move any components, nor update their ticker
+///
+/// This should wait until movement finalization to multiply by delta time.
 fn calculate_relative_velocity(
     mut commands: Commands,
     mut phsyics_components: Query<(
@@ -97,7 +154,6 @@ fn calculate_relative_velocity(
         Option<&MovementGoal>,
         Option<&Weight>,
         Option<&MantainedVelocity>,
-        Option<&Collider>,
     )>,
     time: Res<Time>,
 ) {
@@ -106,7 +162,7 @@ fn calculate_relative_velocity(
     for component in phsyics_components.iter_mut() {
         let mut new_total_velocity = Vec3::splat(0.);
 
-        let (mut total_velocity, movement_goal, weight, mantained, collider) = component;
+        let (mut total_velocity, movement_goal, weight, mantained) = component;
 
         // it is up to the controller to ensure that the movement goal is reasonable
         if let Some(movement_goal) = movement_goal {
@@ -115,15 +171,11 @@ fn calculate_relative_velocity(
 
         // maybe gravity should be part of mantained velocity
         if let Some(weight) = weight {
-            new_total_velocity.z -= weight.0 * 4.9 * delta_time;
+            new_total_velocity.z -= weight.0 * GRAVITY * delta_time;
         }
 
         if let Some(mantained) = mantained {
             new_total_velocity += mantained.0;
-        }
-
-        if let Some(collider) = collider {
-            todo!("Collision not yet implemented")
         }
 
         total_velocity.0 = new_total_velocity;
@@ -135,13 +187,12 @@ fn calculate_relative_velocity(
 ///
 /// This will reset any tickers with a totalVelocity of 0 to 0,0,0. This may lead to bugs in the
 /// future
+///
+/// This should be renamed. something like update_and_apply_ticker
+///
+/// delta time should be applied here?
 fn apply_total_movement(
-    mut phsyics_components: Query<(
-        &mut Transform,
-        &mut VelocityTicker,
-        &RelativeVelocity,
-        Option<&controllers::player::Controller>,
-    )>,
+    mut phsyics_components: Query<(&mut Transform, &mut VelocityTicker, &RelativeVelocity)>,
     tile_stretch: Res<TileStretch>,
 ) {
     // this will make it so entities only move a tile once an entire tiles worth of movement
@@ -149,28 +200,23 @@ fn apply_total_movement(
     //
     // also converts to 32x32
 
-    for (mut transform, mut ticker, total_velocity, player) in phsyics_components.iter_mut() {
+    for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
         // update ticker
         ticker.0 += total_velocity.0;
 
         debug!("updating with ticker {}", ticker.0);
 
-        let mut ticker_ticked = false;
-
         while ticker.0.z.abs() >= 1. {
             transform.translation.z += ticker.0.z.signum();
             ticker.0.z -= 1. * ticker.0.z.signum();
-            ticker_ticked = true;
         }
         while ticker.0.y.abs() >= 1. {
             transform.translation.y += tile_stretch.1 as f32 * ticker.0.y.signum();
             ticker.0.y -= 1. * ticker.0.y.signum();
-            ticker_ticked = true;
         }
         while ticker.0.x.abs() >= 1. {
             transform.translation.x += tile_stretch.0 as f32 * ticker.0.x.signum();
             ticker.0.x -= 1. * ticker.0.x.signum();
-            ticker_ticked = true;
         }
 
         // this might break things in the future!
@@ -219,9 +265,7 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
 /// needs parent total and child relative along with child total
 ///
 /// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
-/// license. see (https://github.com/bevyengine/bevy/LICENSE-APACHE) for more details.
-///
-/// Also see (./credits/bevy)
+/// license. see <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
 fn propogate_velocities(
     mut root_query: Query<
         (Entity, &Children, Ref<RelativeVelocity>, &mut TotalVelocity),
@@ -258,9 +302,7 @@ fn propogate_velocities(
 }
 
 /// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
-/// license. see (https://github.com/bevyengine/bevy/LICENSE-APACHE) for more details.
-///
-/// Also see (./credits/bevy)
+/// license. see <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
 fn propagate_recursive(
     parent_total: &TotalVelocity,
     velocity_query: &Query<
@@ -366,12 +408,12 @@ pub struct VelocityBundle {
 /// A plugin to setup essential physics systems
 ///
 /// Any system that wants to use the results of a physics engine update should not run until after
-/// [`PhysicsSet::FinalMovement`] has been completed
+/// [`PhysicsSet::FinalizeMovement`] has been completed
 ///
 /// Any systems that want to affect the physics engine in a given frame must run before
-/// [`PhysicsSet::FinalizeVelocity].
+/// [`PhysicsSet::FinalizeVelocity`].
 ///
-/// See [`PhysicsPlugin::build`] for the flow of the physics update
+/// See the source of [`PhysicsPlugin::build`] for how systems are ordered.
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
@@ -384,12 +426,15 @@ impl Plugin for PhysicsPlugin {
             )
                 .in_set(PhysicsSet::FinalizeVelocity),
         )
-        // collision here
+        // .add_system(
+        //     perform_collision_checks
+        //         .after(propogate_velocities)
+        //         .in_set(PhysicsSet::CollisionCheck),
+        // )
         .add_system(
-            // other movement stuff here
             apply_total_movement
                 .in_set(PhysicsSet::FinalizeMovement)
-                .after(PhysicsSet::FinalizeVelocity),
+                .after(PhysicsSet::CollisionCheck),
         );
     }
 }

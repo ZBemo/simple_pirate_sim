@@ -10,7 +10,7 @@ mod tile_objects;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use controllers::{MovementGoalTimeout, WalkSpeed};
-use physics::{MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight};
+use physics::{Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight};
 use tile_objects::{cull_non_camera_layer_sprites, TileObject, TileStretch};
 
 /// an unused gamestate system
@@ -47,16 +47,16 @@ fn main() {
         .add_plugin(PhysicsPlugin)
         .add_state::<GameState>()
         .add_startup_system(setup)
-        .add_startup_system(gui::setup_coords_display)
+        // .add_startup_system(gui::setup_coords_display)
         .add_startup_system(random::setup_generator)
-        .add_system(gui::update_coords_display)
+        // .add_system(gui::update_coords_display)
         // .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
-        .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalizeMovement))
+        .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalizeVelocity))
         // .add_system(
         //     controllers::player::camera_follow_player
         //         .after(PhysicsSet::FinalMovement)
         // )
-        .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalizeMovement))
+        .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalizeVelocity))
         // add system here
         .run();
 }
@@ -115,6 +115,7 @@ pub fn setup(
         },
         tile_objects::TileObject(),
         tile_objects::ObjectName("Random Wall".into()),
+        Collider::new(IVec3::ONE, physics::CollisionType::Solid),
     ));
 
     // player

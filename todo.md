@@ -1,11 +1,15 @@
 # General code cleanliness
+ - [x] use IVec3 in places where it makes sense (like everywhere)
  - [ ] chunk out startup systems, allowing doing startups after necessary resources are set up more easily
-- [x] use IVec3 in places where it makes sense (like everywhere)
+ - [ ] change query function parameters to $NAME_q. will make code far more readable
+ - [ ] set up cargo clippy and lint 
+ - [ ] start checking docs for correctness
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
   - [x] propogate velocities
   - [ ] Collision checking
+   - [ ] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
   - [ ] "take" velocity from floor
   - [ ] finalize, and probably re-architect continous velocity
   - [ ] fine tune gravity
