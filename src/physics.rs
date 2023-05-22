@@ -155,9 +155,9 @@ fn calculate_relative_velocity(
         Option<&Weight>,
         Option<&MantainedVelocity>,
     )>,
-    time: Res<Time>,
+    // time: Res<Time>,
 ) {
-    let delta_time = time.delta().as_secs_f32();
+    // let delta_time = time.delta().as_secs_f32();
 
     for component in phsyics_components.iter_mut() {
         let mut new_total_velocity = Vec3::splat(0.);
@@ -166,12 +166,12 @@ fn calculate_relative_velocity(
 
         // it is up to the controller to ensure that the movement goal is reasonable
         if let Some(movement_goal) = movement_goal {
-            new_total_velocity += movement_goal.0 * delta_time;
+            new_total_velocity += movement_goal.0;
         }
 
         // maybe gravity should be part of mantained velocity
         if let Some(weight) = weight {
-            new_total_velocity.z -= weight.0 * GRAVITY * delta_time;
+            new_total_velocity.z -= weight.0 * GRAVITY;
         }
 
         if let Some(mantained) = mantained {
@@ -188,12 +188,11 @@ fn calculate_relative_velocity(
 /// This will reset any tickers with a totalVelocity of 0 to 0,0,0. This may lead to bugs in the
 /// future
 ///
-/// This should be renamed. something like update_and_apply_ticker
-///
 /// delta time should be applied here?
 fn apply_total_movement(
     mut phsyics_components: Query<(&mut Transform, &mut VelocityTicker, &RelativeVelocity)>,
     tile_stretch: Res<TileStretch>,
+    time: Res<Time>,
 ) {
     // this will make it so entities only move a tile once an entire tiles worth of movement
     // has been "made", keeping it in a grid based system
@@ -202,7 +201,7 @@ fn apply_total_movement(
 
     for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
         // update ticker
-        ticker.0 += total_velocity.0;
+        ticker.0 += total_velocity.0 * time.delta_seconds();
 
         debug!("updating with ticker {}", ticker.0);
 
