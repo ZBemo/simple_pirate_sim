@@ -115,7 +115,7 @@ pub fn setup(
         },
         tile_objects::TileObject(),
         tile_objects::ObjectName("Random Wall".into()),
-        Collider::new(IVec3::ONE, physics::CollisionType::Solid),
+        Collider::new(IVec3::ONE, physics::ColliderType::Solid),
     ));
 
     // player
