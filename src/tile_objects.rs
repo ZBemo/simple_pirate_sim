@@ -21,7 +21,7 @@ pub struct DynWallObject();
 /// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
 /// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
 /// the right grid.
-#[derive(Resource, Deref)]
+#[derive(Resource, Clone, Deref)]
 pub struct TileStretch(IVec2);
 
 #[derive(Resource, Deref)]
@@ -32,10 +32,6 @@ pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
 pub struct TileObject();
 
 impl TileStretch {
-    pub fn into_ivec2(&self) -> IVec2 {
-        self.into()
-    }
-
     pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
         // common sense check that t contains only whole numbers before casting
         assert!(
@@ -56,11 +52,15 @@ impl TileStretch {
             t.z as f32,
         )
     }
+
+    pub fn new(v: IVec2) -> Self {
+        v.into()
+    }
 }
 
-impl From<&TileStretch> for IVec2 {
-    fn from(value: &TileStretch) -> Self {
-        **value
+impl From<IVec2> for TileStretch {
+    fn from(value: IVec2) -> Self {
+        Self(value)
     }
 }
 

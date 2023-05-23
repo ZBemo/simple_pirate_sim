@@ -71,21 +71,15 @@ pub fn setup(
 ) {
     // dwarfs (0,2)
     // TODO: ACTUAL Sprite sheet code
-    let tilestretch = TileStretch(32, 32);
-    commands.insert_resource(TileStretch(32, 32));
+    let tilestretch: TileStretch = TileStretch::new(IVec2::ONE * 32);
+    commands.insert_resource(tilestretch.clone());
 
     let texture_handle = asset_server.load("tilesets/main.png");
 
     // TODO: image manipulation & get data for tilestretch
 
-    let texture_atlas = TextureAtlas::from_grid(
-        texture_handle,
-        tilestretch.into_ivec2().as_vec2(),
-        16,
-        16,
-        None,
-        None,
-    );
+    let texture_atlas =
+        TextureAtlas::from_grid(texture_handle, tilestretch.as_vec2(), 16, 16, None, None);
 
     let texture_atlas_handle = sprites.add(texture_atlas);
     commands.insert_resource(tile_objects::SpriteSheetHandle(

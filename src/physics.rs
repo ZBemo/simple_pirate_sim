@@ -12,6 +12,8 @@ use crate::tile_objects::TileStretch;
 /// The gravity constant used for weight velocity gain
 pub const GRAVITY: f32 = 9.8;
 
+pub struct ColliderConstraints {}
+
 /// a tile collider, specified in tile space. Importantly, size essentially functions as another
 /// corner of the Collider's "box", so a size of (0,0,0) should inhabit a single tile.
 #[derive(Component, Debug)]
@@ -356,11 +358,11 @@ fn finalize_movement(
             ticker.0.z -= 1. * ticker.0.z.signum();
         }
         while ticker.0.y.abs() >= 1. {
-            transform.translation.y += tile_stretch.1 as f32 * ticker.0.y.signum();
+            transform.translation.y += tile_stretch.y as f32 * ticker.0.y.signum();
             ticker.0.y -= 1. * ticker.0.y.signum();
         }
         while ticker.0.x.abs() >= 1. {
-            transform.translation.x += tile_stretch.0 as f32 * ticker.0.x.signum();
+            transform.translation.x += tile_stretch.x as f32 * ticker.0.x.signum();
             ticker.0.x -= 1. * ticker.0.x.signum();
         }
 
