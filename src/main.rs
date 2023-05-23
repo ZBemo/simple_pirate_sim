@@ -107,7 +107,7 @@ pub fn setup(
         },
         tile_objects::TileObject(),
         tile_objects::ObjectName("Random Wall".into()),
-        Collider::new(IVec3::ZERO, physics::collider::Constraints {}),
+        Collider::new(IVec3::ZERO, physics::collider::Constraints::WALL),
     ));
 
     // player
@@ -125,7 +125,7 @@ pub fn setup(
         weight: Weight(0.),
         //TODO: figure out if 1. speed is really 1 grid per second
         walkspeed: WalkSpeed(5.),
-        collider: Collider::new(IVec3::ZERO, physics::collider::Constraints {}),
+        collider: Collider::new(IVec3::ZERO, physics::collider::Constraints::ENTITY),
     });
 
     // continue this

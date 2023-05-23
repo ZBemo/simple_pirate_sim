@@ -1,18 +1,124 @@
 //! Colliders and Collision systems
 
-use bevy::{prelude::*, utils::HashMap};
+use std::assert_ne;
+
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
 use crate::tile_objects::TileStretch;
 
 use super::{TotalVelocity, VelocityTicker};
 
+/// If a collider is sodid across the negative axis, positive, neither, or both
+///
+/// represent planes, with a plane going from across a whole side of
+/// the axes, and preventing movement from +/-.
+///
+/// having Axis be a `repr(u8)` makes certain math easier.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, Default)]
+pub enum Axis {
+    #[default]
+    None = 0,
+    Pos = 0b01,
+    Neg = 0b10,
+    PosNeg = 0b11,
+}
+
+impl Axis {
+    /// returns true if the axis has a plane across its negative
+    pub fn accross_negative(&self) -> bool {
+        return (*self as u8 & 0b10) != 0;
+    }
+    /// returns true if the axis has a plane across its positive
+    pub fn across_positive(&self) -> bool {
+        return (*self as u8 & 0b01) != 0;
+    }
+
+    pub fn has_plane(&self) -> bool {
+        return *self as u8 != 0;
+    }
+}
+
+/// A Vec3 of [`SolidAxis`] constraints
+#[derive(Debug, Clone, Default)]
+pub struct AVec3 {
+    pub x: Axis,
+    pub y: Axis,
+    pub z: Axis,
+}
+
+impl AVec3 {
+    pub const ALL: Self = Self {
+        x: Axis::PosNeg,
+        y: Axis::PosNeg,
+        z: Axis::PosNeg,
+    };
+    pub const NONE: Self = Self {
+        x: Axis::None,
+        y: Axis::None,
+        z: Axis::None,
+    };
+
+    /// returns true if any of its axes are not Axis::None
+    pub fn any_planes(&self) -> bool {
+        // None represented as 0
+        (self.z as u8 | self.x as u8 | self.y as u8) != 0
+    }
+}
+
+/// constraints put onto a collider and its collisions
 #[derive(Debug, Clone)]
 pub struct Constraints {
-    //TODO
+    /// which axes it is "solid" in a plane along, and thus will cause a collision conflict
+    ///
+    /// for example, a hallway oriented -x->+x might only allowing moving through it from +-x->+-x,
+    /// and so would have y as PosNeg, to prevent moving into it from the y axes
+    ///
+    /// diagonal movement will interpret solid axes in the most generous way possible, so in the
+    /// hallway example above as long as the entity moving into it is not at hallway.translate +/-
+    /// TileVec::Y, it will be able to move through it
+    ///
+    /// Essentially, if an object is moving along an axis with a sign the same as its Axis
+    /// selection, it will trigger a conflict
+    pub solid_axes: AVec3, //TODO
+    /// which axes it can be pushed along in order to resolve collision
+    pub move_along: AVec3,
+}
+
+impl Constraints {
+    pub const WALL: Self = Self {
+        solid_axes: AVec3::ALL,
+        move_along: AVec3::NONE,
+    };
+    pub const FLOOR: Self = Self {
+        solid_axes: AVec3 {
+            x: Axis::None,
+            y: Axis::None,
+            z: Axis::Neg,
+        },
+        move_along: AVec3::NONE,
+    };
+    pub const ENTITY: Self = Self {
+        solid_axes: AVec3 {
+            x: Axis::None,
+            y: Axis::None,
+            z: Axis::Neg,
+        },
+        move_along: AVec3::ALL,
+    };
+
+    pub const SENSOR: Self = Self {
+        solid_axes: AVec3::NONE,
+        move_along: AVec3::NONE,
+    };
 }
 
 /// a tile collider, specified in tile space. Importantly, size essentially functions as another
-/// corner of the Collider's "box", so a size of (0,0,0) should inhabit a single tile.
+/// corner of the Collider's "box", so a size of (0,0,0) should inhabit a single tile. See
+/// constraints for more size granularity
 #[derive(Component, Debug)]
 pub struct Collider {
     pub size: IVec3,
@@ -39,6 +145,14 @@ impl Collider {
     /// get all entities that the collider was projected to collide with
     pub fn get_colliding_with(&self) -> &[Entity] {
         &self.going_to_collide_with
+    }
+
+    pub fn get_was_colliding_with(&self) -> &[Entity] {
+        &self.was_colliding_with
+    }
+
+    pub fn was_colliding_with(&self, e: &Entity) -> bool {
+        self.was_colliding_with.contains(e)
     }
 
     /// returns true if the collider was projected to collide with e
@@ -120,7 +234,7 @@ pub(super) fn check_collisions(
         }
 
         // its projected movement will just be however much the ticker is already filled, along
-        // with its total velocity
+        // with its total velocity times the time delta to get how much it will move this frame
         let projected_movement = (total_velocity * time.delta_seconds() + ticked_velocity).floor();
 
         // add projected_movement to absolute location to get projected absolute location. then
@@ -191,4 +305,69 @@ pub(super) fn check_collisions(
             }
         }
     }
+}
+
+pub(super) fn resolve_collisions(
+    collider_q: Query<(Entity, &Collider)>,
+    mut velocity_q: Query<(&mut TotalVelocity, Option<&VelocityTicker>)>,
+    transform_query: Query<&GlobalTransform>,
+    tile_stretch: Res<TileStretch>,
+    time: Res<Time>,
+) {
+    fn is_moving_diagonal(v: Vec3) -> BVec3 {
+        let mut diagonals = BVec3::FALSE;
+
+        if v.z == v.x {
+            diagonals.z = true;
+            diagonals.x = true;
+        }
+        if v.x == v.y {
+            diagonals.y = true;
+            diagonals.x = true
+        }
+        if v.y == v.z {
+            diagonals.y = true;
+            diagonals.z = true;
+        }
+
+        diagonals
+    }
+
+    let mut conflicts: Vec<(Entity, Entity)> = Vec::new();
+
+    // we want to build a map of actual conflicts, then iterate through in a deterministic
+    // way and resolve them.
+
+    // find any conflicting collisons
+    for (collider_entity, collider) in collider_q.iter() {
+        // check c constraints
+
+        // there is no chance of collision. do nothing
+        if !collider.constraints.solid_axes.any_planes() {
+            break;
+        };
+
+        for colliding_entity in collider.going_to_collide_with.iter() {
+            assert_ne!(
+                collider_entity, *colliding_entity,
+                "Entity claims to be colliding with itself!"
+            );
+
+            // query all necessary variables to resolve.
+            //
+            // none of these should be incorrect. could unwrap_unchecked
+            let mut colliding_entity_v = velocity_q.get_mut(*colliding_entity).unwrap();
+            let colliding_collider = collider_q.get(*colliding_entity).unwrap();
+            let mut collider_entity_v = velocity_q.get_mut(collider_entity).unwrap();
+
+            // calculate velocity for both e
+            //
+            // figure out which planes each e needs to move through
+            //
+            // check if those planes are constrained
+            // push to conflicts if so
+        }
+    }
+
+    // dedup conflicts then sort by something and iterate through
 }
