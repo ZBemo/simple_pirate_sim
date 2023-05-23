@@ -3,11 +3,11 @@
 //! See [`PhysicsPlugin`], and its build function to get started with the source code, or you can
 //! likely read the file from top-down and understand it decently well.
 
-use std::{assert_eq, mem, todo};
+use std::assert_eq;
 
 use bevy::{prelude::*, utils::HashMap};
 
-use crate::{controllers, tile_objects::TileStretch};
+use crate::tile_objects::TileStretch;
 
 /// The gravity constant used for weight velocity gain
 pub const GRAVITY: f32 = 9.8;
@@ -217,7 +217,7 @@ fn check_collisions(
         let projected_tile_location =
             tile_stretch.bevy_translation_to_tile(&(transform.translation() + projected_movement));
 
-        /// if collider is more than 0x0x0, draw out from there.
+        // if collider is more than 0x0x0, draw out from there.
         for x in range_to_n(collider.size.x) {
             for y in range_to_n(collider.size.x) {
                 for z in range_to_n(collider.size.x) {
@@ -225,7 +225,7 @@ fn check_collisions(
 
                     trace!("pushing inhabiting of {}", inhabiting);
 
-                    if let Some(mut inhabited_vec) = inhabited_tiles.get_mut(&inhabiting) {
+                    if let Some(inhabited_vec) = inhabited_tiles.get_mut(&inhabiting) {
                         inhabited_vec.push(entity);
                     } else {
                         inhabited_tiles.insert_unique_unchecked(inhabiting, vec![entity]);
@@ -289,7 +289,6 @@ fn check_collisions(
 ///
 /// This should wait until movement finalization to multiply by delta time.
 fn calculate_relative_velocity(
-    mut commands: Commands,
     mut phsyics_components: Query<(
         &mut RelativeVelocity,
         Option<&MovementGoal>,
@@ -346,7 +345,7 @@ fn finalize_movement(
     //
     // also converts to 32x32
 
-    for (mut transform, mut ticker, total_velocity, collider) in phsyics_components.iter_mut() {
+    for (mut transform, mut ticker, total_velocity, _collider) in phsyics_components.iter_mut() {
         // update ticker, only apply velocity * delta to keep time consistent
         ticker.0 += total_velocity.0 * time.delta_seconds();
 
@@ -436,20 +435,22 @@ fn propogate_velocities(
 
             for (child, actual_parent) in parent_query.iter_many(children) {
                 assert_eq!(actual_parent.get(), entity, "Bad hierarchy");
-                propagate_recursive(
-                    &total,
-                    &velocity_query,
-                    &parent_query,
-                    child,
-                    changed || actual_parent.is_changed(),
-                );
+                unsafe {
+                    propagate_recursive(
+                        &total,
+                        &velocity_query,
+                        &parent_query,
+                        child,
+                        changed || actual_parent.is_changed(),
+                    );
+                }
             }
         });
 }
 
 /// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
 /// license. see <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
-fn propagate_recursive(
+unsafe fn propagate_recursive(
     parent_total: &TotalVelocity,
     velocity_query: &Query<
         (Ref<RelativeVelocity>, &mut TotalVelocity, Option<&Children>),
@@ -583,6 +584,7 @@ impl Plugin for PhysicsPlugin {
                 .after(propogate_velocities)
                 .in_set(PhysicsSet::CollisionCheck),
         )
+        // resolve collisions system here?
         .add_system(
             finalize_movement
                 .in_set(PhysicsSet::FinalizeMovement)

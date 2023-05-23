@@ -1,4 +1,7 @@
-use std::{any::Any, format};
+// still under heavy development
+#![allow(unused)]
+
+use std::{any::Any, format, todo};
 
 use bevy::{ecs::query::WorldQuery, prelude::*};
 
@@ -67,16 +70,4 @@ pub fn setup_info_display(mut commands: Commands, asset_server: Res<AssetServer>
         }),
         CoordsText(),
     ));
-}
-
-/// figure out some way to have the plugin be built, and then handle building of textboxes
-/// procedurally.
-///
-/// perhaps have inserts register blank marker structs that they then query for.
-struct InfoDisplayPlugin();
-
-impl Plugin for InfoDisplayPlugin {
-    fn build(&self, app: &mut App) {
-        todo!()
-    }
 }

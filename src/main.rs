@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 mod controllers;
 mod gui;
 mod physics;
@@ -8,10 +6,9 @@ mod ships;
 mod tile_objects;
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use controllers::{MovementGoalTimeout, WalkSpeed};
 use physics::{Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight};
-use tile_objects::{cull_non_camera_layer_sprites, TileObject, TileStretch};
+use tile_objects::TileStretch;
 
 /// an unused gamestate system
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -67,13 +64,11 @@ fn main() {
 /// basically just exists for prototyping
 pub fn setup(
     mut commands: Commands,
-    window_q: Query<&Window, With<PrimaryWindow>>,
+    // window_q: Query<&Window, With<PrimaryWindow>>,
     asset_server: Res<AssetServer>,
     mut sprites: ResMut<Assets<TextureAtlas>>,
     // mut tilestretch: ResMut<TileStretch>,
 ) -> () {
-    let window = window_q.get_single().unwrap();
-
     // dwarfs (0,2)
     // TODO: ACTUAL Sprite sheet code
     let tilestretch = TileStretch(32, 32);
@@ -120,35 +115,22 @@ pub fn setup(
     ));
 
     // player
-    commands.spawn(
-        (PlayerBundle {
-            sprite: SpriteSheetBundle {
-                texture_atlas: texture_atlas_handle.clone_weak(),
-                sprite: TextureAtlasSprite::new(2),
-                transform: Transform::from_xyz(0., 0., 1.),
-                ..default()
-            },
-            physics_component: PhysicsComponentBase::default(),
-            controller: controllers::player::Controller(),
-            movement_goal: MovementGoal(Vec3::ZERO),
-            m_goal_timeout: MovementGoalTimeout(0.),
-            weight: Weight(0.),
-            //TODO: figure out if 1. speed is really 1 grid per second
-            walkspeed: WalkSpeed(5.),
-            collider: Collider::new(IVec3::ZERO, physics::ColliderType::Ragdoll),
-        }),
-    );
+    commands.spawn(PlayerBundle {
+        sprite: SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle.clone_weak(),
+            sprite: TextureAtlasSprite::new(2),
+            transform: Transform::from_xyz(0., 0., 1.),
+            ..default()
+        },
+        physics_component: PhysicsComponentBase::default(),
+        controller: controllers::player::Controller(),
+        movement_goal: MovementGoal(Vec3::ZERO),
+        m_goal_timeout: MovementGoalTimeout(0.),
+        weight: Weight(0.),
+        //TODO: figure out if 1. speed is really 1 grid per second
+        walkspeed: WalkSpeed(5.),
+        collider: Collider::new(IVec3::ZERO, physics::ColliderType::Ragdoll),
+    });
 
     // continue this
-}
-
-fn check_wall_player(
-    wall: Query<&Transform, With<TileObject>>,
-    player: Query<&Transform, With<controllers::player::Controller>>,
-) {
-    warn!(
-        "player: {}; wall: {}",
-        player.single().translation,
-        wall.single().translation
-    )
 }

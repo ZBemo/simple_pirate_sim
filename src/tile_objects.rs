@@ -3,6 +3,9 @@
 //!
 //! In the future, setup spritesheet, tilestretch, etc and process spritesheet images
 
+// still in heavy development
+#![allow(unused)]
+
 use std::collections::HashSet;
 
 use bevy::prelude::*;
@@ -83,14 +86,13 @@ pub fn setup_spritesheet(asset_server: Res<AssetServer>) {
 }
 
 pub fn cull_non_camera_layer_sprites(
-    mut commands: Commands,
     cameras: Query<&Transform, With<Camera>>,
     mut renderables: Query<(&mut Visibility, &Transform), (With<TileObject>, Without<Camera>)>,
     player: Query<&controllers::player::Controller, Changed<Transform>>,
 ) {
     // TODO: depth affect by having culled sprites turn to colored dots or something similar
 
-    /// only run if there is player movement
+    // only run if there is player movement
     if let Ok(_) = player.get_single() {
     } else {
         return;

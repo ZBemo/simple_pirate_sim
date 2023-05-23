@@ -37,19 +37,21 @@ pub fn update_goal_timeout(
 }
 
 pub mod npc {
+    #[allow(unused)]
     use bevy::prelude::*;
+    //todo;
 }
 
 pub mod player {
     use crate::{controllers::DIAG_SPEED, physics::MovementGoal};
     use bevy::prelude::*;
-    use std::todo;
 
     /// A marker for an entity controlled as a player
     #[derive(Component, Default)]
     pub struct Controller();
 
     /// a system to make the player the center of the screen
+    #[allow(unused)]
     pub fn camera_follow_player(
         player: Query<(&Controller, &Transform), (Without<Camera>, Changed<Transform>)>,
         mut cameras: Query<(&mut Transform, &Camera), Without<Controller>>,

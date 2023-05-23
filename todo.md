@@ -16,6 +16,7 @@
   - [ ] "take" velocity from floor
   - [ ] finalize, and probably re-architect continous velocity
   - [ ] fine tune gravity
+ - [ ] Information display setup for gui, easier development
  - [ ] Player and AI interaction 
     - [ ] ladders
     - [ ] guns
@@ -47,3 +48,7 @@
     - [ ] AI gives and takes commands
     - [ ] should be able to use same interactions as player
 
+# Upgrades
+
+## Physics
+ - [ ] use a configurable constraint system for colliders instead of like 6 different types

@@ -11,13 +11,15 @@
 //! 'c' = canon
 //!
 //! ' ' = open space
-use std::ops::Add;
+
+// still under heavy development
+#![allow(unused)]
 
 use bevy::prelude::*;
 
 use crate::{
-    physics::{self, Collider, PhysicsComponentBase},
-    random::{RandomGenerator, Seed},
+    physics::{self, Collider},
+    random::RandomGenerator,
     tile_objects::{DynWallObject, ObjectName, TileStretch},
 };
 
