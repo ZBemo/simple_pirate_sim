@@ -21,8 +21,8 @@ pub struct DynWallObject();
 /// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
 /// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
 /// the right grid.
-#[derive(Resource)]
-pub struct TileStretch(pub u8, pub u8);
+#[derive(Resource, Deref)]
+pub struct TileStretch(IVec2);
 
 #[derive(Resource, Deref)]
 pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
@@ -44,28 +44,28 @@ impl TileStretch {
         );
 
         IVec3::new(
-            t.x as i32 / self.0 as i32,
-            t.y as i32 / self.1 as i32,
+            t.x as i32 / self.x as i32,
+            t.y as i32 / self.y as i32,
             t.z as i32,
         )
     }
     pub fn tile_translation_to_bevy(&self, t: &IVec3) -> Vec3 {
         Vec3::new(
-            t.x as f32 * self.0 as f32,
-            t.y as f32 * self.1 as f32,
+            t.x as f32 * self.x as f32,
+            t.y as f32 * self.y as f32,
             t.z as f32,
         )
     }
 }
 
-impl Into<IVec2> for &TileStretch {
-    fn into(self) -> IVec2 {
-        IVec2::new(self.0 as i32, self.1 as i32)
+impl From<&TileStretch> for IVec2 {
+    fn from(value: &TileStretch) -> Self {
+        **value
     }
 }
 
 // 45 degreees to radians * 2
-pub const ROTATE_TILE: f32 = 2. * 0.785398;
+pub const ROTATE_TILE: f32 = std::f32::consts::FRAC_1_PI;
 
 fn update_dyn_wall_sprites(
     walls: Query<(&mut TextureAtlasSprite, &Transform), With<DynWallObject>>,
@@ -93,20 +93,20 @@ pub fn cull_non_camera_layer_sprites(
     // TODO: depth affect by having culled sprites turn to colored dots or something similar
 
     // only run if there is player movement
-    if let Ok(_) = player.get_single() {
-    } else {
+    if !player.get_single().is_ok() {
         return;
     };
 
     trace!("Culling non-camera layer sprites because player location change");
 
-    let camera_layers: HashSet<_> = cameras.iter().map(|c| c.translation.z as i64).collect();
+    let camera_layers: Vec<_> = cameras.iter().map(|c| c.translation.z).collect();
+
     for mut r in renderables.iter_mut() {
-        if !camera_layers.contains(&(r.1.translation.z as i64)) {
+        if camera_layers.contains(&r.1.translation.z) {
+            *r.0 = Visibility::Visible;
+        } else {
             // should not be renderable
             *r.0 = Visibility::Hidden;
-        } else {
-            *r.0 = Visibility::Visible;
         }
     }
 }

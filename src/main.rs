@@ -68,7 +68,7 @@ pub fn setup(
     asset_server: Res<AssetServer>,
     mut sprites: ResMut<Assets<TextureAtlas>>,
     // mut tilestretch: ResMut<TileStretch>,
-) -> () {
+) {
     // dwarfs (0,2)
     // TODO: ACTUAL Sprite sheet code
     let tilestretch = TileStretch(32, 32);

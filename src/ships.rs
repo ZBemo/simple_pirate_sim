@@ -103,7 +103,7 @@ fn spawn_ship_from_blueprint(
     blueprint: &[&str],
     commands: &mut Commands,
     tile_stretch: &TileStretch,
-) -> () {
+) {
     let mut position = start_position;
 
     let ship = commands
