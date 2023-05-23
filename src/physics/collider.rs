@@ -30,15 +30,15 @@ pub enum Axis {
 impl Axis {
     /// returns true if the axis has a plane across its negative
     pub fn accross_negative(&self) -> bool {
-        return (*self as u8 & 0b10) != 0;
+        (*self as u8 & 0b10) != 0
     }
     /// returns true if the axis has a plane across its positive
     pub fn across_positive(&self) -> bool {
-        return (*self as u8 & 0b01) != 0;
+        (*self as u8 & 0b01) != 0
     }
 
     pub fn has_plane(&self) -> bool {
-        return *self as u8 != 0;
+        *self as u8 != 0
     }
 }
 
@@ -139,7 +139,7 @@ impl Collider {
 
     /// Returns true if the collider was projected to collide with
     pub fn is_colliding(&self) -> bool {
-        return !self.going_to_collide_with.is_empty();
+        !self.going_to_collide_with.is_empty()
     }
 
     /// get all entities that the collider was projected to collide with

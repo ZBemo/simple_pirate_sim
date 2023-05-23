@@ -60,7 +60,7 @@ pub mod player {
             // in the future with multi camera system this will need to iterate
             let mut camera = cameras.get_single_mut().unwrap();
 
-            camera.0.translation = player.1.translation.clone();
+            camera.0.translation = player.1.translation;
         }
     }
 

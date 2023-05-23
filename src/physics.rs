@@ -316,7 +316,7 @@ unsafe fn propagate_recursive(
         // entire hierarchy.
         unsafe {
             propagate_recursive(
-                &global_matrix,
+                global_matrix,
                 velocity_query,
                 parent_query,
                 child,

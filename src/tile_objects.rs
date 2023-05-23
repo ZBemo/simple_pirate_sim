@@ -39,11 +39,7 @@ impl TileStretch {
             "attempted translation of vector with non-whole numbers into tilespace"
         );
 
-        IVec3::new(
-            t.x as i32 / self.x as i32,
-            t.y as i32 / self.y as i32,
-            t.z as i32,
-        )
+        IVec3::new(t.x as i32 / self.x, t.y as i32 / self.y, t.z as i32)
     }
     pub fn tile_translation_to_bevy(&self, t: &IVec3) -> Vec3 {
         Vec3::new(
@@ -93,7 +89,7 @@ pub fn cull_non_camera_layer_sprites(
     // TODO: depth affect by having culled sprites turn to colored dots or something similar
 
     // only run if there is player movement
-    if !player.get_single().is_ok() {
+    if player.get_single().is_err() {
         return;
     };
 
