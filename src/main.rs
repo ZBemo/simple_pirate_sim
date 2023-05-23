@@ -7,7 +7,9 @@ mod tile_objects;
 
 use bevy::prelude::*;
 use controllers::{MovementGoalTimeout, WalkSpeed};
-use physics::{Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight};
+use physics::{
+    collider::Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight,
+};
 use tile_objects::TileStretch;
 
 /// an unused gamestate system
@@ -105,7 +107,7 @@ pub fn setup(
         },
         tile_objects::TileObject(),
         tile_objects::ObjectName("Random Wall".into()),
-        Collider::new(IVec3::ZERO, physics::ColliderType::Wall),
+        Collider::new(IVec3::ZERO, physics::collider::Constraints {}),
     ));
 
     // player
@@ -123,7 +125,7 @@ pub fn setup(
         weight: Weight(0.),
         //TODO: figure out if 1. speed is really 1 grid per second
         walkspeed: WalkSpeed(5.),
-        collider: Collider::new(IVec3::ZERO, physics::ColliderType::Ragdoll),
+        collider: Collider::new(IVec3::ZERO, physics::collider::Constraints {}),
     });
 
     // continue this

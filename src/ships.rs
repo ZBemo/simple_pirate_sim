@@ -18,7 +18,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    physics::{self, Collider},
+    physics::{self, collider::Collider},
     random::RandomGenerator,
     tile_objects::{DynWallObject, ObjectName, TileStretch},
 };
@@ -150,7 +150,7 @@ fn spawn_wall(
 
     commands
         .spawn((
-            Collider::new(IVec3::ONE, physics::ColliderType::Wall),
+            Collider::new(IVec3::ONE, physics::collider::Constraints {}),
             physics::VelocityBundle::default(),
             DynWallObject(),
             ObjectName("Ship Wall".into()),
