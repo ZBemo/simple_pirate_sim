@@ -3,11 +3,22 @@
 
 use std::{assert_eq, assert_ne, hint::unreachable_unchecked};
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
 use crate::tile_objects::{ObjectName, TileStretch};
 
 use super::{TotalVelocity, VelocityTicker};
+
+// an entity will be added to a collision event if it is on the same tile as another entity's
+// collider, regardless of the event
+#[derive(Debug, Clone)]
+pub struct Collision {
+    location: IVec3,
+    entities: Vec<Entity>,
+}
 
 /// If a collider is sodid across the negative axis, positive, neither, or both
 ///
@@ -126,59 +137,17 @@ impl Constraints {
 pub struct Collider {
     pub size: IVec3,
     pub constraints: Constraints,
-    going_to_collide_with: Vec<Entity>,
-    was_colliding_with: Vec<Entity>,
 }
 
 impl Collider {
     pub fn new(size: IVec3, constraints: Constraints) -> Self {
-        Self {
-            size,
-            constraints,
-            going_to_collide_with: Vec::new(),
-            was_colliding_with: Vec::new(),
-        }
-    }
-
-    /// Returns true if the collider was projected to collide with
-    pub fn is_colliding(&self) -> bool {
-        !self.going_to_collide_with.is_empty()
-    }
-
-    /// get all entities that the collider was projected to collide with
-    pub fn get_colliding_with(&self) -> &[Entity] {
-        &self.going_to_collide_with
-    }
-
-    pub fn get_was_colliding_with(&self) -> &[Entity] {
-        &self.was_colliding_with
-    }
-
-    pub fn was_colliding_with(&self, e: &Entity) -> bool {
-        self.was_colliding_with.contains(e)
-    }
-
-    /// returns true if the collider was projected to collide with e
-    pub fn is_colliding_with(&self, e: &Entity) -> bool {
-        self.going_to_collide_with.contains(e)
-    }
-
-    /// clear old collision list, then swap it with new collision list
-    ///
-    /// there should be some way to do this with [`std::mem::swap`] or something similar
-    fn update_own_lists(&mut self) {
-        self.going_to_collide_with = self.was_colliding_with.clone();
-        self.was_colliding_with = Vec::new();
+        Self { size, constraints }
     }
 }
 
 /// clears all potential collisions
 pub(super) fn update_collision_lists(mut collider_q: Query<&mut Collider>) {
-    trace!("zeroing collisions");
-    collider_q.par_iter_mut().for_each_mut(|mut c| {
-        // clear was_colliding with. irrelevant
-        c.update_own_lists();
-    });
+    todo!()
 }
 
 fn predict_location(
@@ -226,6 +195,7 @@ pub(super) fn check_collisions(
     velocity_query: Query<(&TotalVelocity, Option<&VelocityTicker>)>,
     transform_query: Query<&GlobalTransform>,
     tile_stretch: Res<TileStretch>,
+    mut collision_writer: EventWriter<Collision>,
     time: Res<Time>,
 ) {
     trace!("starting collision check");
@@ -301,278 +271,36 @@ pub(super) fn check_collisions(
                 location
             );
 
-            // there is a collision
-            // loop through entitites and update their colliding list
+            let event = Collision {
+                location: location.clone(),
+                entities: entities.clone(),
+            };
 
-            for colliding_entity in entities.iter() {
-                // for each colliding entity, update it with a list of collisions. Make sure it's
-                // deduplicated, and doesn't include the actual entity.
-                //
-                // it might be prudent to do this lazily through an element implemented onto
-                // Collider
-
-                // safety: we know this search willl be succesful because this entity was
-                // originally pulled from the collider query, then filtered down
-                let mut collider =
-                    unsafe { collider_query.get_mut(*colliding_entity).unwrap_unchecked() };
-
-                // notify the entity that it is going to collide with all entities in entities
-
-                let mut not_current_entity = entities.clone();
-
-                // safety we know any searches for colliding_entity will be succesful because
-                // colliding_entity exists in the vec that we just cloned.
-                not_current_entity.remove(unsafe {
-                    not_current_entity
-                        .iter()
-                        .position(|e| e == colliding_entity)
-                        .unwrap_unchecked()
-                });
-
-                not_current_entity.dedup();
-
-                collider.1.going_to_collide_with = not_current_entity;
-            }
+            collision_writer.send(event);
         }
     }
 }
 
 pub(super) fn resolve_collisions(
+    mut collision_events: EventReader<Collision>,
     collider_q: Query<(Entity, &Collider)>,
     mut velocity_q: Query<(Option<&mut TotalVelocity>, Option<&VelocityTicker>)>,
     transform_query: Query<&GlobalTransform>,
     name_q: Query<&ObjectName>,
     tile_stretch: Res<TileStretch>,
-    time: Res<Time>,
 ) {
-    struct Conflict {
-        entities: (Entity, Entity),
-        // can re-calculate passed axes
-        violated_planes: (
-            (ViolatedPlane, ViolatedPlane, ViolatedPlane),
-            (ViolatedPlane, ViolatedPlane, ViolatedPlane),
-        ),
-    }
-
     enum ViolatedPlane {
         None,
         Neg,
         Pos,
     }
 
-    let mut conflicts: Vec<Conflict> = Vec::new();
+    let updated_entities: HashSet<Entity> = HashSet::new();
 
-    // we want to build a map of actual conflicts, then iterate through in a deterministic
-    // way and resolve them.
+    for collision in collision_events.iter() {
 
-    // to parrelelise, collect as Vec<Option<Entity,Entity>> and filter that
-    // find any conflicting collisons
-    for (collider_entity, collider) in collider_q.iter() {
-        // check c constraints
-
-        // there is no chance of collision. do nothing
-        if !collider.constraints.solid_axes.any_planes() {
-            break;
-        };
-
-        for colliding_entity in collider.going_to_collide_with.iter() {
-            assert_ne!(
-                collider_entity, *colliding_entity,
-                "Entity claims to be colliding with itself!"
-            );
-
-            // query all necessary variables to resolve.
-            //
-            // none of these should be incorrect. could unwrap_unchecked
-            let colliding_entity_v = velocity_q
-                .get(*colliding_entity)
-                .expect("couldn't get an option? could probably unwrap_unchecked this");
-
-            let colliding_collider = if let Ok(c) = collider_q.get(*colliding_entity) {
-                c
-            } else {
-                warn!("collider dissapeared in between check_collisions and resolve_collisions!?");
-                break;
-            };
-
-            let colliding_location = transform_query
-                .get(*colliding_entity)
-                .expect("Any collision enabled entity should have a transfoorm")
-                .translation();
-
-            let collider_entity_v = velocity_q
-                .get(collider_entity)
-                .expect("couldn't get an option? could probably unwrap_unchecked this");
-            let collider_location = transform_query
-                .get(collider_entity)
-                .expect("Any collision enabled entity should have a transfoorm")
-                .translation();
-
-            let delta_time = time.delta_seconds();
-
-            // we should be able to safely assume they will have the same location by theend of
-            // this frame if they are colliding
-            let colliding_predicted = predict_location(
-                colliding_entity_v.0,
-                colliding_entity_v.1,
-                colliding_location,
-                delta_time,
-                &tile_stretch,
-            );
-
-            assert_eq!(
-                colliding_predicted,
-                predict_location(
-                    collider_entity_v.0,
-                    collider_entity_v.1,
-                    collider_location,
-                    delta_time,
-                    &tile_stretch,
-                ),
-                "Predicted collision of colliders who will be at two seperate tiles!"
-            );
-
-            // this is calculated wrong somehow. is incorrect when moving in a positive direction,
-            // but not in a negative direction
-            //
-            // also does not take diagonals into account?
-            //
-            // might need to get distance from {x,y,z} -> {x,y,z} instead of just subtracting?
-            //
-            // It looks like for some reason entities moving positively will not be collision
-            // checked until after they move?
-            let difference_collider = colliding_predicted
-                - tile_stretch
-                    .bevy_translation_to_tile(&(collider_location * collider_location.signum()));
-            let difference_colliding = colliding_predicted
-                - tile_stretch
-                    .bevy_translation_to_tile(&(colliding_location * collider_location.signum()));
-
-            trace!("checking for conflict at {}", colliding_predicted,);
-
-            trace!(
-                "collider: dfference {}, location {}, name {}",
-                difference_collider,
-                tile_stretch.bevy_translation_to_tile(&collider_location),
-                name_q.get(collider_entity).map_or_else(|_| "", |n| &*n.0)
-            );
-
-            trace!(
-                "colliding: difference {}, location {}, name {}",
-                difference_colliding,
-                tile_stretch.bevy_translation_to_tile(&colliding_location),
-                name_q.get(*colliding_entity).map_or_else(|_| "", |n| &*n.0)
-            );
-            // make it last message
-            // panic!();
-
-            // check if passing through constraints
-            //
-            // convert movement -> violated planes
-
-            // find which planes the colliders movement will violate
-            let collider_violated_planes = {
-                let mut planes = (
-                    ViolatedPlane::None, // x
-                    ViolatedPlane::None, // y
-                    ViolatedPlane::None, // z
-                );
-
-                if difference_collider.x < 0
-                    && colliding_collider
-                        .1
-                        .constraints
-                        .solid_axes
-                        .x
-                        .across_positive()
-                {
-                    planes.0 = ViolatedPlane::Pos;
-                } else if difference_collider.x > 0
-                    && colliding_collider
-                        .1
-                        .constraints
-                        .solid_axes
-                        .x
-                        .accross_negative()
-                {
-                    // violated negative
-                    planes.0 = ViolatedPlane::Neg;
-                }
-
-                if difference_collider.y < 0
-                    && colliding_collider
-                        .1
-                        .constraints
-                        .solid_axes
-                        .y
-                        .across_positive()
-                {
-                    planes.1 = ViolatedPlane::Pos;
-                } else if difference_collider.y > 0
-                    && colliding_collider
-                        .1
-                        .constraints
-                        .solid_axes
-                        .y
-                        .accross_negative()
-                {
-                    // violated negative
-                    planes.1 = ViolatedPlane::Neg;
-                }
-
-                if difference_collider.z < 0
-                    && colliding_collider
-                        .1
-                        .constraints
-                        .solid_axes
-                        .z
-                        .across_positive()
-                {
-                    planes.0 = ViolatedPlane::Pos;
-                } else if difference_collider.x > 0
-                    && colliding_collider
-                        .1
-                        .constraints
-                        .solid_axes
-                        .z
-                        .accross_negative()
-                {
-                    // violated negative
-                    planes.2 = ViolatedPlane::Neg;
-                }
-            };
-
-            todo!();
-            // maybe we should just resolve conflict here, conflict won't be picked up when second
-            // instance of conflict is iterated through
-        }
-
-        trace!("Found {} collision conflicts", conflicts.len());
-
-        if conflicts.is_empty() {
-            return;
-        }
-
-        // sort and deduplicate any collisions between the same 2 entities.
-        // TODO: this probably doesn't sort correctly for deduplication
-        conflicts.sort_by_key(|e| e.entities);
-        conflicts.dedup_by(|e_r, e_l| {
-            // imagine e_r and e_l are the tuple below
-            //  e_r (entity_r0, entity_r1)
-            //  e_l (entity_l0, entity_l1),
-            //  we know it is the same collision if
-            //  r0 == l0 && r1 == l1
-            //  || r0 == l1 && r1 == l0
-            (e_r.entities.0 == e_l.entities.0) && (e_r.entities.1 == e_l.entities.1)
-                || (e_r.entities.0 == e_l.entities.1) && (e_r.entities.1 == e_l.entities.0)
-        });
-
-        trace!("Found {} unique conflicts, resolving...", conflicts.len());
-
-        todo!("Resolve collisions");
+        // query velocities, colliders, transform for each involved entity
     }
-
-    // dedup conflicts then sort by something and iterate through
 }
 
 // TODO: collision plugin?
