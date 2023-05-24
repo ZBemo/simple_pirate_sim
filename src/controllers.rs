@@ -58,7 +58,7 @@ pub mod player {
     ) {
         if let Ok(player) = player.get_single() {
             // in the future with multi camera system this will need to iterate
-            let mut camera = cameras.get_single_mut().unwrap();
+            let mut camera = cameras.get_single_mut().expect("Camera not found");
 
             camera.0.translation = player.1.translation;
         }
@@ -75,7 +75,7 @@ pub mod player {
         )>,
     ) {
         let (_, mut movement_timeout, mut movement_goal, walk_speed) =
-            player.get_single_mut().unwrap();
+            player.get_single_mut().expect("Player not found");
 
         for event in char_input_events.iter() {
             match event.char {

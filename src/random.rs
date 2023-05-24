@@ -18,13 +18,8 @@ pub struct RandomGenerator(RandomNumberGenerator);
 pub fn setup_generator(mut commands: Commands) {
     let seed = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs_f64()
-        * std::time::SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos() as f64;
-    let seed = seed as u64;
+        .expect("unable to get time since unix_epoch.. make sure you have an OS?")
+        .as_secs();
 
     commands.insert_resource(Seed(seed));
     commands.insert_resource(RandomGenerator(RandomNumberGenerator::seeded(seed)));

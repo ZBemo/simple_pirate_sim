@@ -316,7 +316,9 @@ unsafe fn propagate_recursive(
         // entire hierarchy.
         unsafe {
             propagate_recursive(
-                global_matrix,
+                // not messing with whatever bevy does
+                #[allow(clippy::needless_borrow)]
+                &global_matrix,
                 velocity_query,
                 parent_query,
                 child,
@@ -377,15 +379,13 @@ impl Plugin for PhysicsPlugin {
             )
                 .in_set(PhysicsSet::FinalizeVelocity),
         )
-        // might need to constrain this more in order for collision to actually be useful
-        .add_system(
-            collider::update_collision_lists
-                .before(collider::check_collisions)
-                .in_set(PhysicsSet::CollisionCheck),
-        )
-        .add_system(
-            collider::check_collisions
-                .after(propogate_velocities)
+        .add_systems(
+            (
+                collider::update_collision_lists,
+                collider::check_collisions,
+                collider::resolve_collisions.before(finalize_movement),
+            )
+                .chain()
                 .in_set(PhysicsSet::CollisionCheck),
         )
         // resolve collisions system here?

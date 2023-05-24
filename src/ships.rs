@@ -15,7 +15,7 @@
 // still under heavy development
 #![allow(unused)]
 
-use bevy::prelude::*;
+use bevy::{asset::Asset, prelude::*};
 
 use crate::{
     physics::{self, collider::Collider},
@@ -113,6 +113,8 @@ fn spawn_ship_from_blueprint(
         ))
         .id();
 
+    // todo convert this to Iter::Zip(1..)
+
     for z in 0..blueprint.len() {
         for x in 0..dimensions.0 as usize {
             for y in 0..dimensions.1 as usize {
@@ -121,7 +123,7 @@ fn spawn_ship_from_blueprint(
                     .chars()
                     .take(x * dimensions.0 as usize + y)
                     .last()
-                    .unwrap();
+                    .expect("Improper blueprint dimensions");
 
                 match char {
                     // 'w' => spawn_wall(commands, position.clone(), &ship, asset_server, sprites),
@@ -146,11 +148,17 @@ fn spawn_wall(
     sprites: Res<Assets<TextureAtlas>>,
 ) {
     // only one spritesheet lol
-    let texture_atlas_handle = sprites.get_handle(sprites.iter().next().unwrap().0);
+    let texture_atlas_handle = sprites.get_handle(
+        sprites
+            .iter()
+            .next()
+            .expect("sprite sheet should be instantiated by time game world is created")
+            .0,
+    );
 
     commands
         .spawn((
-            Collider::new(IVec3::ONE, physics::collider::Constraints::WALL),
+            Collider::new(IVec3::ONE, physics::collider::Constraints::BOX),
             physics::VelocityBundle::default(),
             DynWallObject(),
             ObjectName("Ship Wall".into()),

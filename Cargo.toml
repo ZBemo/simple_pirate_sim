@@ -13,15 +13,21 @@ opt-level = 3
 lto = "thin"
 
 [dependencies]
+# bevy dependency below
 bracket-random = "^0.8"
 
 [dependencies.bevy]
 version = "^0.10"
 default-features = false
 features = [
-  # "dynamic_linking", # comment out for release builds 
+  # if you add dynamic linking, remember not to commit
 
-  # bevy features we make use of 
+  # instead of dynamic linking, if working on linux, on a fairly recent computer I recomend using 
+  # mold linker. I have found that recompiling debug with mold and rust 1.69 
+  # (likely because of newly enabled incremental builds)  
+  # has nearly negligible speed differences from recompiling debug with dynamic_lib
+
+  # bevy features we (probably) make use of 
   "bevy_asset",
   "bevy_core_pipeline",
   "bevy_render",

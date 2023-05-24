@@ -1,25 +1,24 @@
 //! Colliders and Collision systems
+#![allow(unused)]
 
-use std::assert_ne;
+use std::{assert_eq, assert_ne, hint::unreachable_unchecked};
 
-use bevy::{
-    prelude::*,
-    utils::{HashMap, HashSet},
-};
+use bevy::{prelude::*, utils::HashMap};
 
-use crate::tile_objects::TileStretch;
+use crate::tile_objects::{ObjectName, TileStretch};
 
 use super::{TotalVelocity, VelocityTicker};
 
 /// If a collider is sodid across the negative axis, positive, neither, or both
 ///
-/// represent planes, with a plane going from across a whole side of
-/// the axes, and preventing movement from +/-.
+/// represent 1 or 2 2d planes along an axis, so that a Pos plane is essentially a line along the
+/// border moving down from a tile onto the collider, and vice-versa. When combined with three
+/// other AxisPlanes, this allows you to construct A Box with any number of sides cut out of it.
 ///
 /// having Axis be a `repr(u8)` makes certain math easier.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, Default)]
-pub enum Axis {
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub enum AxisPlanes {
     #[default]
     None = 0,
     Pos = 0b01,
@@ -27,7 +26,7 @@ pub enum Axis {
     PosNeg = 0b11,
 }
 
-impl Axis {
+impl AxisPlanes {
     /// returns true if the axis has a plane across its negative
     pub fn accross_negative(&self) -> bool {
         (*self as u8 & 0b10) != 0
@@ -44,22 +43,22 @@ impl Axis {
 
 /// A Vec3 of [`SolidAxis`] constraints
 #[derive(Debug, Clone, Default)]
-pub struct AVec3 {
-    pub x: Axis,
-    pub y: Axis,
-    pub z: Axis,
+pub struct PVec3 {
+    pub x: AxisPlanes,
+    pub y: AxisPlanes,
+    pub z: AxisPlanes,
 }
 
-impl AVec3 {
+impl PVec3 {
     pub const ALL: Self = Self {
-        x: Axis::PosNeg,
-        y: Axis::PosNeg,
-        z: Axis::PosNeg,
+        x: AxisPlanes::PosNeg,
+        y: AxisPlanes::PosNeg,
+        z: AxisPlanes::PosNeg,
     };
     pub const NONE: Self = Self {
-        x: Axis::None,
-        y: Axis::None,
-        z: Axis::None,
+        x: AxisPlanes::None,
+        y: AxisPlanes::None,
+        z: AxisPlanes::None,
     };
 
     /// returns true if any of its axes are not Axis::None
@@ -83,42 +82,46 @@ pub struct Constraints {
     ///
     /// Essentially, if an object is moving along an axis with a sign the same as its Axis
     /// selection, it will trigger a conflict
-    pub solid_axes: AVec3, //TODO
+    pub solid_axes: PVec3, //TODO
     /// which axes it can be pushed along in order to resolve collision
-    pub move_along: AVec3,
+    pub move_along: PVec3,
 }
 
 impl Constraints {
-    pub const WALL: Self = Self {
-        solid_axes: AVec3::ALL,
-        move_along: AVec3::NONE,
+    pub const BOX: Self = Self {
+        solid_axes: PVec3::ALL,
+        move_along: PVec3::NONE,
     };
     pub const FLOOR: Self = Self {
-        solid_axes: AVec3 {
-            x: Axis::None,
-            y: Axis::None,
-            z: Axis::Neg,
+        solid_axes: PVec3 {
+            x: AxisPlanes::None,
+            y: AxisPlanes::None,
+            z: AxisPlanes::Neg,
         },
-        move_along: AVec3::NONE,
+        move_along: PVec3::NONE,
     };
     pub const ENTITY: Self = Self {
-        solid_axes: AVec3 {
-            x: Axis::None,
-            y: Axis::None,
-            z: Axis::Neg,
+        solid_axes: PVec3 {
+            x: AxisPlanes::None,
+            y: AxisPlanes::None,
+            z: AxisPlanes::Neg,
         },
-        move_along: AVec3::ALL,
+        move_along: PVec3::ALL,
     };
 
     pub const SENSOR: Self = Self {
-        solid_axes: AVec3::NONE,
-        move_along: AVec3::NONE,
+        solid_axes: PVec3::NONE,
+        move_along: PVec3::NONE,
     };
 }
 
 /// a tile collider, specified in tile space. Importantly, size essentially functions as another
 /// corner of the Collider's "box", so a size of (0,0,0) should inhabit a single tile. See
 /// constraints for more size granularity
+///
+/// Currently, transform scale is not taken into account when calculating collision
+///
+/// Any entity with a collider must also have a transform
 #[derive(Component, Debug)]
 pub struct Collider {
     pub size: IVec3,
@@ -178,6 +181,38 @@ pub(super) fn update_collision_lists(mut collider_q: Query<&mut Collider>) {
     });
 }
 
+fn predict_location(
+    total_vel: Option<&TotalVelocity>,
+    ticked_vel: Option<&VelocityTicker>,
+    current_location: Vec3,
+    time_delta: f32,
+    tile_stretch: &TileStretch,
+) -> IVec3 {
+    // if either of these are not present assume they will not move it
+    let total_velocity = total_vel.map_or_else(|| Vec3::ZERO, |c| **c);
+    let ticked_velocity = ticked_vel.map_or_else(|| Vec3::ZERO, |c| **c);
+
+    // its projected movement will just be however much the ticker is already filled, along
+    // with its total velocity times the time delta to get how much it will move this frame
+    //
+
+    let projected_movement_raw = (total_velocity * time_delta + ticked_velocity);
+
+    // make sure to round towards zero
+    let projected_movement_rounded = (projected_movement_raw * projected_movement_raw.signum())
+        .floor()
+        * projected_movement_raw.signum();
+
+    // todo!("LIKELY BUG HERE"); // we're treating either current_location or projected_movement
+    // through the wrong tilespace
+
+    // add projected_movement to absolute location to get projected absolute location. then
+    // translate to tile space.
+
+    (tile_stretch.bevy_translation_to_tile(&current_location)
+        + projected_movement_rounded.as_ivec3())
+}
+
 /// This function performs collision checking on any entity with a TotalVelocity, GlobalTransform,
 /// and collider, and then updates that onto the collider.
 ///
@@ -220,27 +255,15 @@ pub(super) fn check_collisions(
             "Entity with Collider has no transform. Any collider should also have a transform.",
         );
 
-        // if total_velocity or ticked_velocity are not found, assume the collider will not move,
-        // so set it to 0
-        let total_velocity;
-        let ticked_velocity;
-
-        if let Some(velocities) = velocities {
-            total_velocity = velocities.0 .0;
-            ticked_velocity = velocities.1.map_or_else(|| Vec3::ZERO, |v| v.0);
-        } else {
-            total_velocity = Vec3::ZERO;
-            ticked_velocity = Vec3::ZERO;
-        }
-
-        // its projected movement will just be however much the ticker is already filled, along
-        // with its total velocity times the time delta to get how much it will move this frame
-        let projected_movement = (total_velocity * time.delta_seconds() + ticked_velocity).floor();
-
         // add projected_movement to absolute location to get projected absolute location. then
         // translate to tile space.
-        let projected_tile_location =
-            tile_stretch.bevy_translation_to_tile(&(transform.translation() + projected_movement));
+        let projected_tile_location = predict_location(
+            velocities.map(|c| c.0),
+            velocities.and_then(|c| c.1),
+            transform.translation(),
+            time.delta_seconds(),
+            &tile_stretch,
+        );
 
         // if collider is more than 0x0x0, draw out from there.
         for x in range_to_n(collider.size.x) {
@@ -248,7 +271,14 @@ pub(super) fn check_collisions(
                 for z in range_to_n(collider.size.x) {
                     let inhabiting = projected_tile_location + IVec3::new(x, y, z);
 
-                    trace!("pushing inhabiting of {}", inhabiting);
+                    let tile_space_translation =
+                        tile_stretch.bevy_translation_to_tile(&transform.translation());
+
+                    trace!(
+                        "pushing inhabiting with real location of {}, predicted movement of {}",
+                        transform.translation(),
+                        projected_tile_location - tile_space_translation
+                    );
 
                     if let Some(inhabited_vec) = inhabited_tiles.get_mut(&inhabiting) {
                         inhabited_vec.push(entity);
@@ -263,7 +293,7 @@ pub(super) fn check_collisions(
     // next, iterate through all tiles that will be inhabited and check if a collision will take
     // place on that tile
     for (location, entities) in inhabited_tiles.iter() {
-        trace!("checking location {}", location);
+        trace!("checking entities that will be in location {}", location);
         if entities.len() > 1 {
             trace!(
                 "collision of {} entities on tile {}",
@@ -309,35 +339,33 @@ pub(super) fn check_collisions(
 
 pub(super) fn resolve_collisions(
     collider_q: Query<(Entity, &Collider)>,
-    mut velocity_q: Query<(&mut TotalVelocity, Option<&VelocityTicker>)>,
+    mut velocity_q: Query<(Option<&mut TotalVelocity>, Option<&VelocityTicker>)>,
     transform_query: Query<&GlobalTransform>,
+    name_q: Query<&ObjectName>,
     tile_stretch: Res<TileStretch>,
     time: Res<Time>,
 ) {
-    fn is_moving_diagonal(v: Vec3) -> BVec3 {
-        let mut diagonals = BVec3::FALSE;
-
-        if v.z == v.x {
-            diagonals.z = true;
-            diagonals.x = true;
-        }
-        if v.x == v.y {
-            diagonals.y = true;
-            diagonals.x = true
-        }
-        if v.y == v.z {
-            diagonals.y = true;
-            diagonals.z = true;
-        }
-
-        diagonals
+    struct Conflict {
+        entities: (Entity, Entity),
+        // can re-calculate passed axes
+        violated_planes: (
+            (ViolatedPlane, ViolatedPlane, ViolatedPlane),
+            (ViolatedPlane, ViolatedPlane, ViolatedPlane),
+        ),
     }
 
-    let mut conflicts: Vec<(Entity, Entity)> = Vec::new();
+    enum ViolatedPlane {
+        None,
+        Neg,
+        Pos,
+    }
+
+    let mut conflicts: Vec<Conflict> = Vec::new();
 
     // we want to build a map of actual conflicts, then iterate through in a deterministic
     // way and resolve them.
 
+    // to parrelelise, collect as Vec<Option<Entity,Entity>> and filter that
     // find any conflicting collisons
     for (collider_entity, collider) in collider_q.iter() {
         // check c constraints
@@ -356,18 +384,195 @@ pub(super) fn resolve_collisions(
             // query all necessary variables to resolve.
             //
             // none of these should be incorrect. could unwrap_unchecked
-            let mut colliding_entity_v = velocity_q.get_mut(*colliding_entity).unwrap();
-            let colliding_collider = collider_q.get(*colliding_entity).unwrap();
-            let mut collider_entity_v = velocity_q.get_mut(collider_entity).unwrap();
+            let colliding_entity_v = velocity_q
+                .get(*colliding_entity)
+                .expect("couldn't get an option? could probably unwrap_unchecked this");
 
-            // calculate velocity for both e
+            let colliding_collider = if let Ok(c) = collider_q.get(*colliding_entity) {
+                c
+            } else {
+                warn!("collider dissapeared in between check_collisions and resolve_collisions!?");
+                break;
+            };
+
+            let colliding_location = transform_query
+                .get(*colliding_entity)
+                .expect("Any collision enabled entity should have a transfoorm")
+                .translation();
+
+            let collider_entity_v = velocity_q
+                .get(collider_entity)
+                .expect("couldn't get an option? could probably unwrap_unchecked this");
+            let collider_location = transform_query
+                .get(collider_entity)
+                .expect("Any collision enabled entity should have a transfoorm")
+                .translation();
+
+            let delta_time = time.delta_seconds();
+
+            // we should be able to safely assume they will have the same location by theend of
+            // this frame if they are colliding
+            let colliding_predicted = predict_location(
+                colliding_entity_v.0,
+                colliding_entity_v.1,
+                colliding_location,
+                delta_time,
+                &tile_stretch,
+            );
+
+            assert_eq!(
+                colliding_predicted,
+                predict_location(
+                    collider_entity_v.0,
+                    collider_entity_v.1,
+                    collider_location,
+                    delta_time,
+                    &tile_stretch,
+                ),
+                "Predicted collision of colliders who will be at two seperate tiles!"
+            );
+
+            // this is calculated wrong somehow. is incorrect when moving in a positive direction,
+            // but not in a negative direction
             //
-            // figure out which planes each e needs to move through
+            // also does not take diagonals into account?
             //
-            // check if those planes are constrained
-            // push to conflicts if so
+            // might need to get distance from {x,y,z} -> {x,y,z} instead of just subtracting?
+            //
+            // It looks like for some reason entities moving positively will not be collision
+            // checked until after they move?
+            let difference_collider = colliding_predicted
+                - tile_stretch
+                    .bevy_translation_to_tile(&(collider_location * collider_location.signum()));
+            let difference_colliding = colliding_predicted
+                - tile_stretch
+                    .bevy_translation_to_tile(&(colliding_location * collider_location.signum()));
+
+            trace!("checking for conflict at {}", colliding_predicted,);
+
+            trace!(
+                "collider: dfference {}, location {}, name {}",
+                difference_collider,
+                tile_stretch.bevy_translation_to_tile(&collider_location),
+                name_q.get(collider_entity).map_or_else(|_| "", |n| &*n.0)
+            );
+
+            trace!(
+                "colliding: difference {}, location {}, name {}",
+                difference_colliding,
+                tile_stretch.bevy_translation_to_tile(&colliding_location),
+                name_q.get(*colliding_entity).map_or_else(|_| "", |n| &*n.0)
+            );
+            // make it last message
+            // panic!();
+
+            // check if passing through constraints
+            //
+            // convert movement -> violated planes
+
+            // find which planes the colliders movement will violate
+            let collider_violated_planes = {
+                let mut planes = (
+                    ViolatedPlane::None, // x
+                    ViolatedPlane::None, // y
+                    ViolatedPlane::None, // z
+                );
+
+                if difference_collider.x < 0
+                    && colliding_collider
+                        .1
+                        .constraints
+                        .solid_axes
+                        .x
+                        .across_positive()
+                {
+                    planes.0 = ViolatedPlane::Pos;
+                } else if difference_collider.x > 0
+                    && colliding_collider
+                        .1
+                        .constraints
+                        .solid_axes
+                        .x
+                        .accross_negative()
+                {
+                    // violated negative
+                    planes.0 = ViolatedPlane::Neg;
+                }
+
+                if difference_collider.y < 0
+                    && colliding_collider
+                        .1
+                        .constraints
+                        .solid_axes
+                        .y
+                        .across_positive()
+                {
+                    planes.1 = ViolatedPlane::Pos;
+                } else if difference_collider.y > 0
+                    && colliding_collider
+                        .1
+                        .constraints
+                        .solid_axes
+                        .y
+                        .accross_negative()
+                {
+                    // violated negative
+                    planes.1 = ViolatedPlane::Neg;
+                }
+
+                if difference_collider.z < 0
+                    && colliding_collider
+                        .1
+                        .constraints
+                        .solid_axes
+                        .z
+                        .across_positive()
+                {
+                    planes.0 = ViolatedPlane::Pos;
+                } else if difference_collider.x > 0
+                    && colliding_collider
+                        .1
+                        .constraints
+                        .solid_axes
+                        .z
+                        .accross_negative()
+                {
+                    // violated negative
+                    planes.2 = ViolatedPlane::Neg;
+                }
+            };
+
+            todo!();
+            // maybe we should just resolve conflict here, conflict won't be picked up when second
+            // instance of conflict is iterated through
         }
+
+        trace!("Found {} collision conflicts", conflicts.len());
+
+        if conflicts.is_empty() {
+            return;
+        }
+
+        // sort and deduplicate any collisions between the same 2 entities.
+        // TODO: this probably doesn't sort correctly for deduplication
+        conflicts.sort_by_key(|e| e.entities);
+        conflicts.dedup_by(|e_r, e_l| {
+            // imagine e_r and e_l are the tuple below
+            //  e_r (entity_r0, entity_r1)
+            //  e_l (entity_l0, entity_l1),
+            //  we know it is the same collision if
+            //  r0 == l0 && r1 == l1
+            //  || r0 == l1 && r1 == l0
+            (e_r.entities.0 == e_l.entities.0) && (e_r.entities.1 == e_l.entities.1)
+                || (e_r.entities.0 == e_l.entities.1) && (e_r.entities.1 == e_l.entities.0)
+        });
+
+        trace!("Found {} unique conflicts, resolving...", conflicts.len());
+
+        todo!("Resolve collisions");
     }
 
     // dedup conflicts then sort by something and iterate through
 }
+
+// TODO: collision plugin?

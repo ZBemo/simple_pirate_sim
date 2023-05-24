@@ -1,3 +1,7 @@
+// bevy requires complex types, most of which are quite reaable
+#![allow(clippy::type_complexity)]
+#![warn(clippy::unwrap_used)]
+
 mod controllers;
 mod gui;
 mod physics;
@@ -107,7 +111,7 @@ pub fn setup(
         },
         tile_objects::TileObject(),
         tile_objects::ObjectName("Random Wall".into()),
-        Collider::new(IVec3::ZERO, physics::collider::Constraints::WALL),
+        Collider::new(IVec3::ZERO, physics::collider::Constraints::BOX),
     ));
 
     // player
@@ -125,7 +129,7 @@ pub fn setup(
         weight: Weight(0.),
         //TODO: figure out if 1. speed is really 1 grid per second
         walkspeed: WalkSpeed(5.),
-        collider: Collider::new(IVec3::ZERO, physics::collider::Constraints::ENTITY),
+        collider: Collider::new(IVec3::ZERO, physics::collider::Constraints::BOX),
     });
 
     // continue this

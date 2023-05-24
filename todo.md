@@ -1,10 +1,13 @@
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
+ - [ ] Strongly type Tile space?
  - [ ] split physics.rs into multiple modules
- - [ ] chunk out startup systems, allowing doing startups after necessary resources are set up more easily
+ - [ ] chunk out startup systems, probably using game states, 
+ allowing doing startups after necessary resources are set up more easily
  - [ ] change query function parameters to $NAME_q. will make code far more readable
  - [ ] set up cargo clippy and lint 
  - [ ] start checking docs for correctness
+ - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
