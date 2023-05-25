@@ -20,7 +20,7 @@ use bevy::{
 
 use crate::tile_objects::{ObjectName, TileStretch};
 
-use super::{velocity::TotalVelocity, MovementTicker, PhysicsSet};
+use super::{movement::Ticker, velocity::TotalVelocity, PhysicsSet};
 
 #[derive(Debug, Clone)]
 pub struct Collision {
@@ -151,7 +151,7 @@ impl Collider {
 /// Predict the location of an entity after FinalizeMovement based on its current velocities
 fn predict_location(
     total_vel: Option<&TotalVelocity>,
-    ticked_vel: Option<&MovementTicker>,
+    ticked_vel: Option<&Ticker>,
     current_location: Vec3,
     time_delta: f32,
     tile_stretch: &TileStretch,
@@ -188,7 +188,7 @@ fn predict_location(
 fn check_and_resolve_collisions(
     mut collision_events: EventReader<Collision>,
     mut velocity_q: Query<&mut super::velocity::TotalVelocity>,
-    ticker_q: Query<&super::MovementTicker>,
+    ticker_q: Query<&super::movement::Ticker>,
     collider_q: Query<(Entity, &Collider)>,
     transform_query: Query<&GlobalTransform>,
     name_q: Query<&ObjectName>,
@@ -294,7 +294,7 @@ fn check_and_resolve_collisions(
         entity: Entity,
         collider: &'a Collider,
         location: IVec3,
-        ticker: Option<&'a MovementTicker>,
+        ticker: Option<&'a Ticker>,
         name: Option<&'b str>,
     }
 
@@ -320,7 +320,7 @@ fn check_and_resolve_collisions(
 
         struct Resolution {
             entity: Entity,
-            predicted_new_velocity: Vec3,
+            requested_new_velocity: Vec3,
         };
 
         let mut queud_resolutions: Vec<Resolution> = Vec::new();
