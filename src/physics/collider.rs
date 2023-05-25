@@ -1,4 +1,14 @@
 //! Colliders and Collision systems
+//!
+//! Functions and documents in this module will often refer to `collisions` and `conflicts`, which
+//! are two different things. A conflict is when two or more colliders are going to move through a
+//! collider in a way that conflicts on both colliders' axis-planes, or vice-versa. It is the
+//! physics systems job to prevent any conflicts from actually happening. Usually through
+//! cancelling the velocity of one or more object.
+//!
+//! Collisions however, are solely when two colliders will overlap, which does not always
+//! necessitate interference from the physics systems
+
 #![allow(unused)]
 
 use std::{assert_eq, assert_ne, hint::unreachable_unchecked};
@@ -10,23 +20,16 @@ use bevy::{
 
 use crate::tile_objects::{ObjectName, TileStretch};
 
-use super::{TotalVelocity, VelocityTicker};
+use super::{PhysicsSet, TotalVelocity, VelocityTicker};
 
-// an entity will be added to a collision event if it is on the same tile as another entity's
-// collider, regardless of the event
 #[derive(Debug, Clone)]
 pub struct Collision {
     location: IVec3,
     entities: Vec<Entity>,
+    // some way to ignore other colliders
 }
 
-/// If a collider is sodid across the negative axis, positive, neither, or both
-///
-/// represent 1 or 2 2d planes along an axis, so that a Pos plane is essentially a line along the
-/// border moving down from a tile onto the collider, and vice-versa. When combined with three
-/// other AxisPlanes, this allows you to construct A Box with any number of sides cut out of it.
-///
-/// having Axis be a `repr(u8)` makes certain math easier.
+/// If a collider has a solid plane parallel to the tile boundary on the negative axis, positive, neither, or both
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum AxisPlanes {
@@ -93,18 +96,18 @@ pub struct Constraints {
     ///
     /// Essentially, if an object is moving along an axis with a sign the same as its Axis
     /// selection, it will trigger a conflict
-    pub solid_axes: PVec3, //TODO
+    pub solid_planes: PVec3,
     /// which axes it can be pushed along in order to resolve collision
     pub move_along: PVec3,
 }
 
 impl Constraints {
     pub const BOX: Self = Self {
-        solid_axes: PVec3::ALL,
+        solid_planes: PVec3::ALL,
         move_along: PVec3::NONE,
     };
     pub const FLOOR: Self = Self {
-        solid_axes: PVec3 {
+        solid_planes: PVec3 {
             x: AxisPlanes::None,
             y: AxisPlanes::None,
             z: AxisPlanes::Neg,
@@ -112,7 +115,7 @@ impl Constraints {
         move_along: PVec3::NONE,
     };
     pub const ENTITY: Self = Self {
-        solid_axes: PVec3 {
+        solid_planes: PVec3 {
             x: AxisPlanes::None,
             y: AxisPlanes::None,
             z: AxisPlanes::Neg,
@@ -121,7 +124,7 @@ impl Constraints {
     };
 
     pub const SENSOR: Self = Self {
-        solid_axes: PVec3::NONE,
+        solid_planes: PVec3::NONE,
         move_along: PVec3::NONE,
     };
 }
@@ -145,11 +148,7 @@ impl Collider {
     }
 }
 
-/// clears all potential collisions
-pub(super) fn update_collision_lists(mut collider_q: Query<&mut Collider>) {
-    todo!()
-}
-
+/// Predict the location of an entity after FinalizeMovement based on its current velocities
 fn predict_location(
     total_vel: Option<&TotalVelocity>,
     ticked_vel: Option<&VelocityTicker>,
@@ -157,7 +156,8 @@ fn predict_location(
     time_delta: f32,
     tile_stretch: &TileStretch,
 ) -> IVec3 {
-    // if either of these are not present assume they will not move it
+    // if either of these are not present assume they will contribute to moving the entity
+    // If they are, just copy them
     let total_velocity = total_vel.map_or_else(|| Vec3::ZERO, |c| **c);
     let ticked_velocity = ticked_vel.map_or_else(|| Vec3::ZERO, |c| **c);
 
@@ -167,38 +167,36 @@ fn predict_location(
 
     let projected_movement_raw = (total_velocity * time_delta + ticked_velocity);
 
-    // make sure to round towards zero
+    // multiplying Signum before flooring makes sure it will floor towards zero, then we just
+    // reverse it
     let projected_movement_rounded = (projected_movement_raw * projected_movement_raw.signum())
         .floor()
         * projected_movement_raw.signum();
 
-    // todo!("LIKELY BUG HERE"); // we're treating either current_location or projected_movement
-    // through the wrong tilespace
-
-    // add projected_movement to absolute location to get projected absolute location. then
-    // translate to tile space.
-
+    // the projected movement is already in tilespace, so just convert the current location, then
+    // add
     (tile_stretch.bevy_translation_to_tile(&current_location)
         + projected_movement_rounded.as_ivec3())
 }
 
-/// This function performs collision checking on any entity with a TotalVelocity, GlobalTransform,
-/// and collider, and then updates that onto the collider.
+/// Behemoth function for checking and then resolving collisions
 ///
-/// It works by predicting where the entity will be, and then finding any other entities that will
-/// be in that same place.
+/// as there's no good way to persist info between systems, it makes the most sense currently to
+/// just check collision and then resolve them using information generated in the same system
 ///
-/// All this system does is update the Colliders' list of who they'll collide with, which will then
-/// be used by other systems to do things like avoid collision
-pub(super) fn check_collisions(
-    mut collider_query: Query<(Entity, &mut Collider)>,
-    velocity_query: Query<(&TotalVelocity, Option<&VelocityTicker>)>,
+/// This also allows us to write more detailed Collision events
+fn check_and_resolve_collisions(
+    mut collision_events: EventReader<Collision>,
+    mut velocity_q: Query<&mut TotalVelocity>,
+    ticker_q: Query<&VelocityTicker>,
+    collider_q: Query<(Entity, &Collider)>,
     transform_query: Query<&GlobalTransform>,
+    name_q: Query<&ObjectName>,
     tile_stretch: Res<TileStretch>,
-    mut collision_writer: EventWriter<Collision>,
     time: Res<Time>,
+    collision_writer: EventWriter<Collision>,
 ) {
-    trace!("starting collision check");
+    trace!("Starting collision checking and resolution");
 
     /// gets a range to n..=0 that will start at n if n is negative, or start at zero otherwise
     /// so you will always get the same amount of steps regardless of n's sign
@@ -209,18 +207,17 @@ pub(super) fn check_collisions(
             0..=n
         }
     }
-
     // this will keep track of any tiles that will be inhabited, as well as which colliders will be
     // in that tile
     let mut inhabited_tiles: HashMap<IVec3, Vec<Entity>> = HashMap::new();
 
     // could loop concurrently to create a Vec of expected tiles, and then loop that in single
     // thread to populate inhabited hashmap?
-    for (entity, collider) in collider_query.iter() {
+    for (entity, collider) in collider_q.iter() {
         // start off by getting any velocities, the absolute transform of the entity, and its
         // collider and entity id
 
-        let velocities = velocity_query.get(entity).ok();
+        let velocities = (velocity_q.get(entity).ok(), ticker_q.get(entity).ok());
         let transform = transform_query.get(entity).expect(
             "Entity with Collider has no transform. Any collider should also have a transform.",
         );
@@ -228,8 +225,8 @@ pub(super) fn check_collisions(
         // add projected_movement to absolute location to get projected absolute location. then
         // translate to tile space.
         let projected_tile_location = predict_location(
-            velocities.map(|c| c.0),
-            velocities.and_then(|c| c.1),
+            velocities.0,
+            velocities.1,
             transform.translation(),
             time.delta_seconds(),
             &tile_stretch,
@@ -260,9 +257,15 @@ pub(super) fn check_collisions(
         }
     }
 
+    /// collision, based on the location of the collision
+    struct CollisionOnLocation {
+        location: IVec3,
+        entities: Vec<Entity>,
+    }
+
     // next, iterate through all tiles that will be inhabited and check if a collision will take
-    // place on that tile
-    for (location, entities) in inhabited_tiles.iter() {
+    // place on that tile.
+    let collision_events = inhabited_tiles.iter().filter_map(|(location, entities)| {
         trace!("checking entities that will be in location {}", location);
         if entities.len() > 1 {
             trace!(
@@ -271,36 +274,64 @@ pub(super) fn check_collisions(
                 location
             );
 
-            let event = Collision {
-                location: location.clone(),
+            Some(CollisionOnLocation {
+                location: *location,
                 entities: entities.clone(),
-            };
-
-            collision_writer.send(event);
+            })
+        } else {
+            None
         }
-    }
-}
+    });
 
-pub(super) fn resolve_collisions(
-    mut collision_events: EventReader<Collision>,
-    collider_q: Query<(Entity, &Collider)>,
-    mut velocity_q: Query<(Option<&mut TotalVelocity>, Option<&VelocityTicker>)>,
-    transform_query: Query<&GlobalTransform>,
-    name_q: Query<&ObjectName>,
-    tile_stretch: Res<TileStretch>,
-) {
     enum ViolatedPlane {
         None,
         Neg,
         Pos,
     }
 
+    // all of the immutable data associated with an entity involved in a collision.
+    struct CollidingEntity<'a, 'b> {
+        entity: Entity,
+        collider: &'a Collider,
+        location: IVec3,
+        ticker: Option<&'a VelocityTicker>,
+        name: Option<&'b str>,
+    }
+
     let updated_entities: HashSet<Entity> = HashSet::new();
 
-    for collision in collision_events.iter() {
+    for collision in collision_events {
+        let colliding_entities: Vec<CollidingEntity> = collision
+            .entities
+            .iter()
+            .map(|e| CollidingEntity {
+                entity: *e,
+                collider: collider_q.get(*e).expect("Collision with no collider?").1,
+                location: tile_stretch.bevy_translation_to_tile(
+                    &transform_query
+                        .get(*e)
+                        .expect("Collider with no transform")
+                        .translation(),
+                ),
+                ticker: ticker_q.get(*e).ok(),
+                name: name_q.get(*e).ok().map(|name| &*name.0),
+            })
+            .collect();
 
-        // query velocities, colliders, transform for each involved entity
+        // colliding_entities.sort_by_key(|e| e.entity);
+        todo!();
     }
 }
 
-// TODO: collision plugin?
+pub(super) struct Plugin();
+
+impl bevy::prelude::Plugin for Plugin {
+    fn build(&self, app: &mut App) {
+        app.add_system(
+            check_and_resolve_collisions
+                .in_set(PhysicsSet::FinalizeCollision)
+                .after(PhysicsSet::FinalizeVelocity)
+                .before(PhysicsSet::FinalizeMovement),
+        );
+    }
+}

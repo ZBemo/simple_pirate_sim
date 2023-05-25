@@ -1,13 +1,16 @@
-A file for architecthing collision resolution from a high level down
+A file for architecting collision resolution from a high level down
 
-start by getting the planes passed through by each colliding entity
+Start by getting the planes passed through by each colliding entity
 
-check these planes against constraint.
+Check these planes against constraint.
 
-use event system to keep track of immenent collisions, not just stored in collider.
+Use event system to keep track of eminent collisions, not just stored in collider.
 
-first, any entities in a collision that do not move will not be considered for resolution.
+First, any entities in a collision that do not move will not be considered for resolution.
 
-second, sort entities by location, in order to make collision resolution more deterministic.
+Any entity that can move will have its velocity clamped down to the minimum amount it can move before colliding.
+Any entity that can move but is not moving, but still in conflict will have a velocity applied to move it out of the collision.
 
-calculate entity movement direction. (location - collision location)
+Calculate entity movement direction. (location - collision location)
+
+Before moving, make sure there won't be collisions in its new location. If so, move it elsewhere. 

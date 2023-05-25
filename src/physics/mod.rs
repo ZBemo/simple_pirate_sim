@@ -1,4 +1,4 @@
-//! A tile-based, realtime Physics Engine for this project
+//! A tile-based, real-time Physics Engine for this project
 //!
 //! See [`PhysicsPlugin`], and its build function to get started with the source code, or you can
 //! likely read the file from top-down and understand it decently well.
@@ -28,7 +28,7 @@ pub const GRAVITY: f32 = 9.8;
 pub enum PhysicsSet {
     // PhysicsInput,
     FinalizeVelocity,
-    CollisionCheck,
+    FinalizeCollision,
     FinalizeMovement,
 }
 
@@ -37,7 +37,7 @@ pub enum PhysicsSet {
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
 /// Bundle but no ticker
 ///
-///  Relative Velocity should likely not be chnaged outside of the physics engine
+///  Relative Velocity should likely not be changed outside of the physics engine
 #[derive(Debug, Component, Clone, Default, Deref)]
 pub struct RelativeVelocity(Vec3);
 
@@ -56,7 +56,7 @@ pub struct TotalVelocity(Vec3);
 #[derive(Debug, Clone, Copy, Component, Deref, DerefMut)]
 pub struct Weight(pub f32);
 
-/// A mantained velocity over time. Will be decayed based on certain constants by the physics
+/// A maintained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut)]
 pub struct MantainedVelocity(pub Vec3);
@@ -113,7 +113,7 @@ fn calculate_relative_velocity(
             new_total_velocity += movement_goal.0;
         }
 
-        // maybe gravity should be part of mantained velocity
+        // maybe gravity should be part of maintained velocity
         if let Some(weight) = weight {
             new_total_velocity.z -= weight.0 * GRAVITY;
         }
@@ -126,10 +126,10 @@ fn calculate_relative_velocity(
     }
 }
 
-/// Finaly, applies any tickers that have moved at least one tile. This is essentially flushing the
+/// Finally, applies any tickers that have moved at least one tile. This is essentially flushing the
 /// VelocityTicker buffer.
 ///
-/// This will reset any tickers with a totalVelocity of 0 to 0,0,0. This may lead to bugs in the
+/// This will reset any tickers with a TotalVelocity of 0 to 0,0,0. This may lead to bugs in the
 /// future
 ///
 /// This will also avoid moving two [`ColliderType::Solid`] into each other by lessening their
@@ -169,7 +169,7 @@ fn finalize_movement(
         }
 
         // this might break things in the future!
-        // if total_veolicity is 0 reset ticker to 0
+        // if total_velocity is 0 reset ticker to 0
         // this probably does not belong in this system. maybe in its own system?
         if total_velocity.0 == Vec3::ZERO {
             ticker.0 = Vec3::ZERO;
@@ -182,7 +182,7 @@ fn finalize_movement(
 /// It needs a rework.
 fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     const DECAY_CONST: f32 = 0.1;
-    // todo: use signs
+    // TODO: use signs
 
     for mut vel in velocity.iter_mut() {
         if vel.0.z > 0. {
@@ -209,13 +209,13 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
-/// Propogate velocities down from an entities parents so that its Total and Relative Velocity remains accurate
+/// Propagate velocities down from an entities parents so that its Total and Relative Velocity remains accurate
 ///
 /// needs parent total and child relative along with child total
 ///
 /// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
 /// license. see <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
-fn propogate_velocities(
+fn propagate_velocities(
     mut root_query: Query<
         (Entity, &Children, Ref<RelativeVelocity>, &mut TotalVelocity),
         Without<Parent>,
@@ -374,25 +374,17 @@ impl Plugin for PhysicsPlugin {
         app.add_systems(
             (
                 calculate_relative_velocity,
-                propogate_velocities.after(calculate_relative_velocity),
+                propagate_velocities.after(calculate_relative_velocity),
                 decay_persistent_velocity.after(calculate_relative_velocity),
             )
                 .in_set(PhysicsSet::FinalizeVelocity),
         )
-        .add_systems(
-            (
-                collider::update_collision_lists,
-                collider::check_collisions,
-                collider::resolve_collisions.before(finalize_movement),
-            )
-                .chain()
-                .in_set(PhysicsSet::CollisionCheck),
-        )
+        .add_plugin(collider::Plugin())
         // resolve collisions system here?
         .add_system(
             finalize_movement
                 .in_set(PhysicsSet::FinalizeMovement)
-                .after(PhysicsSet::CollisionCheck),
+                .after(PhysicsSet::FinalizeCollision),
         );
     }
 }
