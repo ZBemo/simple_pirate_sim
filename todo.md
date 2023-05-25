@@ -1,7 +1,10 @@
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
- - [ ] Strongly type Tile space?
  - [ ] split physics.rs into multiple modules
+    - [x] split out collision
+    - [x] split out velocity calculation to its own module
+    - [ ] consider splitting out movement
+ - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
  - [ ] change query function parameters to $NAME_q. will make code far more readable
@@ -17,7 +20,7 @@
   - [ ] Collision resolution
   - [ ] Collision event system
   - [ ] "take" velocity from floor
-  - [ ] finalize, and probably re-architect continous velocity
+  - [ ] finalize, and probably re-architect continuous velocity
   - [ ] fine tune gravity
  - [ ] Information display setup for gui, easier development
  - [ ] Player and AI interaction 
@@ -54,4 +57,4 @@
 # Upgrades
 
 ## Physics
- - [ ] use a configurable constraint system for colliders instead of like 6 different types
+ - [x] use a configurable constraint system for colliders instead of like 6 different types

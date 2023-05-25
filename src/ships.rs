@@ -159,7 +159,7 @@ fn spawn_wall(
     commands
         .spawn((
             Collider::new(IVec3::ONE, physics::collider::Constraints::BOX),
-            physics::VelocityBundle::default(),
+            physics::velocity::VelocityBundle::default(),
             DynWallObject(),
             ObjectName("Ship Wall".into()),
             SpriteSheetBundle {

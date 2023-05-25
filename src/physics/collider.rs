@@ -20,7 +20,7 @@ use bevy::{
 
 use crate::tile_objects::{ObjectName, TileStretch};
 
-use super::{PhysicsSet, TotalVelocity, VelocityTicker};
+use super::{velocity::TotalVelocity, MovementTicker, PhysicsSet};
 
 #[derive(Debug, Clone)]
 pub struct Collision {
@@ -151,7 +151,7 @@ impl Collider {
 /// Predict the location of an entity after FinalizeMovement based on its current velocities
 fn predict_location(
     total_vel: Option<&TotalVelocity>,
-    ticked_vel: Option<&VelocityTicker>,
+    ticked_vel: Option<&MovementTicker>,
     current_location: Vec3,
     time_delta: f32,
     tile_stretch: &TileStretch,
@@ -187,8 +187,8 @@ fn predict_location(
 /// This also allows us to write more detailed Collision events
 fn check_and_resolve_collisions(
     mut collision_events: EventReader<Collision>,
-    mut velocity_q: Query<&mut TotalVelocity>,
-    ticker_q: Query<&VelocityTicker>,
+    mut velocity_q: Query<&mut super::velocity::TotalVelocity>,
+    ticker_q: Query<&super::MovementTicker>,
     collider_q: Query<(Entity, &Collider)>,
     transform_query: Query<&GlobalTransform>,
     name_q: Query<&ObjectName>,
@@ -294,7 +294,7 @@ fn check_and_resolve_collisions(
         entity: Entity,
         collider: &'a Collider,
         location: IVec3,
-        ticker: Option<&'a VelocityTicker>,
+        ticker: Option<&'a MovementTicker>,
         name: Option<&'b str>,
     }
 
@@ -306,17 +306,24 @@ fn check_and_resolve_collisions(
             .iter()
             .map(|e| CollidingEntity {
                 entity: *e,
-                collider: collider_q.get(*e).expect("Collision with no collider?").1,
+                collider: collider_q.get(*e).expect("Collision with no collider? Make sure to update any colliders after PhysicsSet::FinalizeCollision.").1,
                 location: tile_stretch.bevy_translation_to_tile(
                     &transform_query
                         .get(*e)
-                        .expect("Collider with no transform")
+                        .expect("Collider with no transform. Add a transform to any entity with a collider")
                         .translation(),
                 ),
                 ticker: ticker_q.get(*e).ok(),
                 name: name_q.get(*e).ok().map(|name| &*name.0),
             })
             .collect();
+
+        struct Resolution {
+            entity: Entity,
+            predicted_new_velocity: Vec3,
+        };
+
+        let mut queud_resolutions: Vec<Resolution> = Vec::new();
 
         // colliding_entities.sort_by_key(|e| e.entity);
         todo!();
