@@ -96,10 +96,16 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
-fn propogate_no_hierarchy(
-    mut no_vel_query: Query<(Ref<RelativeVelocity>, &mut TotalVelocity), Without<Parent>>,
+/// This will propogate anything with no parents that has not had its total velocity updated since
+/// last time this system was run
+///
+/// This will get components with no parents or children that are missed by [`propagate_velocities`]
+///
+/// There is probably a better way to filter this
+fn propogate_missed(
+    mut no_parent_q: Query<(Ref<RelativeVelocity>, &mut TotalVelocity), Without<Parent>>,
 ) {
-    no_vel_query.iter_mut().for_each(|(relative, mut total)| {
+    no_parent_q.iter_mut().for_each(|(relative, mut total)| {
         if relative.is_changed() && !total.is_changed() {
             total.0 = relative.0;
         };
@@ -250,7 +256,7 @@ impl bevy::prelude::Plugin for Plugin {
             (
                 calculate_relative_velocity,
                 propagate_velocities.after(calculate_relative_velocity),
-                propogate_no_hierarchy.after(propagate_velocities),
+                propogate_missed.after(propagate_velocities),
                 decay_persistent_velocity.after(calculate_relative_velocity),
             )
                 .in_set(super::PhysicsSet::FinalizeVelocity),

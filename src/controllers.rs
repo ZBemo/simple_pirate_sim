@@ -3,6 +3,8 @@
 //! The final output of controllers will be "requests" to actually change physical world, like
 //! how MovementGoals are a request to change entities location trough velocity.
 
+use std::collections::VecDeque;
+
 use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 use crate::physics::MovementGoal;
@@ -15,6 +17,11 @@ const DIAG_SPEED: f32 = 1. / 1.5;
 pub struct MovementGoalTimeout(pub f64);
 #[derive(Component, Default, Reflect)]
 pub struct WalkSpeed(pub f32);
+
+#[derive(Component, Reflect, Debug, Clone, Default)]
+struct MovementGoals {
+    goals: VecDeque<(Vec3, f32)>,
+}
 
 /// A system to timeout movement goals based on their timeout component.
 ///

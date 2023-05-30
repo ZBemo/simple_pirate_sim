@@ -421,11 +421,11 @@ fn check_and_resolve_collisions(
 }
 
 #[cfg(debug_assertions)]
-fn log_collisions(mut events: EventReader<EntityCollision>, name_query: Query<&Name>) {
+fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>) {
     for event in events.iter() {
         debug!(
             "Object {} collided at tile {}, had velocity changed {}",
-            name_query
+            name_q
                 .get(event.entity)
                 .ok()
                 .map_or_else(|| "MissingName", |t| t.as_str()),
