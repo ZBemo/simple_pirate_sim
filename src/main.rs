@@ -37,6 +37,7 @@ struct PlayerBundle {
     weight: Weight,
     walkspeed: WalkSpeed,
     collider: Collider,
+    name: Name,
 }
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Clone)]
@@ -117,28 +118,26 @@ pub fn setup(
     ));
 
     // player
-    commands.spawn((
-        PlayerBundle {
-            sprite: SpriteSheetBundle {
-                texture_atlas: texture_atlas_handle.clone_weak(),
-                sprite: TextureAtlasSprite::new(2),
-                transform: Transform::from_xyz(0., 0., 1.),
-                ..default()
-            },
-            physics_component: PhysicsComponentBase::default(),
-            controller: controllers::player::Controller(),
-            movement_goal: MovementGoal(Vec3::ZERO),
-            m_goal_timeout: MovementGoalTimeout(0.),
-            weight: Weight(0.),
-            //TODO: figure out if 1. speed is really 1 grid per second
-            walkspeed: WalkSpeed(5.),
-            collider: Collider::new(physics::collider::Constraints {
-                solid_planes: BVec3::TRUE,
-                move_along: BVec3::TRUE,
-            }),
+    commands.spawn((PlayerBundle {
+        sprite: SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle.clone_weak(),
+            sprite: TextureAtlasSprite::new(2),
+            transform: Transform::from_xyz(0., 0., 1.),
+            ..default()
         },
-        Name::new("Player"),
-    ));
+        physics_component: PhysicsComponentBase::default(),
+        controller: controllers::player::Controller(),
+        movement_goal: MovementGoal(Vec3::ZERO),
+        m_goal_timeout: MovementGoalTimeout(0.),
+        weight: Weight(0.),
+        //TODO: figure out if 1. speed is really 1 grid per second
+        walkspeed: WalkSpeed(5.),
+        collider: Collider::new(physics::collider::Constraints {
+            solid_planes: BVec3::TRUE,
+            move_along: BVec3::TRUE,
+        }),
+        name: Name::new("Player"),
+    },));
 
     // continue this
 }
