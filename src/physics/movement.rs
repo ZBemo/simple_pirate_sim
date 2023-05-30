@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect};
 
 use crate::tile_objects::TileStretch;
 
@@ -11,9 +11,9 @@ use crate::tile_objects::TileStretch;
 /// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0. In the future this
 /// should be changed so that you can reset your ticker trough a request like RequestResetTicker.
 ///
-/// As this Ticker is meant to be wholely managed by the physics engine, it is not public, and must
+/// As this Ticker is meant to be wholly managed by the physics engine, it is not public, and must
 /// be instantiated trough a Bundle like [`PhysicsComponentBase`]
-#[derive(Debug, Component, Clone, Copy, Default, Deref, DerefMut)]
+#[derive(Debug, Component, Clone, Copy, Default, Deref, Reflect)]
 pub struct Ticker(Vec3);
 
 /// Apply, applies any tickers that have moved at least one tile. This is essentially flushing the

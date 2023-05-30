@@ -12,8 +12,8 @@ use bevy::prelude::*;
 
 use crate::controllers;
 
-#[derive(Component, Debug, Deref)]
-pub struct ObjectName(pub String);
+// #[derive(Component, Debug, Deref)]
+// pub struct ObjectName(pub String);
 
 #[derive(Component, Debug)]
 pub struct DynWallObject();
@@ -34,7 +34,7 @@ pub struct TileObject();
 impl TileStretch {
     pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
         // common sense check that t contains only whole numbers before casting
-        assert!(
+        debug_assert!(
             t.round() == *t,
             "attempted translation of vector with non-whole numbers into tilespace"
         );

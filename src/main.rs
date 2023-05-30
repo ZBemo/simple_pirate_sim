@@ -9,7 +9,8 @@ mod random;
 mod ships;
 mod tile_objects;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use controllers::{MovementGoalTimeout, WalkSpeed};
 use physics::{
     collider::Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight,
@@ -49,6 +50,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(PhysicsPlugin)
+        .add_plugin(WorldInspectorPlugin::new())
         .add_state::<GameState>()
         .add_startup_system(setup)
         // .add_startup_system(gui::setup_coords_display)
@@ -73,8 +75,14 @@ pub fn setup(
     // window_q: Query<&Window, With<PrimaryWindow>>,
     asset_server: Res<AssetServer>,
     mut sprites: ResMut<Assets<TextureAtlas>>,
-    // mut tilestretch: ResMut<TileStretch>,
+    type_registry: Res<AppTypeRegistry>, // mut tilestretch: ResMut<TileStretch>,
 ) {
+    let mut type_registry_w = type_registry.write();
+
+    type_registry_w.add_registration(physics::movement::Ticker::get_type_registration());
+    type_registry_w.add_registration(physics::velocity::RelativeVelocity::get_type_registration());
+    type_registry_w.add_registration(physics::velocity::TotalVelocity::get_type_registration());
+
     // dwarfs (0,2)
     // TODO: ACTUAL Sprite sheet code
     let tilestretch: TileStretch = TileStretch::new(IVec2::ONE * 32);
@@ -110,27 +118,33 @@ pub fn setup(
             ..default()
         },
         tile_objects::TileObject(),
-        tile_objects::ObjectName("Random Wall".into()),
-        Collider::new(IVec3::ZERO, physics::collider::Constraints::BOX),
+        Name::new("Random Wall"),
+        Collider::new(physics::collider::Constraints::WALL),
     ));
 
     // player
-    commands.spawn(PlayerBundle {
-        sprite: SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle.clone_weak(),
-            sprite: TextureAtlasSprite::new(2),
-            transform: Transform::from_xyz(0., 0., 1.),
-            ..default()
+    commands.spawn((
+        PlayerBundle {
+            sprite: SpriteSheetBundle {
+                texture_atlas: texture_atlas_handle.clone_weak(),
+                sprite: TextureAtlasSprite::new(2),
+                transform: Transform::from_xyz(0., 0., 1.),
+                ..default()
+            },
+            physics_component: PhysicsComponentBase::default(),
+            controller: controllers::player::Controller(),
+            movement_goal: MovementGoal(Vec3::ZERO),
+            m_goal_timeout: MovementGoalTimeout(0.),
+            weight: Weight(0.),
+            //TODO: figure out if 1. speed is really 1 grid per second
+            walkspeed: WalkSpeed(5.),
+            collider: Collider::new(physics::collider::Constraints {
+                solid_planes: BVec3::TRUE,
+                move_along: BVec3::TRUE,
+            }),
         },
-        physics_component: PhysicsComponentBase::default(),
-        controller: controllers::player::Controller(),
-        movement_goal: MovementGoal(Vec3::ZERO),
-        m_goal_timeout: MovementGoalTimeout(0.),
-        weight: Weight(0.),
-        //TODO: figure out if 1. speed is really 1 grid per second
-        walkspeed: WalkSpeed(5.),
-        collider: Collider::new(IVec3::ZERO, physics::collider::Constraints::BOX),
-    });
+        Name::new("Player"),
+    ));
 
     // continue this
 }

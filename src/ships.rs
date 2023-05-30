@@ -20,7 +20,7 @@ use bevy::{asset::Asset, prelude::*};
 use crate::{
     physics::{self, collider::Collider},
     random::RandomGenerator,
-    tile_objects::{DynWallObject, ObjectName, TileStretch},
+    tile_objects::{DynWallObject, TileStretch},
 };
 
 /// a basic template for a ship. not piratey at all because I suck at art
@@ -158,10 +158,10 @@ fn spawn_wall(
 
     commands
         .spawn((
-            Collider::new(IVec3::ONE, physics::collider::Constraints::BOX),
+            Collider::new(physics::collider::Constraints::WALL),
             physics::velocity::VelocityBundle::default(),
             DynWallObject(),
-            ObjectName("Ship Wall".into()),
+            Name::new("Ship Wall"),
             SpriteSheetBundle {
                 // TODO: dynamically update walls or something
                 sprite: TextureAtlasSprite::new(202),

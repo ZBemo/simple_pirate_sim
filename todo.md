@@ -3,7 +3,8 @@
  - [ ] split physics.rs into multiple modules
     - [x] split out collision
     - [x] split out velocity calculation to its own module
-    - [ ] consider splitting out movement
+    - [x] consider splitting out movement
+ - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
  - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
@@ -11,6 +12,20 @@
  - [ ] set up cargo clippy and lint 
  - [ ] start checking docs for correctness
  - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
+
+# Current 
+Physics-collision and resolution 
+ - [ ] Chunk up into functions
+ - [ ] figure out all different modes of resolution
+    - [ ] clamp velocity - the preferred mode of resolution, essentially remove velocity from the object to stop it from moving into colliders
+    - [ ] apply velocity - a second choice, "push" the collider out of the collision zone
+       - Make sure this pushes in a reasonable direction. No clipping under floors, flight hacks, etc
+       - figure out how to implement this.  
+ - [ ] loop until all collisions for single frame resolved
+ - [ ] Figure out when to send collision events, and what to include
+   - right now I'm thinking other entities it collided with, where it was going to collide, and if a resolution was needed (Potentially per-entity)
+     For example, if you collide into one sensor collider, which also exists on a wall, you needed resolution with the wall, but merely collided with the sensor.
+
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)

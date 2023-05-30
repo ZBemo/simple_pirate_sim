@@ -8,7 +8,7 @@ use bevy::prelude::*;
 /// Bundle but no ticker
 ///
 ///  Relative Velocity should likely not be changed outside of the physics engine
-#[derive(Debug, Component, Clone, Default, Deref)]
+#[derive(Debug, Component, Clone, Default, Deref, Reflect)]
 pub struct RelativeVelocity(pub Vec3);
 
 /// RelativeVelocity + parent's TotalVelocity
@@ -16,7 +16,7 @@ pub struct RelativeVelocity(pub Vec3);
 /// TotalVelocity will = RelativeVelocity when an entity has no parents
 ///
 /// All of an entity's parents must have a Velocity bundle in order for the entity to have one
-#[derive(Debug, Component, Clone, Default, Deref)]
+#[derive(Debug, Component, Clone, Default, Deref, Reflect)]
 pub struct TotalVelocity(Vec3);
 
 /// A maintained velocity over time. Will be decayed based on certain constants by the physics
@@ -42,25 +42,25 @@ fn calculate_relative_velocity(
     // let delta_time = time.delta().as_secs_f32();
 
     for component in phsyics_components.iter_mut() {
-        let mut new_total_velocity = Vec3::splat(0.);
+        let mut new_relative_velocity = Vec3::splat(0.);
 
-        let (mut total_velocity, movement_goal, weight, mantained) = component;
+        let (mut relative_velocity, movement_goal, weight, mantained) = component;
 
         // it is up to the controller to ensure that the movement goal is reasonable
         if let Some(movement_goal) = movement_goal {
-            new_total_velocity += movement_goal.0;
+            new_relative_velocity += movement_goal.0;
         }
 
         // maybe gravity should be part of maintained velocity
         if let Some(weight) = weight {
-            new_total_velocity.z -= weight.0 * super::GRAVITY;
+            new_relative_velocity.z -= weight.0 * super::GRAVITY;
         }
 
         if let Some(mantained) = mantained {
-            new_total_velocity += mantained.0;
+            new_relative_velocity += mantained.0;
         }
 
-        total_velocity.0 = new_total_velocity;
+        relative_velocity.0 = new_relative_velocity;
     }
 }
 
@@ -96,6 +96,16 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
+fn propogate_no_hierarchy(
+    mut no_vel_query: Query<(Ref<RelativeVelocity>, &mut TotalVelocity), Without<Parent>>,
+) {
+    no_vel_query.iter_mut().for_each(|(relative, mut total)| {
+        if relative.is_changed() && !total.is_changed() {
+            total.0 = relative.0;
+        };
+    });
+}
+
 /// Propagate velocities down from an entities parents so that its Total and Relative Velocity remains accurate
 ///
 /// needs parent total and child relative along with child total
@@ -112,6 +122,7 @@ fn propagate_velocities(
         With<Parent>,
     >,
     parent_query: Query<(Entity, Ref<Parent>)>,
+    name_query: Query<&Name>,
 ) {
     trace!("starting velocity propagataion");
 
@@ -119,6 +130,13 @@ fn propagate_velocities(
     root_query
         .par_iter_mut()
         .for_each_mut(|(entity, children, relative, mut total)| {
+            trace!(
+                "propogating root {}",
+                name_query
+                    .get(entity)
+                    .map_or_else(|_| "UnnamedEntity".into(), |n| n.to_string())
+            );
+
             let changed = relative.is_changed();
             if changed {
                 total.0 = relative.0;
@@ -232,6 +250,7 @@ impl bevy::prelude::Plugin for Plugin {
             (
                 calculate_relative_velocity,
                 propagate_velocities.after(calculate_relative_velocity),
+                propogate_no_hierarchy.after(propagate_velocities),
                 decay_persistent_velocity.after(calculate_relative_velocity),
             )
                 .in_set(super::PhysicsSet::FinalizeVelocity),
