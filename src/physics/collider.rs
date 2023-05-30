@@ -24,7 +24,7 @@ use super::{movement::Ticker, velocity::TotalVelocity, PhysicsSet};
 /// The maximum amount of iterations the system can do to attempt to resolve collision conflicts
 const MAXIMUM_RESOLUTION_STEPS: u32 = 500;
 
-#[derive(Debug, Clone, Deref)]
+#[derive(Debug, Clone, Deref, Reflect)]
 pub struct Impulse(IVec3);
 
 /// A collision Event. If an entity is in the collision on a specific location,  
@@ -42,7 +42,7 @@ pub struct EntityCollision {
 }
 
 /// constraints put onto a collider and its collisions
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
 pub struct Constraints {
     /// which axes it is "solid" in a plane along, and thus will cause a collision conflict
     ///
@@ -95,7 +95,7 @@ impl Constraints {
 /// Currently, transform scale is not taken into account when calculating collision
 ///
 /// Any entity with a collider must also have a transform
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct Collider {
     pub constraints: Constraints,
 }
@@ -148,10 +148,6 @@ fn predict_location(
     tile_stretch.bevy_translation_to_tile(&current_location) + projected_movement_rounded.as_ivec3()
 }
 
-/// this newtype will make it easier to return richer data from [`check_collisions`] if that
-/// becomes desirable in the future.
-///
-/// maybe include velocity?
 #[derive(Debug, Clone)]
 struct InhabitingTile {
     entity: Entity,
@@ -283,8 +279,6 @@ fn find_and_resolve_conflicts(
                 let movement_signs = entity.predicted_movement.signum();
                 let mut current_resolution: BVec3 = BVec3::FALSE;
                 debug!("{}->{}", movement_signs, entity.predicted_movement);
-                trace!("LOGGER PANIC!");
-                panic!();
 
                 match movement_signs.z {
                     1 | -1 => {

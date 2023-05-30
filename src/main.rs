@@ -9,7 +9,7 @@ mod random;
 mod ships;
 mod tile_objects;
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use controllers::{MovementGoalTimeout, WalkSpeed};
 use physics::{
@@ -55,6 +55,7 @@ fn main() {
         .add_startup_system(setup)
         // .add_startup_system(gui::setup_coords_display)
         .add_startup_system(random::setup_generator)
+        .add_startup_system(controllers::register_types)
         // .add_system(gui::update_coords_display)
         // .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
         .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalizeVelocity))
@@ -75,14 +76,7 @@ pub fn setup(
     // window_q: Query<&Window, With<PrimaryWindow>>,
     asset_server: Res<AssetServer>,
     mut sprites: ResMut<Assets<TextureAtlas>>,
-    type_registry: Res<AppTypeRegistry>, // mut tilestretch: ResMut<TileStretch>,
 ) {
-    let mut type_registry_w = type_registry.write();
-
-    type_registry_w.add_registration(physics::movement::Ticker::get_type_registration());
-    type_registry_w.add_registration(physics::velocity::RelativeVelocity::get_type_registration());
-    type_registry_w.add_registration(physics::velocity::TotalVelocity::get_type_registration());
-
     // dwarfs (0,2)
     // TODO: ACTUAL Sprite sheet code
     let tilestretch: TileStretch = TileStretch::new(IVec2::ONE * 32);

@@ -6,7 +6,7 @@
 //! Currently, this file should only be for data definitions. Anything that requires a system
 //! should be put into its own module.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 pub mod collider;
 pub mod movement;
@@ -35,7 +35,7 @@ pub enum PhysicsSet {
 ///
 /// Any entity with a Weight will have a velocity of [`GRAVITY`] * weight added to its relative
 /// velocity during calculation.
-#[derive(Debug, Clone, Copy, Component, Deref, DerefMut)]
+#[derive(Debug, Clone, Copy, Component, Deref, DerefMut, Reflect)]
 pub struct Weight(pub f32);
 
 /// A way to request movement for a specific entity. Expects the entity to have a [`VelocityBundle`]
@@ -45,7 +45,7 @@ pub struct Weight(pub f32);
 ///
 /// As valid movement is different for each entity, The physics engine does not check for "invalid" movement goals,
 /// so it is the responsibility of  whoever is controlling an entity to make sure movement goals are valid before setting them.
-#[derive(Debug, Component, Clone, Default, Deref, DerefMut)]
+#[derive(Debug, Component, Clone, Default, Deref, DerefMut, Reflect)]
 pub struct MovementGoal(pub Vec3);
 
 /// The components necessary for movement by the physics engine to take place on an entity's
@@ -59,6 +59,19 @@ pub struct MovementGoal(pub Vec3);
 pub struct PhysicsComponentBase {
     ticker: movement::Ticker,
     total_velocity: velocity::VelocityBundle,
+}
+
+fn register_types_startup(type_registry: Res<AppTypeRegistry>) {
+    let mut type_registry_w = type_registry.write();
+
+    type_registry_w.add_registration(movement::Ticker::get_type_registration());
+    type_registry_w.add_registration(velocity::RelativeVelocity::get_type_registration());
+    type_registry_w.add_registration(velocity::MantainedVelocity::get_type_registration());
+    type_registry_w.add_registration(velocity::TotalVelocity::get_type_registration());
+    type_registry_w.add_registration(collider::Constraints::get_type_registration());
+    type_registry_w.add_registration(collider::Collider::get_type_registration());
+    type_registry_w.add_registration(self::MovementGoal::get_type_registration());
+    type_registry_w.add_registration(self::Weight::get_type_registration());
 }
 
 /// A plugin to setup essential physics systems
@@ -76,7 +89,7 @@ impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(velocity::Plugin())
             .add_plugin(collider::Plugin())
-            // resolve collisions system here?
-            .add_plugin(movement::Plugin());
+            .add_plugin(movement::Plugin())
+            .add_system(register_types_startup.on_startup());
     }
 }

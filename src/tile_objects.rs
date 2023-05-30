@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 use crate::controllers;
 
@@ -21,7 +21,7 @@ pub struct DynWallObject();
 /// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
 /// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
 /// the right grid.
-#[derive(Resource, Clone, Deref)]
+#[derive(Resource, Clone, Deref, Reflect)]
 pub struct TileStretch(IVec2);
 
 #[derive(Resource, Deref)]
@@ -79,6 +79,12 @@ fn process_sprites(sprites: Query<(&mut TextureAtlasSprite, &Transform)>) {
 
 pub fn setup_spritesheet(asset_server: Res<AssetServer>) {
     todo!()
+}
+
+pub fn register_types(type_registry: Res<AppTypeRegistry>) {
+    let mut type_registry_w = type_registry.write();
+
+    type_registry_w.add_registration(TileStretch::get_type_registration());
 }
 
 pub fn cull_non_camera_layer_sprites(

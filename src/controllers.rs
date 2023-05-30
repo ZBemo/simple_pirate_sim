@@ -3,7 +3,7 @@
 //! The final output of controllers will be "requests" to actually change physical world, like
 //! how MovementGoals are a request to change entities location trough velocity.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 use crate::physics::MovementGoal;
 
@@ -11,9 +11,9 @@ use crate::physics::MovementGoal;
 const DIAG_SPEED: f32 = 1. / 1.5;
 
 /// This should probably be a f32 as it is exponentially more granular than necessary
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct MovementGoalTimeout(pub f64);
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct WalkSpeed(pub f32);
 
 /// A system to timeout movement goals based on their timeout component.
@@ -34,6 +34,14 @@ pub fn update_goal_timeout(
             }
         }
     }
+}
+
+pub fn register_types(type_registry: Res<AppTypeRegistry>) {
+    let mut type_registry_w = type_registry.write();
+
+    type_registry_w.add_registration(self::MovementGoal::get_type_registration());
+    type_registry_w.add_registration(self::MovementGoalTimeout::get_type_registration());
+    type_registry_w.add_registration(self::WalkSpeed::get_type_registration());
 }
 
 pub mod npc {

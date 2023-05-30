@@ -21,7 +21,7 @@ pub struct TotalVelocity(Vec3);
 
 /// A maintained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
-#[derive(Debug, Clone, Component, Default, Deref, DerefMut)]
+#[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
 pub struct MantainedVelocity(pub Vec3);
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
