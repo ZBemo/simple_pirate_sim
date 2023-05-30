@@ -15,14 +15,16 @@
 
 # Current 
 Physics-collision and resolution 
- - [ ] Chunk up into functions
+ - [x] Chunk up into functions
  - [ ] figure out all different modes of resolution
-    - [ ] clamp velocity - the preferred mode of resolution, essentially remove velocity from the object to stop it from moving into colliders
+    - [x] clamp velocity - the preferred mode of resolution, essentially remove velocity from the object to stop it from moving into colliders
     - [ ] apply velocity - a second choice, "push" the collider out of the collision zone
        - Make sure this pushes in a reasonable direction. No clipping under floors, flight hacks, etc
        - figure out how to implement this.  
  - [ ] loop until all collisions for single frame resolved
  - [ ] Figure out when to send collision events, and what to include
+   - [x] Entity collision events
+   - [ ] tile collision events
    - right now I'm thinking other entities it collided with, where it was going to collide, and if a resolution was needed (Potentially per-entity)
      For example, if you collide into one sensor collider, which also exists on a wall, you needed resolution with the wall, but merely collided with the sensor.
 
@@ -31,13 +33,13 @@ Physics-collision and resolution
  - [ ] "full" tile physics engine (roughly in order)
   - [x] propogate velocities
   - [x] Collision checking
-   - [ ] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
-  - [ ] Collision resolution
-  - [ ] Collision event system
+   - [x] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
+  - [x] Collision resolution
+  - [x] Collision event system
   - [ ] "take" velocity from floor
   - [ ] finalize, and probably re-architect continuous velocity
   - [ ] fine tune gravity
- - [ ] Information display setup for gui, easier development
+ - [x] Information display setup for gui, easier development
  - [ ] Player and AI interaction 
     - [ ] ladders
     - [ ] guns
