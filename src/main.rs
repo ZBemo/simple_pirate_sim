@@ -52,6 +52,8 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(PhysicsPlugin)
         .add_plugin(WorldInspectorPlugin::new())
+        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(Msaa::Off) // 32 bit does not need AA
         .add_state::<GameState>()
         .add_startup_system(setup)
         // .add_startup_system(gui::setup_coords_display)

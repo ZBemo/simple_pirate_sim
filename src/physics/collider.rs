@@ -21,9 +21,6 @@ use crate::tile_objects::TileStretch;
 
 use super::{movement::Ticker, velocity::TotalVelocity, PhysicsSet};
 
-/// The maximum amount of iterations the system can do to attempt to resolve collision conflicts
-const MAXIMUM_RESOLUTION_STEPS: u32 = 500;
-
 #[derive(Debug, Clone, Deref, Reflect)]
 pub struct Impulse(IVec3);
 
@@ -282,14 +279,13 @@ fn find_and_resolve_conflicts(
 
                 match movement_signs.z {
                     1 | -1 => {
-                        debug!("MOVEMENT Z");
                         if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
                             .map(|e| e.0)
                             .last()
                             .unwrap_or(0)
                             >= 1
                         {
-                            current_resolution.z = true;
+                            current_resolution.z = true && entity.constraints.solid_planes.z;
                         }
                     }
                     0 => {
@@ -304,14 +300,13 @@ fn find_and_resolve_conflicts(
                 }
                 match movement_signs.x {
                     1 | -1 => {
-                        debug!("MOVEMENT X");
                         if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
                             .map(|e| e.0)
                             .last()
                             .unwrap_or(0)
                             >= 1
                         {
-                            current_resolution.x = true;
+                            current_resolution.x = true && entity.constraints.solid_planes.x;
                         }
                     }
                     0 => {
@@ -326,14 +321,13 @@ fn find_and_resolve_conflicts(
                 }
                 match movement_signs.y {
                     1 | -1 => {
-                        debug!("MOVEMENT Y");
                         if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
                             .map(|e| e.0)
                             .last()
                             .unwrap_or(0)
                             >= 1
                         {
-                            current_resolution.y = true;
+                            current_resolution.y = true && entity.constraints.solid_planes.y;
                         }
                     }
                     0 => {
@@ -399,6 +393,8 @@ fn check_and_resolve_collisions(
     for resolution in resolutions {
         let rel_vel = rel_velocity_q.get_mut(resolution.entity).ok();
         // safety: this was filtered from list of colliders
+
+        // TODO: Consider other colliders collision.
 
         if let Some(mut r_v) = rel_vel {
             if resolution.to_block.z {
