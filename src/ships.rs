@@ -18,9 +18,9 @@
 use bevy::{asset::Asset, prelude::*};
 
 use crate::{
-    physics::{self, collider::Collider},
+    physics::{self, collider::Collider, TileStretch},
     random::RandomGenerator,
-    tile_objects::{DynWallObject, TileStretch},
+    tile_objects::DynWallObject,
 };
 
 /// a basic template for a ship. not piratey at all because I suck at art

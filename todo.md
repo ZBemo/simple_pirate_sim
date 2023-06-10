@@ -1,6 +1,6 @@
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
- - [ ] split physics.rs into multiple modules
+ - [x] split physics.rs into multiple modules
     - [x] split out collision
     - [x] split out velocity calculation to its own module
     - [x] consider splitting out movement
@@ -8,7 +8,7 @@
  - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
- - [ ] change query function parameters to $NAME_q. will make code far more readable
+ - [x] change query function parameters to $NAME_q. will make code far more readable
  - [ ] set up cargo clippy and lint 
  - [ ] start checking docs for correctness
  - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
@@ -21,7 +21,8 @@ Physics-collision and resolution
     - [ ] apply velocity - a second choice, "push" the collider out of the collision zone
        - Make sure this pushes in a reasonable direction. No clipping under floors, flight hacks, etc
        - figure out how to implement this.  
- - [ ] loop until all collisions for single frame resolved
+ - [ ] loop until all collisions for single frame resolved. Currently, with only clamping velocity, this should not be an issue.
+ - [ ] "unclipping" system for colliders. Push them out of places that they shouldn't be.
  - [ ] Figure out when to send collision events, and what to include
    - [x] Entity collision events
    - [ ] tile collision events

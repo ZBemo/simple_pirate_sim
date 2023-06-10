@@ -12,6 +12,41 @@ pub mod collider;
 pub mod movement;
 pub mod velocity;
 
+/// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
+/// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
+/// the right grid.
+#[derive(Resource, Clone, Deref, Reflect)]
+pub struct TileStretch(IVec2);
+
+impl TileStretch {
+    pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
+        // common sense check that t contains only whole numbers before casting
+        debug_assert!(
+            t.round() == *t,
+            "attempted translation of vector with non-whole numbers into tilespace"
+        );
+
+        IVec3::new(t.x as i32 / self.x, t.y as i32 / self.y, t.z as i32)
+    }
+    pub fn tile_translation_to_bevy(&self, t: &IVec3) -> Vec3 {
+        Vec3::new(
+            t.x as f32 * self.x as f32,
+            t.y as f32 * self.y as f32,
+            t.z as f32,
+        )
+    }
+
+    pub fn new(v: IVec2) -> Self {
+        v.into()
+    }
+}
+
+impl From<IVec2> for TileStretch {
+    fn from(value: IVec2) -> Self {
+        Self(value)
+    }
+}
+
 /// The gravity constant used for weight velocity gain
 pub const GRAVITY: f32 = 9.8;
 
@@ -70,8 +105,9 @@ fn register_types_startup(type_registry: Res<AppTypeRegistry>) {
     type_registry_w.add_registration(velocity::TotalVelocity::get_type_registration());
     type_registry_w.add_registration(collider::Constraints::get_type_registration());
     type_registry_w.add_registration(collider::Collider::get_type_registration());
-    type_registry_w.add_registration(self::MovementGoal::get_type_registration());
-    type_registry_w.add_registration(self::Weight::get_type_registration());
+    type_registry_w.add_registration(MovementGoal::get_type_registration());
+    type_registry_w.add_registration(Weight::get_type_registration());
+    type_registry_w.add_registration(TileStretch::get_type_registration());
 }
 
 /// A plugin to setup essential physics systems

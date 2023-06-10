@@ -17,9 +17,8 @@ use std::unreachable;
 
 use bevy::{prelude::*, utils::HashMap};
 
-use crate::tile_objects::TileStretch;
-
 use super::{movement::Ticker, velocity::TotalVelocity, PhysicsSet};
+use crate::physics::TileStretch;
 
 #[derive(Debug, Clone, Deref, Reflect)]
 pub struct Impulse(IVec3);
@@ -352,6 +351,19 @@ fn find_and_resolve_conflicts(
         .collect()
 }
 
+/// run in between finalize collision and finalize movement.
+/// need some way to store data on whether or not a conflict resolution took place.
+fn check_colliding(
+    collider_q: Query<(Entity, &Collider)>,
+    transform_q: Query<&Transform, With<Collider>>,
+) {
+    todo!()
+}
+
+fn check_and_resolve_clipping() {
+    todo!()
+}
+
 /// Behemoth system for checking and then resolving collisions
 ///
 /// For now this only does one "layer" of collision checking, which means it assumes that any
@@ -442,6 +454,7 @@ impl bevy::prelude::Plugin for Plugin {
                 .before(PhysicsSet::FinalizeMovement),
         )
         .add_system(log_collisions.after(PhysicsSet::FinalizeCollision))
+        .add_system(check_and_resolve_collisions.after(PhysicsSet::FinalizeCollision))
         .add_event::<EntityCollision>();
     }
 }

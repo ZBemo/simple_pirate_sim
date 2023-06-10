@@ -1,6 +1,6 @@
-use bevy::{prelude::*, reflect};
+use bevy::prelude::*;
 
-use crate::tile_objects::TileStretch;
+use super::TileStretch;
 
 /// A Ticker, used to keep track of when to actually move a physics component by
 /// buffering velocity into its ticker until at least a whole tile has been moved.

@@ -12,10 +12,10 @@ mod tile_objects;
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use controllers::{MovementGoalTimeout, WalkSpeed};
+use physics::TileStretch;
 use physics::{
     collider::Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight,
 };
-use tile_objects::TileStretch;
 
 /// an unused gamestate system
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]

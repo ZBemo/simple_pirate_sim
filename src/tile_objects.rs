@@ -6,11 +6,11 @@
 // still in heavy development
 #![allow(unused)]
 
+use bevy::{prelude::*, reflect::GetTypeRegistration};
 use std::collections::HashSet;
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
-
 use crate::controllers;
+use crate::physics::TileStretch;
 
 // #[derive(Component, Debug, Deref)]
 // pub struct ObjectName(pub String);
@@ -18,47 +18,12 @@ use crate::controllers;
 #[derive(Component, Debug)]
 pub struct DynWallObject();
 
-/// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
-/// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
-/// the right grid.
-#[derive(Resource, Clone, Deref, Reflect)]
-pub struct TileStretch(IVec2);
-
 #[derive(Resource, Deref)]
 pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
 
 /// Marks that an entity should be managed as a viewable/interactable tile object
 #[derive(Component)]
 pub struct TileObject();
-
-impl TileStretch {
-    pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
-        // common sense check that t contains only whole numbers before casting
-        debug_assert!(
-            t.round() == *t,
-            "attempted translation of vector with non-whole numbers into tilespace"
-        );
-
-        IVec3::new(t.x as i32 / self.x, t.y as i32 / self.y, t.z as i32)
-    }
-    pub fn tile_translation_to_bevy(&self, t: &IVec3) -> Vec3 {
-        Vec3::new(
-            t.x as f32 * self.x as f32,
-            t.y as f32 * self.y as f32,
-            t.z as f32,
-        )
-    }
-
-    pub fn new(v: IVec2) -> Self {
-        v.into()
-    }
-}
-
-impl From<IVec2> for TileStretch {
-    fn from(value: IVec2) -> Self {
-        Self(value)
-    }
-}
 
 // 45 degreees to radians * 2
 pub const ROTATE_TILE: f32 = std::f32::consts::FRAC_1_PI;

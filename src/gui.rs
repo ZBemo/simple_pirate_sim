@@ -7,7 +7,7 @@ use bevy::{ecs::query::WorldQuery, prelude::*};
 
 pub const DEFAULT_FONT_PATH: &str = "fonts/FiraCode/FiraCodeNerdFont-Bold.ttf";
 
-use crate::{controllers, tile_objects::TileStretch};
+use crate::{controllers, physics::TileStretch};
 
 #[derive(Component)]
 pub struct InfoInsert {
