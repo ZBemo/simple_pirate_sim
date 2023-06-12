@@ -254,124 +254,122 @@ fn find_and_resolve_conflicts(
         z: Vec<Entity>,
     }
 
-    let collisions_and_events =
-        collisions
-            .iter()
-            .filter(|v| v.1.len() > 1)
-            .flat_map(|(position, inhabitants)| {
-                // empty
-                let mut planes = ViolatablePlanes::default();
+    collisions
+        .iter()
+        .filter(|v| v.1.len() > 1)
+        .flat_map(|(position, inhabitants)| {
+            // empty
+            let mut planes = ViolatablePlanes::default();
 
-                let collision_map = inhabitants;
+            let collision_map = inhabitants;
 
-                for entity in collision_map.iter() {
-                    // safety: any entity involved in a collision must have a collider
-                    let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
+            for entity in collision_map.iter() {
+                // safety: any entity involved in a collision must have a collider
+                let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
 
-                    // add entity to violatableplanes if it is violatable
-                    if collider.constraints.solid_planes.z {
-                        planes.z.push(entity.entity)
+                // add entity to violatableplanes if it is violatable
+                if collider.constraints.solid_planes.z {
+                    planes.z.push(entity.entity)
+                }
+                if collider.constraints.solid_planes.y {
+                    planes.y.push(entity.entity)
+                }
+                if collider.constraints.solid_planes.x {
+                    planes.x.push(entity.entity)
+                }
+            }
+
+            // now, check for collisions
+            collision_map.iter().map(move |entity| {
+                let movement_signs = entity.predicted_movement.signum();
+                let mut current_resolution: BVec3 = BVec3::FALSE;
+                debug!("{}->{}", movement_signs, entity.predicted_movement);
+
+                match movement_signs.z {
+                    1 | -1 => {
+                        if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
+                            .map(|e| e.0)
+                            .last()
+                            .unwrap_or(0)
+                            >= 1
+                        {
+                            current_resolution.z = true && entity.constraints.solid_planes.z;
+                        }
                     }
-                    if collider.constraints.solid_planes.y {
-                        planes.y.push(entity.entity)
+                    0 => {
+                        // do nothing
                     }
-                    if collider.constraints.solid_planes.x {
-                        planes.x.push(entity.entity)
+                    _ => {
+                        #[cfg(debug_assertions)]
+                        unreachable!();
+                        #[cfg(not(debug_assertions))]
+                        unreachable_unchecked()
+                    }
+                }
+                match movement_signs.x {
+                    1 | -1 => {
+                        if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
+                            .map(|e| e.0)
+                            .last()
+                            .unwrap_or(0)
+                            >= 1
+                        {
+                            current_resolution.x = true && entity.constraints.solid_planes.x;
+                        }
+                    }
+                    0 => {
+                        // do nothing
+                    }
+                    _ => {
+                        #[cfg(debug_assertions)]
+                        unreachable!();
+                        #[cfg(not(debug_assertions))]
+                        unreachable_unchecked()
+                    }
+                }
+                match movement_signs.y {
+                    1 | -1 => {
+                        if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
+                            .map(|e| e.0)
+                            .last()
+                            .unwrap_or(0)
+                            >= 1
+                        {
+                            current_resolution.y = true && entity.constraints.solid_planes.y;
+                        }
+                    }
+                    0 => {
+                        // do nothing
+                    }
+                    _ => {
+                        #[cfg(debug_assertions)]
+                        unreachable!();
+                        #[cfg(not(debug_assertions))]
+                        unreachable_unchecked()
                     }
                 }
 
-                // now, check for collisions
-                collision_map.iter().map(move |entity| {
-                    let movement_signs = entity.predicted_movement.signum();
-                    let mut current_resolution: BVec3 = BVec3::FALSE;
-                    debug!("{}->{}", movement_signs, entity.predicted_movement);
+                let info = ConflictInfo {
+                    entity: entity.entity,
+                    to_block: current_resolution,
+                    position: *position,
+                    constraints: entity.constraints.clone(),
+                };
 
-                    match movement_signs.z {
-                        1 | -1 => {
-                            if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
-                                .map(|e| e.0)
-                                .last()
-                                .unwrap_or(0)
-                                >= 1
-                            {
-                                current_resolution.z = true && entity.constraints.solid_planes.z;
-                            }
-                        }
-                        0 => {
-                            // do nothing
-                        }
-                        _ => {
-                            #[cfg(debug_assertions)]
-                            unreachable!();
-                            #[cfg(not(debug_assertions))]
-                            unreachable_unchecked()
-                        }
-                    }
-                    match movement_signs.x {
-                        1 | -1 => {
-                            if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
-                                .map(|e| e.0)
-                                .last()
-                                .unwrap_or(0)
-                                >= 1
-                            {
-                                current_resolution.x = true && entity.constraints.solid_planes.x;
-                            }
-                        }
-                        0 => {
-                            // do nothing
-                        }
-                        _ => {
-                            #[cfg(debug_assertions)]
-                            unreachable!();
-                            #[cfg(not(debug_assertions))]
-                            unreachable_unchecked()
-                        }
-                    }
-                    match movement_signs.y {
-                        1 | -1 => {
-                            if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
-                                .map(|e| e.0)
-                                .last()
-                                .unwrap_or(0)
-                                >= 1
-                            {
-                                current_resolution.y = true && entity.constraints.solid_planes.y;
-                            }
-                        }
-                        0 => {
-                            // do nothing
-                        }
-                        _ => {
-                            #[cfg(debug_assertions)]
-                            unreachable!();
-                            #[cfg(not(debug_assertions))]
-                            unreachable_unchecked()
-                        }
-                    }
+                // send event here.
+                // TODO: return a (ConflictInfo,EntityCollision) iter, split into two iters and
+                // batch send that. then return other iter
+                let event =
+                    gen_collision_event(&info, &inhabitants.iter().map(|t| t.entity).collect());
 
-                    let info = ConflictInfo {
-                        entity: entity.entity,
-                        to_block: current_resolution,
-                        position: *position,
-                        constraints: entity.constraints.clone(),
-                    };
-
-                    // send event here.
-                    // TODO: return a (ConflictInfo,EntityCollision) iter, split into two iters and
-                    // batch send that. then return other iter
-                    let event =
-                        gen_collision_event(&info, &inhabitants.iter().map(|t| t.entity).collect());
-
-                    (info, event)
-                })
-            });
-
-    let (ret, events): (Vec<_>, Vec<_>) = Iterator::unzip(collisions_and_events);
-
-    writer.send_batch(events);
-
-    ret
+                (info, event)
+            })
+        })
+        .map(|(ret, event)| {
+            writer.send(event);
+            ret
+        })
+        .collect()
 }
 
 fn gen_collision_event(resolution: &ConflictInfo, colliders: &Vec<Entity>) -> EntityCollision {
