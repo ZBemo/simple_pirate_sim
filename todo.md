@@ -25,7 +25,7 @@ Physics-collision and resolution
  - [ ] "unclipping" system for colliders. Push them out of places that they shouldn't be.
  - [ ] Figure out when to send collision events, and what to include
    - [x] Entity collision events
-   - [ ] tile collision events
+   - [ ] potentially have an asset? With all of the collisions that occur in a frame stored for more advanced use.
    - right now I'm thinking other entities it collided with, where it was going to collide, and if a resolution was needed (Potentially per-entity)
      For example, if you collide into one sensor collider, which also exists on a wall, you needed resolution with the wall, but merely collided with the sensor.
 

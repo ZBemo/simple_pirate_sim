@@ -34,7 +34,14 @@ pub struct TileCollision {}
 pub struct EntityCollision {
     pub entity: Entity,
     pub tile: IVec3,
-    pub blocked: BVec3,
+    pub conflict_along: BVec3,
+    pub colliding_with: Vec<Entity>,
+}
+
+impl EntityCollision {
+    pub fn was_in_conflict(&self) -> bool {
+        self.conflict_along.any()
+    }
 }
 
 /// constraints put onto a collider and its collisions
@@ -213,7 +220,7 @@ fn check_collisions(
 }
 
 // an amount to subtract from the entities velocity
-struct ConflictResolution {
+struct ConflictInfo {
     entity: Entity,
     // if true subtract 1 * total_vel.signum() from total_vel
     to_block: BVec3,
@@ -235,7 +242,9 @@ struct ConflictResolution {
 fn find_and_resolve_conflicts(
     collisions: &HashMap<IVec3, Vec<InhabitingTile>>,
     collider_q: &Query<(Entity, &Collider)>,
-) -> Vec<ConflictResolution> {
+    writer: &mut EventWriter<EntityCollision>, // this should be separated into another function to
+                                               // keep this one functionally pure
+) -> Vec<ConflictInfo> {
     // start by mapping each possible movement violation to any entities that would have their collider
     // constraints violated
     #[derive(Debug, Default)]
@@ -245,110 +254,137 @@ fn find_and_resolve_conflicts(
         z: Vec<Entity>,
     }
 
-    collisions
-        .iter()
-        .filter(|v| v.1.len() > 1)
-        .flat_map(|(position, inhabitants)| {
-            // empty
-            let mut planes = ViolatablePlanes::default();
+    let collisions_and_events =
+        collisions
+            .iter()
+            .filter(|v| v.1.len() > 1)
+            .flat_map(|(position, inhabitants)| {
+                // empty
+                let mut planes = ViolatablePlanes::default();
 
-            let collision_map = inhabitants;
+                let collision_map = inhabitants;
 
-            for entity in collision_map.iter() {
-                // safety: any entity involved in a collision must have a collider
-                let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
+                for entity in collision_map.iter() {
+                    // safety: any entity involved in a collision must have a collider
+                    let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
 
-                // add entity to violatableplanes if it is violatable
-                if collider.constraints.solid_planes.z {
-                    planes.z.push(entity.entity)
+                    // add entity to violatableplanes if it is violatable
+                    if collider.constraints.solid_planes.z {
+                        planes.z.push(entity.entity)
+                    }
+                    if collider.constraints.solid_planes.y {
+                        planes.y.push(entity.entity)
+                    }
+                    if collider.constraints.solid_planes.x {
+                        planes.x.push(entity.entity)
+                    }
                 }
-                if collider.constraints.solid_planes.y {
-                    planes.y.push(entity.entity)
-                }
-                if collider.constraints.solid_planes.x {
-                    planes.x.push(entity.entity)
-                }
-            }
 
-            // now, check for collisions
-            collision_map.iter().map(move |entity| {
-                let movement_signs = entity.predicted_movement.signum();
-                let mut current_resolution: BVec3 = BVec3::FALSE;
-                debug!("{}->{}", movement_signs, entity.predicted_movement);
+                // now, check for collisions
+                collision_map.iter().map(move |entity| {
+                    let movement_signs = entity.predicted_movement.signum();
+                    let mut current_resolution: BVec3 = BVec3::FALSE;
+                    debug!("{}->{}", movement_signs, entity.predicted_movement);
 
-                match movement_signs.z {
-                    1 | -1 => {
-                        if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
-                            .map(|e| e.0)
-                            .last()
-                            .unwrap_or(0)
-                            >= 1
-                        {
-                            current_resolution.z = true && entity.constraints.solid_planes.z;
+                    match movement_signs.z {
+                        1 | -1 => {
+                            if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
+                                .map(|e| e.0)
+                                .last()
+                                .unwrap_or(0)
+                                >= 1
+                            {
+                                current_resolution.z = true && entity.constraints.solid_planes.z;
+                            }
+                        }
+                        0 => {
+                            // do nothing
+                        }
+                        _ => {
+                            #[cfg(debug_assertions)]
+                            unreachable!();
+                            #[cfg(not(debug_assertions))]
+                            unreachable_unchecked()
                         }
                     }
-                    0 => {
-                        // do nothing
-                    }
-                    _ => {
-                        #[cfg(debug_assertions)]
-                        unreachable!();
-                        #[cfg(not(debug_assertions))]
-                        unreachable_unchecked()
-                    }
-                }
-                match movement_signs.x {
-                    1 | -1 => {
-                        if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
-                            .map(|e| e.0)
-                            .last()
-                            .unwrap_or(0)
-                            >= 1
-                        {
-                            current_resolution.x = true && entity.constraints.solid_planes.x;
+                    match movement_signs.x {
+                        1 | -1 => {
+                            if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
+                                .map(|e| e.0)
+                                .last()
+                                .unwrap_or(0)
+                                >= 1
+                            {
+                                current_resolution.x = true && entity.constraints.solid_planes.x;
+                            }
+                        }
+                        0 => {
+                            // do nothing
+                        }
+                        _ => {
+                            #[cfg(debug_assertions)]
+                            unreachable!();
+                            #[cfg(not(debug_assertions))]
+                            unreachable_unchecked()
                         }
                     }
-                    0 => {
-                        // do nothing
-                    }
-                    _ => {
-                        #[cfg(debug_assertions)]
-                        unreachable!();
-                        #[cfg(not(debug_assertions))]
-                        unreachable_unchecked()
-                    }
-                }
-                match movement_signs.y {
-                    1 | -1 => {
-                        if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
-                            .map(|e| e.0)
-                            .last()
-                            .unwrap_or(0)
-                            >= 1
-                        {
-                            current_resolution.y = true && entity.constraints.solid_planes.y;
+                    match movement_signs.y {
+                        1 | -1 => {
+                            if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
+                                .map(|e| e.0)
+                                .last()
+                                .unwrap_or(0)
+                                >= 1
+                            {
+                                current_resolution.y = true && entity.constraints.solid_planes.y;
+                            }
+                        }
+                        0 => {
+                            // do nothing
+                        }
+                        _ => {
+                            #[cfg(debug_assertions)]
+                            unreachable!();
+                            #[cfg(not(debug_assertions))]
+                            unreachable_unchecked()
                         }
                     }
-                    0 => {
-                        // do nothing
-                    }
-                    _ => {
-                        #[cfg(debug_assertions)]
-                        unreachable!();
-                        #[cfg(not(debug_assertions))]
-                        unreachable_unchecked()
-                    }
-                }
 
-                ConflictResolution {
-                    entity: entity.entity,
-                    to_block: current_resolution,
-                    position: *position,
-                    constraints: entity.constraints.clone(),
-                }
-            })
-        })
-        .collect()
+                    let info = ConflictInfo {
+                        entity: entity.entity,
+                        to_block: current_resolution,
+                        position: *position,
+                        constraints: entity.constraints.clone(),
+                    };
+
+                    // send event here.
+                    // TODO: return a (ConflictInfo,EntityCollision) iter, split into two iters and
+                    // batch send that. then return other iter
+                    let event =
+                        gen_collision_event(&info, &inhabitants.iter().map(|t| t.entity).collect());
+
+                    (info, event)
+                })
+            });
+
+    let (ret, events): (Vec<_>, Vec<_>) = Iterator::unzip(collisions_and_events);
+
+    writer.send_batch(events);
+
+    ret
+}
+
+fn gen_collision_event(resolution: &ConflictInfo, colliders: &Vec<Entity>) -> EntityCollision {
+    EntityCollision {
+        entity: resolution.entity,
+        tile: resolution.position,
+        conflict_along: resolution.to_block,
+        colliding_with: colliders
+            .iter()
+            .filter(|e| **e != resolution.entity)
+            .cloned()
+            .collect(),
+    }
 }
 
 /// run in between finalize collision and finalize movement.
@@ -372,6 +408,10 @@ fn check_and_resolve_clipping() {
 /// This should be fixed in the future. Can probably just slap it all in a loop, with
 /// change tracking for performance
 ///
+/// We should also consider having this simply update an Asset with wanted resolutions or something
+/// of the sort, and then have other systems act on that to do things like actually clamp velocity,
+/// send out events, etc. This might be less performant but would lead to far cleaner code.
+///
 /// Perhaps this should have its own component for adding a reactive velocity? This can be easily
 /// done if we see cases where it is beneficial in the future.
 fn check_and_resolve_collisions(
@@ -384,7 +424,7 @@ fn check_and_resolve_collisions(
     tile_stretch: Res<TileStretch>,
     name_q: Query<&Name>,
     time: Res<Time>,
-    mut collision_writer: EventWriter<EntityCollision>,
+    mut writer: EventWriter<EntityCollision>,
 ) {
     trace!("Starting collision checking and resolution");
 
@@ -400,7 +440,7 @@ fn check_and_resolve_collisions(
         delta_time,
     );
 
-    let resolutions = find_and_resolve_conflicts(&inhabited_tiles, &collider_q);
+    let resolutions = find_and_resolve_conflicts(&inhabited_tiles, &collider_q, &mut writer);
 
     for resolution in resolutions {
         let rel_vel = rel_velocity_q.get_mut(resolution.entity).ok();
@@ -419,27 +459,13 @@ fn check_and_resolve_collisions(
                 r_v.0.y = 0.;
             }
         }
-
-        collision_writer.send(EntityCollision {
-            entity: resolution.entity,
-            tile: resolution.position,
-            blocked: resolution.to_block,
-        });
     }
 }
 
 #[cfg(debug_assertions)]
 fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>) {
     for event in events.iter() {
-        debug!(
-            "Object {} collided at tile {}, had velocity changed {}",
-            name_q
-                .get(event.entity)
-                .ok()
-                .map_or_else(|| "MissingName", |t| t.as_str()),
-            event.tile,
-            event.blocked
-        );
+        todo!();
     }
 }
 
