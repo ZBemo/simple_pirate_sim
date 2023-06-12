@@ -356,9 +356,6 @@ fn find_and_resolve_conflicts(
                     constraints: entity.constraints.clone(),
                 };
 
-                // send event here.
-                // TODO: return a (ConflictInfo,EntityCollision) iter, split into two iters and
-                // batch send that. then return other iter
                 let event =
                     gen_collision_event(&info, &inhabitants.iter().map(|t| t.entity).collect());
 
@@ -366,6 +363,7 @@ fn find_and_resolve_conflicts(
             })
         })
         .map(|(ret, event)| {
+            // send event and discard as now irrelevant
             writer.send(event);
             ret
         })
