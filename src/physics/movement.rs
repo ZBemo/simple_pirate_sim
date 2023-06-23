@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::TileStretch;
+use crate::tile_grid::TileStretch;
 
 /// A Ticker, used to keep track of when to actually move a physics component by
 /// buffering velocity into its ticker until at least a whole tile has been moved.
@@ -41,21 +41,25 @@ fn finalize_movement(
 
     for (mut transform, mut ticker, total_velocity, _collider) in phsyics_components.iter_mut() {
         // update ticker, only apply velocity * delta to keep time consistent
-        ticker.0 += total_velocity.0 * time.delta_seconds();
+        ticker.0 += **total_velocity * time.delta_seconds();
 
         debug!("updating with ticker {}", ticker.0);
 
-        while ticker.0.z.abs() >= 1. {
-            transform.translation.z += ticker.0.z.signum();
-            ticker.0.z -= 1. * ticker.0.z.signum();
+        let z_sign = ticker.z.signum();
+        let y_sign = ticker.y.signum();
+        let x_sign = ticker.y.signum();
+
+        while ticker.z.abs() >= 1. {
+            transform.translation.z += z_sign;
+            ticker.0.z -= 1. * z_sign;
         }
-        while ticker.0.y.abs() >= 1. {
-            transform.translation.y += tile_stretch.y as f32 * ticker.0.y.signum();
-            ticker.0.y -= 1. * ticker.0.y.signum();
+        while ticker.y.abs() >= 1. {
+            transform.translation.y += tile_stretch.y as f32 * y_sign;
+            ticker.0.y -= 1. * y_sign;
         }
         while ticker.0.x.abs() >= 1. {
-            transform.translation.x += tile_stretch.x as f32 * ticker.0.x.signum();
-            ticker.0.x -= 1. * ticker.0.x.signum();
+            transform.translation.x += tile_stretch.x as f32 * x_sign;
+            ticker.0.x -= 1. * x_sign;
         }
 
         // this might break things in the future!
