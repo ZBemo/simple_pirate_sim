@@ -5,6 +5,8 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# speed improvements for dev builds. opt-level assumes we won't be debugging dependencies,
+# and rustflags assumes we won't be building in dev mode for distribution.
 [profile.dev.package."*"]
 opt-level = 3
 # rustflags = ["-C","target-cpu=native"]
@@ -13,12 +15,14 @@ opt-level = 3
 lto = "thin"
 
 [dependencies]
-bevy-inspector-egui = {version = "0.18.3", default-features = false}
+bevy-inspector-egui = {version = "0.18", default-features = false}
 # bevy dependency below
-bracket-random = "^0.8"
+bracket-random = "0.8"
+thiserror = "1.0"
+bevy_egui = "0.20.3"
 
 [dependencies.bevy]
-version = "^0.10"
+version = "0.10"
 default-features = false
 features = [
   # if you add dynamic linking, remember not to commit
