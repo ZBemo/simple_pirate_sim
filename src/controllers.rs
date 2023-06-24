@@ -58,7 +58,7 @@ pub mod npc {
 }
 
 pub mod player {
-    use crate::{controllers::DIAG_SPEED, physics::MovementGoal};
+    use crate::{console, controllers::DIAG_SPEED, physics::MovementGoal};
     use bevy::prelude::*;
 
     /// A marker for an entity controlled as a player
@@ -82,14 +82,21 @@ pub mod player {
     /// Handle player inputs to do with movement goals.
     pub fn update_movement_goals(
         mut char_input_events: EventReader<ReceivedCharacter>,
-        mut player: Query<(
-            &Controller,
-            &mut super::MovementGoalTimeout,
-            &mut MovementGoal,
-            &super::WalkSpeed,
-        )>,
+        mut player: Query<
+            (
+                &mut super::MovementGoalTimeout,
+                &mut MovementGoal,
+                &super::WalkSpeed,
+            ),
+            With<Controller>,
+        >,
+        console_open: Res<console::ConsoleOpen>,
     ) {
-        let (_, mut movement_timeout, mut movement_goal, walk_speed) =
+        if **console_open {
+            return;
+        }
+
+        let (mut movement_timeout, mut movement_goal, walk_speed) =
             player.get_single_mut().expect("Player not found");
 
         for event in char_input_events.iter() {

@@ -6,46 +6,17 @@
 //! Currently, this file should only be for data definitions. Anything that requires a system
 //! should be put into its own module.
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use std::borrow::Borrow;
+use std::str::FromStr;
+
+use bevy::{ecs::system::Command, prelude::*, reflect::GetTypeRegistration};
+
+use crate::console::{self, PrintStringCommand, ReflectConsoleCommand};
+use crate::tile_grid::TileStretch;
 
 pub mod collider;
 pub mod movement;
 pub mod velocity;
-
-/// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between
-/// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
-/// the right grid.
-#[derive(Resource, Clone, Deref, Reflect)]
-pub struct TileStretch(IVec2);
-
-impl TileStretch {
-    pub fn bevy_translation_to_tile(&self, t: &Vec3) -> IVec3 {
-        // common sense check that t contains only whole numbers before casting
-        debug_assert!(
-            t.round() == *t,
-            "attempted translation of vector with non-whole numbers into tilespace"
-        );
-
-        IVec3::new(t.x as i32 / self.x, t.y as i32 / self.y, t.z as i32)
-    }
-    pub fn tile_translation_to_bevy(&self, t: &IVec3) -> Vec3 {
-        Vec3::new(
-            t.x as f32 * self.x as f32,
-            t.y as f32 * self.y as f32,
-            t.z as f32,
-        )
-    }
-
-    pub fn new(v: IVec2) -> Self {
-        v.into()
-    }
-}
-
-impl From<IVec2> for TileStretch {
-    fn from(value: IVec2) -> Self {
-        Self(value)
-    }
-}
 
 /// The gravity constant used for weight velocity gain
 pub const GRAVITY: f32 = 9.8;
@@ -96,7 +67,160 @@ pub struct PhysicsComponentBase {
     total_velocity: velocity::VelocityBundle,
 }
 
-fn register_types_startup(type_registry: Res<AppTypeRegistry>) {
+/// Return any entities in `entities_iter` that would be hit by a ray starting at
+/// `start_translation` and moving on the tilegrid in the direction of `ray_vel`
+///
+/// Entities_iter must be of type Iterator<Item = (Entity, impl AsRef<GlobalTransform>)>
+///
+/// This uses a simple mathematical formula to decide if an entity is in the path of a ray,
+/// where we essentially translate everything so that start_translation is the origin \[0,0,0],
+/// and thus if an entity's offset from the origin modulo the ray velocity is equal to zero, then
+/// the ray would hit it.
+///
+/// It might make more sense to change ray_vel to ray_direction and clamp it [-1,1]
+pub fn tile_cast<'a, TransRefItem, Iter>(
+    start_translation: IVec3,
+    ray_dir: IVec3,
+    tile_stretch: &TileStretch,
+    entities_iter: Iter,
+) -> Vec<Entity>
+where
+    TransRefItem: Borrow<GlobalTransform> + 'a,
+    Iter: IntoIterator<Item = (Entity, TransRefItem)>,
+{
+    let clamped_ray_dir = ray_dir.clamp(IVec3::NEG_ONE, IVec3::ONE);
+    #[cfg(debug_assertions)]
+    if clamped_ray_dir != ray_dir {
+        warn!(
+            "ray_dir of {} is not clamped, clamping down to {}",
+            ray_dir, clamped_ray_dir
+        )
+    };
+
+    entities_iter
+        .into_iter()
+        .filter_map(|(entity, transform)| -> Option<Entity> {
+            let translation = transform.borrow().translation();
+            // cast to grid
+            let closest_tile = tile_stretch.closest_tile(&translation);
+            // translate so that start_translation is origin
+            let closest_tile = closest_tile - start_translation;
+
+            // if ray doesn't move on {x,y,z} axis, and entity is on 0 of that axis, then ray will
+            // hit on that axis. Otherwise, if it is in the same direction that the ray is moving
+            // then it will hit
+            let ray_will_hit_x = (closest_tile.x == 0 && ray_dir.x == 0)
+                || closest_tile.x.signum() == ray_dir.x.signum();
+            let ray_will_hit_y = (closest_tile.y == 0 && ray_dir.y == 0)
+                || closest_tile.y.signum() == ray_dir.y.signum();
+            let ray_will_hit_z = (closest_tile.z == 0 && ray_dir.z == 0)
+                || closest_tile.z.signum() == ray_dir.z.signum();
+
+            if closest_tile == IVec3::ZERO || ray_will_hit_x && ray_will_hit_y && ray_will_hit_z {
+                Some(entity)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+#[derive(Reflect)]
+#[reflect(ConsoleCommand)]
+struct RaycastConsole;
+
+impl crate::console::ConsoleCommand for RaycastConsole {
+    fn start_command(&self, input: Vec<crate::console::Token>, commands: &mut Commands) {
+        // raycast start_x start_y start_z dir_x dir_y dir_z
+
+        if input.len() != 6 {
+            commands.add(PrintStringCommand(format!(
+                "Incorrect length: expected 6 arguments but was given {}",
+                input.len()
+            )));
+        } else {
+            let vectors_result = || -> Result<(IVec3, IVec3), <i32 as FromStr>::Err> {
+                let start_x: i32 = input[0].string.parse()?;
+                let start_y: i32 = input[1].string.parse()?;
+                let start_z: i32 = input[2].string.parse()?;
+                let dir_x: i32 = input[3].string.parse()?;
+                let dir_y: i32 = input[4].string.parse()?;
+                let dir_z: i32 = input[5].string.parse()?;
+
+                Ok((
+                    IVec3::new(start_x, start_y, start_z),
+                    IVec3::new(dir_x, dir_y, dir_z),
+                ))
+            }();
+
+            match vectors_result {
+                Ok(vectors) => commands.add(RaycastCommand {
+                    start: vectors.0,
+                    direction: vectors.1,
+                }),
+                Err(e) => commands.add(PrintStringCommand(format!(
+                    "Invalid arguments: error `{}`",
+                    e
+                ))),
+            };
+        };
+    }
+}
+
+struct RaycastCommand {
+    start: IVec3,
+    direction: IVec3,
+}
+
+impl Command for RaycastCommand {
+    fn write(self, world: &mut World) {
+        let mut entity_query = world.query::<(Entity, &GlobalTransform)>();
+        let mut name_query = world.query::<&Name>();
+        let tile_stretch = world
+            .get_resource::<TileStretch>()
+            .expect("No tile stretch initialized??");
+        let mut output = String::new();
+
+        let entities = tile_cast(
+            self.start,
+            self.direction,
+            tile_stretch,
+            entity_query.iter(&world),
+        );
+
+        for entity in entities {
+            // log name or whatever
+            let name = name_query
+                .get(&world, entity)
+                .map_or_else(|_| "UnNamed Entity", |n| n.as_str());
+            let location = entity_query.get(&world, entity).unwrap().1.translation();
+
+            output.push_str("Entity found in raycast:");
+            output.push_str(name);
+            output.push(':');
+            output.push_str(&*location.to_string());
+            output.push('\n');
+        }
+
+        if output == "" {
+            output = "No entities on ray".into();
+        }
+
+        let mut output_res = world
+            .get_resource_mut::<crate::console::CommandOutput>()
+            .unwrap();
+
+        output_res.0 = Some(output);
+    }
+}
+
+fn startup(type_registry: Res<AppTypeRegistry>, mut commands: Commands) {
+    // register raycast command
+    commands.add(console::registration::RegisterConsoleCommand::new(
+        "raycast".into(),
+        Box::new(RaycastConsole),
+    ));
+
     let mut type_registry_w = type_registry.write();
 
     type_registry_w.add_registration(movement::Ticker::get_type_registration());
@@ -107,7 +231,6 @@ fn register_types_startup(type_registry: Res<AppTypeRegistry>) {
     type_registry_w.add_registration(collider::Collider::get_type_registration());
     type_registry_w.add_registration(MovementGoal::get_type_registration());
     type_registry_w.add_registration(Weight::get_type_registration());
-    type_registry_w.add_registration(TileStretch::get_type_registration());
 }
 
 /// A plugin to setup essential physics systems
@@ -126,6 +249,6 @@ impl Plugin for PhysicsPlugin {
         app.add_plugin(velocity::Plugin())
             .add_plugin(collider::Plugin())
             .add_plugin(movement::Plugin())
-            .add_system(register_types_startup.on_startup());
+            .add_startup_system(startup);
     }
 }

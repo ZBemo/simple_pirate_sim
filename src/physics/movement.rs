@@ -47,7 +47,7 @@ fn finalize_movement(
 
         let z_sign = ticker.z.signum();
         let y_sign = ticker.y.signum();
-        let x_sign = ticker.y.signum();
+        let x_sign = ticker.x.signum();
 
         while ticker.z.abs() >= 1. {
             transform.translation.z += z_sign;

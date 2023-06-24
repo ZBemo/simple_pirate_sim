@@ -18,9 +18,10 @@
 use bevy::{asset::Asset, prelude::*};
 
 use crate::{
-    physics::{self, collider::Collider, TileStretch},
+    physics::{self, collider::Collider},
     random::RandomGenerator,
-    tile_objects::DynWallObject,
+    tile_grid::TileStretch,
+    tile_objects::{self, SpriteSheetHandle},
 };
 
 /// a basic template for a ship. not piratey at all because I suck at art
@@ -55,12 +56,19 @@ const BASIC_SHIP: [&str; 3] = [
   fffffffff",
 ];
 
-#[derive(Component)]
-pub struct Ship;
+pub struct ShipBundle;
 
 /// this doesn't belong here. the sea level of the world
 #[derive(Debug, Resource, Deref)]
 pub struct SeaLevel(i32);
+
+#[derive(Bundle)]
+pub struct SteeringWheelBundle {
+    main_component: SteeringWheel,
+}
+
+#[derive(Component)]
+pub struct SteeringWheel {}
 
 // setup ships system
 fn setup_ships(
@@ -145,27 +153,18 @@ fn spawn_wall(
     location: Vec3,
     parent: &Entity,
     asset_server: Res<AssetServer>,
-    sprites: Res<Assets<TextureAtlas>>,
+    spritesheet_handle: Res<SpriteSheetHandle>,
 ) {
-    // only one spritesheet lol
-    let texture_atlas_handle = sprites.get_handle(
-        sprites
-            .iter()
-            .next()
-            .expect("sprite sheet should be instantiated by time game world is created")
-            .0,
-    );
-
     commands
         .spawn((
             Collider::new(physics::collider::Constraints::WALL),
             physics::velocity::VelocityBundle::default(),
-            DynWallObject(),
+            tile_objects::TileObject::new(202, 203, 204),
             Name::new("Ship Wall"),
             SpriteSheetBundle {
                 // TODO: dynamically update walls or something
                 sprite: TextureAtlasSprite::new(202),
-                texture_atlas: texture_atlas_handle,
+                texture_atlas: spritesheet_handle.clone(),
                 transform: Transform::from_translation(location),
                 ..default()
             },

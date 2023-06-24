@@ -2,20 +2,26 @@
 #![allow(clippy::type_complexity)]
 #![warn(clippy::unwrap_used)]
 
+mod console;
 mod controllers;
 mod gui;
 mod physics;
 mod random;
 mod ships;
+mod tile_grid;
 mod tile_objects;
 
 use bevy::prelude::*;
+use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use controllers::{MovementGoalTimeout, WalkSpeed};
-use physics::TileStretch;
 use physics::{
     collider::Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight,
 };
+use tile_grid::TileStretch;
+use tile_objects::TileCamera;
+
+pub use bevy_inspector_egui::bevy_egui;
 
 /// an unused gamestate system
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -50,17 +56,18 @@ pub enum StartupSets {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(EguiPlugin)
         .add_plugin(PhysicsPlugin)
+        .add_plugin(tile_objects::Plugin)
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(console::Plugin)
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa::Off) // 32 bit does not need AA
+        .insert_resource(Msaa::Off) // Pixel art doesn't need aa, so keep off for now
         .add_state::<GameState>()
         .add_startup_system(setup)
-        // .add_startup_system(gui::setup_coords_display)
         .add_startup_system(random::setup_generator)
         .add_startup_system(controllers::register_types)
-        // .add_system(gui::update_coords_display)
-        // .add_system(cull_non_camera_layer_sprites.after(PhysicsSet::FinalMovement))
+        .add_startup_system(tile_grid::register_types)
         .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalizeVelocity))
         // .add_system(
         //     controllers::player::camera_follow_player
@@ -93,28 +100,30 @@ pub fn setup(
         TextureAtlas::from_grid(texture_handle, tilestretch.as_vec2(), 16, 16, None, None);
 
     let texture_atlas_handle = sprites.add(texture_atlas);
+
+    // consider if this should be a weak clone. Probably not as we want the texture atlas to be
+    // loaded for the duration of the program
     commands.insert_resource(tile_objects::SpriteSheetHandle(
         texture_atlas_handle.clone(),
     ));
 
-    //TODO: Save atlas handle as a resource
-
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(0., 0., 2.),
-        ..default()
-    });
+    commands.spawn((
+        Camera2dBundle {
+            transform: Transform::from_xyz(0., 0., 2.),
+            ..default()
+        },
+        TileCamera(),
+    ));
 
     // random wall one layer down
     commands.spawn((
         SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle.clone_weak(),
+            texture_atlas: texture_atlas_handle.clone(),
             sprite: TextureAtlasSprite::new(5),
-            transform: Transform::from_translation(
-                tilestretch.tile_translation_to_bevy(&IVec3::new(1, 0, 1)),
-            ),
+            transform: Transform::from_translation(tilestretch.tile_to_bevy(&IVec3::new(1, 0, 1))),
             ..default()
         },
-        tile_objects::TileObject(),
+        tile_objects::TileObject::new(5, 6, 7),
         Name::new("Random Wall"),
         Collider::new(physics::collider::Constraints::WALL),
     ));
@@ -122,7 +131,7 @@ pub fn setup(
     // player
     commands.spawn((PlayerBundle {
         sprite: SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle.clone_weak(),
+            texture_atlas: texture_atlas_handle.clone(),
             sprite: TextureAtlasSprite::new(2),
             transform: Transform::from_xyz(0., 0., 1.),
             ..default()

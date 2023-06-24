@@ -18,7 +18,7 @@ use std::unreachable;
 use bevy::{prelude::*, utils::HashMap};
 
 use super::{movement::Ticker, velocity::TotalVelocity, PhysicsSet};
-use crate::physics::TileStretch;
+use crate::tile_grid::TileStretch;
 
 #[derive(Debug, Clone, Deref, Reflect)]
 pub struct Impulse(IVec3);
@@ -142,13 +142,29 @@ fn predict_location(
         * projected_movement_raw.signum();
 
     trace!("predicting {}", name);
-    trace!("ticker {}, total {}", total_velocity, ticked_velocity);
-    trace!("projected raw {}", projected_movement_raw);
-    trace!("projected rounded {}", projected_movement_rounded);
+    trace!(
+        "total velocity {}, ticked velocity {}",
+        total_velocity,
+        ticked_velocity
+    );
+    trace!(
+        "projected raw, rounded {}, {}",
+        projected_movement_raw,
+        projected_movement_rounded
+    );
 
     // the projected movement is already in tilespace, so just convert the current location, then
     // add
-    tile_stretch.bevy_translation_to_tile(&current_location) + projected_movement_rounded.as_ivec3()
+
+    let current_tile = match tile_stretch.bevy_to_tile(&current_location) {
+        Ok(t) => t,
+        Err(t) => {
+            error!("transform not on grid: {}", t);
+            t.to_closest()
+        }
+    };
+
+    current_tile + projected_movement_rounded.as_ivec3()
 }
 
 #[derive(Debug, Clone)]
@@ -199,13 +215,18 @@ fn check_collisions(
             "pushing inhabiting with real location of {}, predicted movement of {}",
             transform.translation(),
             projected_tile_location
-                - tile_stretch.bevy_translation_to_tile(&transform.translation())
+                - tile_stretch
+                    .bevy_to_tile(&transform.translation())
+                    .map_or_else(|m| m.to_closest(), |m| m)
         );
 
+        // TODO: this might need error handling
         let tile = InhabitingTile {
             entity,
             predicted_movement: projected_tile_location
-                - tile_stretch.bevy_translation_to_tile(&transform.translation()),
+                - tile_stretch
+                    .bevy_to_tile(&transform.translation())
+                    .map_or_else(|m| m.to_closest(), |m| m),
             constraints: collider.constraints.clone(),
         };
 
@@ -363,7 +384,7 @@ fn find_and_resolve_conflicts(
             })
         })
         .map(|(ret, event)| {
-            // send event and discard as now irrelevant
+            // send event and discard as it's now irrelevant
             writer.send(event);
             ret
         })
@@ -381,19 +402,6 @@ fn gen_collision_event(resolution: &ConflictInfo, colliders: &Vec<Entity>) -> En
             .cloned()
             .collect(),
     }
-}
-
-/// run in between finalize collision and finalize movement.
-/// need some way to store data on whether or not a conflict resolution took place.
-fn check_colliding(
-    collider_q: Query<(Entity, &Collider)>,
-    transform_q: Query<&Transform, With<Collider>>,
-) {
-    todo!()
-}
-
-fn check_and_resolve_clipping() {
-    todo!()
 }
 
 /// Behemoth system for checking and then resolving collisions
@@ -461,7 +469,16 @@ fn check_and_resolve_collisions(
 #[cfg(debug_assertions)]
 fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>) {
     for event in events.iter() {
-        todo!();
+        trace!(
+            "Entity: {} collided at {}, with {} other entities, collision axes: {}",
+            name_q
+                .get(event.entity)
+                .ok()
+                .map_or_else(|| "Unnamed entity".to_string(), |v| v.to_string()),
+            event.tile,
+            event.colliding_with.len(),
+            event.conflict_along
+        )
     }
 }
 

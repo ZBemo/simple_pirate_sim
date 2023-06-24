@@ -7,7 +7,7 @@ use bevy::{ecs::query::WorldQuery, prelude::*};
 
 pub const DEFAULT_FONT_PATH: &str = "fonts/FiraCode/FiraCodeNerdFont-Bold.ttf";
 
-use crate::{controllers, physics::TileStretch};
+use crate::{controllers, tile_grid::TileStretch};
 
 #[derive(Component)]
 pub struct InfoInsert {
@@ -27,7 +27,10 @@ pub fn update_coords_display(
     tile_stretch: Res<TileStretch>,
 ) {
     if let Ok(player) = &player.get_single() {
-        let pos = tile_stretch.bevy_translation_to_tile(&player.1.translation);
+        // TODO: error handling
+        let pos = tile_stretch
+            .bevy_to_tile(&player.1.translation)
+            .map_or_else(|m| m.to_closest(), |m| m);
 
         let new_text = format!("{}, {}, {}", pos.x, pos.y, pos.z);
 

@@ -15,8 +15,8 @@ opt-level = 3
 lto = "thin"
 
 [dependencies]
-bevy-inspector-egui = {version = "0.18", default-features = false}
 # bevy dependency below
+bevy-inspector-egui = {version = "0.18", default-features = false}
 bracket-random = "0.8"
 thiserror = "1.0"
 

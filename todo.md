@@ -4,11 +4,13 @@
     - [x] split out collision
     - [x] split out velocity calculation to its own module
     - [x] consider splitting out movement
+ - [ ] change console::io in console to enum not bool
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
  - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
  - [x] change query function parameters to $NAME_q. will make code far more readable
+ - [ ] consider splitting long systems into piped systems where useful
  - [ ] set up cargo clippy and lint 
  - [ ] start checking docs for correctness
  - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
@@ -22,13 +24,10 @@ Physics-collision and resolution
        - Make sure this pushes in a reasonable direction. No clipping under floors, flight hacks, etc
        - figure out how to implement this.  
  - [ ] loop until all collisions for single frame resolved. Currently, with only clamping velocity, this should not be an issue.
- - [ ] "unclipping" system for colliders. Push them out of places that they shouldn't be.
+ - [ ] conflict resolution should probably run on collision events, for better encapsulation 
  - [ ] Figure out when to send collision events, and what to include
    - [x] Entity collision events
-   - [ ] potentially have an asset? With all of the collisions that occur in a frame stored for more advanced use.
-   - right now I'm thinking other entities it collided with, where it was going to collide, and if a resolution was needed (Potentially per-entity)
-     For example, if you collide into one sensor collider, which also exists on a wall, you needed resolution with the wall, but merely collided with the sensor.
-
+   - [ ] potentially have an asset with all of the collisions that occur in a frame stored for more advanced use.
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
@@ -71,6 +70,8 @@ Physics-collision and resolution
     - [ ] AI self-preservation systems
     - [ ] AI gives and takes commands
     - [ ] should be able to use same interactions as player
+ - [ ] Dev console - mostly for testing
+    - [ ] Redirect logging output to console if enabled
 
 # Upgrades
 
