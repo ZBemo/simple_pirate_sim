@@ -482,7 +482,7 @@ fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>
     }
 }
 
-pub(super) struct Plugin();
+pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {

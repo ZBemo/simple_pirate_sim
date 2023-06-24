@@ -71,7 +71,7 @@ fn finalize_movement(
     }
 }
 
-pub(super) struct Plugin();
+pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut bevy::prelude::App) {

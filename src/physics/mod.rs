@@ -246,9 +246,9 @@ pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(velocity::Plugin())
-            .add_plugin(collider::Plugin())
-            .add_plugin(movement::Plugin())
+        app.add_plugin(velocity::Plugin)
+            .add_plugin(collider::Plugin)
+            .add_plugin(movement::Plugin)
             .add_startup_system(startup);
     }
 }

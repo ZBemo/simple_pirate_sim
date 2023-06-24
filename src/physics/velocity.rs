@@ -135,7 +135,6 @@ fn propagate_velocities(
 ) {
     trace!("starting velocity propagataion");
 
-    // TODO: par iter
     root_query
         .par_iter_mut()
         .for_each_mut(|(entity, children, relative, mut total)| {
@@ -251,7 +250,7 @@ pub struct VelocityBundle {
     relative_total: TotalVelocity,
 }
 
-pub struct Plugin();
+pub struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
