@@ -26,6 +26,17 @@ pub struct TotalVelocity(Vec3);
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
 pub struct MantainedVelocity(pub Vec3);
 
+#[derive(Debug, Clone, Component, Default, Reflect)]
+pub struct VelocityFromGround;
+
+pub fn propagate_from_ground(
+    entity_q: Query<Entity, With<VelocityFromGround>>,
+    total_vel_q: Query<&mut TotalVelocity>,
+    relative_vel_q: Query<&mut RelativeVelocity>,
+) {
+    todo!()
+}
+
 /// Takes all factors that could affect a physics component's velocity on each frame and then
 /// calculates a "total velocity" as a function of all of these factors
 ///
@@ -39,8 +50,6 @@ fn calculate_relative_velocity(
         Option<&super::Weight>,
         Option<&MantainedVelocity>,
     )>,
-
-    woah: Query<Entity, &Collider>, // time: Res<Time>,
 ) {
     // let delta_time = time.delta().as_secs_f32();
 
@@ -258,8 +267,9 @@ impl bevy::prelude::Plugin for Plugin {
             (
                 calculate_relative_velocity,
                 propagate_velocities.after(calculate_relative_velocity),
-                propogate_missed.after(propagate_velocities),
                 decay_persistent_velocity.after(calculate_relative_velocity),
+                propogate_missed.after(propagate_velocities),
+                propagate_from_ground.after(propogate_missed),
             )
                 .in_set(super::PhysicsSet::FinalizeVelocity),
         );

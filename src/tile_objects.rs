@@ -173,16 +173,12 @@ fn apply_entity_from_bounds(
     tile_object_q.par_iter_mut().for_each_mut(
         |(mut option_sprite, mut option_visibility, transform, tile_object)| {
             // ensure it has a sprite and a visibility associated
-            let mut sprite = if let Some(sprite) = option_sprite {
-                sprite
-            } else {
+            let Some(mut sprite) = option_sprite else {
                 warn!("TileObject with no sprite!");
                 return;
             };
 
-            let mut visibility = if let Some(visibility) = option_visibility {
-                visibility
-            } else {
+            let Some(mut visibility) = option_visibility  else {
                 warn!("TileObject with no visibility");
                 return;
             };

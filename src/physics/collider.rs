@@ -259,7 +259,8 @@ struct ConflictInfo {
 /// could just inline this?
 ///
 /// we need to clarify that Entity, &Collider live for 'b, while both references are 'a. 'a  must
-/// be valid for >= 'b, and our return will be valid for 'a
+/// be valid for >= 'b, and our return will be valid for 'a. It looks like hidden lifetimes from
+/// the collider query  are what mess things up
 fn find_and_resolve_conflicts(
     collisions: &HashMap<IVec3, Vec<InhabitingTile>>,
     collider_q: &Query<(Entity, &Collider)>,
