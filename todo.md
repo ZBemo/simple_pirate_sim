@@ -4,12 +4,12 @@
     - [x] split out collision
     - [x] split out velocity calculation to its own module
     - [x] consider splitting out movement
- - [ ] change console::io in console to enum not bool
+- [x] change query function parameters to $NAME_q. will make code far more readable
+ - [ ] consider changing console::io::ConsoleOpen to an enum
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
  - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
- - [x] change query function parameters to $NAME_q. will make code far more readable
  - [ ] consider splitting long systems into piped systems where useful
  - [ ] set up cargo clippy and lint 
  - [ ] start checking docs for correctness
@@ -31,8 +31,8 @@ Physics-collision and resolution
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
-  - [x] propogate velocities
-  - [x] Collision checking
+   - [x] propogate velocities
+   - [x] Collision checking
    - [x] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
   - [x] Collision resolution
   - [x] Collision event system
@@ -40,6 +40,10 @@ Physics-collision and resolution
   - [ ] finalize, and probably re-architect continuous velocity
   - [ ] fine tune gravity
  - [x] Information display setup for gui, easier development
+ - [ ] Player Input
+   - [ ] Allow multiple movement goals, add them all together to get final movement goal
+   - [ ] set up rebinding
+   - [ ] Allow "freeze time" actions, which pause time while player aims etc along with "normal time" actions which should auto target
  - [ ] Player and AI interaction 
     - [ ] ladders
     - [ ] guns
@@ -72,6 +76,7 @@ Physics-collision and resolution
     - [ ] should be able to use same interactions as player
  - [ ] Dev console - mostly for testing
     - [ ] Redirect logging output to console if enabled
+    - [ ] Dev console variables and/or $() syntax so that you can use command output as arguments to other commands
 
 # Upgrades
 
