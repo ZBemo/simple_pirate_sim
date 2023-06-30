@@ -34,7 +34,8 @@ pub fn propagate_from_ground(
     total_vel_q: Query<&mut TotalVelocity>,
     relative_vel_q: Query<&mut RelativeVelocity>,
 ) {
-    todo!()
+    // todo!()
+    error!("Must implement propagate from ground!")
 }
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
@@ -129,7 +130,8 @@ fn propogate_missed(
 /// needs parent total and child relative along with child total
 ///
 /// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
-/// license. see <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
+/// license. See <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
+/// or <https://github.com/bevyengine/bevy/LICENSE-MIT>
 fn propagate_velocities(
     mut root_query: Query<
         (Entity, &Children, Ref<RelativeVelocity>, &mut TotalVelocity),
