@@ -134,7 +134,7 @@ fn spawn_ship_from_blueprint(
                     .expect("Improper blueprint dimensions");
 
                 match char {
-                    // 'w' => spawn_wall(commands, position.clone(), &ship, asset_server, sprites),
+                    // 'w' => spawn_wall(commands, position.clone(), &ship, spritesheet_handle),
                     c => {
                         panic!("blueprint char {} not recognized", c)
                     }
@@ -152,8 +152,7 @@ fn spawn_wall(
     commands: &mut Commands,
     location: Vec3,
     parent: &Entity,
-    asset_server: Res<AssetServer>,
-    spritesheet_handle: Res<SpriteSheetHandle>,
+    spritesheet_handle: Handle<TextureAtlas>,
 ) {
     commands
         .spawn((

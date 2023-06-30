@@ -185,30 +185,35 @@ impl Command for RaycastCommand {
             self.start,
             self.direction,
             tile_stretch,
-            entity_query.iter(&world),
+            entity_query.iter(world),
         );
 
         for entity in entities {
             // log name or whatever
             let name = name_query
-                .get(&world, entity)
+                .get(world, entity)
                 .map_or_else(|_| "UnNamed Entity", |n| n.as_str());
-            let location = entity_query.get(&world, entity).unwrap().1.translation();
+
+            let translation = entity_query
+                .get(world, entity)
+                .expect("Entity found in raycast but has no translation. This is not possible")
+                .1
+                .translation();
 
             output.push_str("Entity found in raycast:");
             output.push_str(name);
             output.push(':');
-            output.push_str(&*location.to_string());
+            output.push_str(&translation.to_string());
             output.push('\n');
         }
 
-        if output == "" {
+        if output.is_empty() {
             output = "No entities on ray".into();
         }
 
         let mut output_res = world
             .get_resource_mut::<crate::console::CommandOutput>()
-            .unwrap();
+            .expect("Console command ran without initializing CommandOutput Resource");
 
         output_res.0 = Some(output);
     }

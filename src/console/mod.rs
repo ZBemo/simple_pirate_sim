@@ -66,7 +66,7 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     } else if is_in_quotes {
         return Err(ParseError::EndQuoted());
     } else {
-        if cur_string != "" {
+        if !cur_string.is_empty() {
             tokens.push(Token { string: cur_string });
         }
     }
@@ -104,6 +104,7 @@ impl bevy::ecs::system::Command for PrintStringCommand {
     fn write(self, world: &mut World) {
         world
             .get_resource_mut::<self::io::CommandOutput>()
-            .map(|mut r| r.0 = Some(self.0));
+            .expect("Console Command called with no Resource for output")
+            .0 = Some(self.0);
     }
 }

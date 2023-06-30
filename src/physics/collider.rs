@@ -208,7 +208,7 @@ fn check_collisions(
             transform.translation(),
             delta_time,
             tile_stretch,
-            &*name,
+            &name,
         );
 
         trace!(
@@ -237,7 +237,7 @@ fn check_collisions(
         }
     }
 
-    return collision_map;
+    collision_map
 }
 
 // an amount to subtract from the entities velocity
@@ -315,7 +315,7 @@ fn find_and_resolve_conflicts(
                             .unwrap_or(0)
                             >= 1
                         {
-                            current_resolution.z = true && entity.constraints.solid_planes.z;
+                            current_resolution.z = entity.constraints.solid_planes.z;
                         }
                     }
                     0 => {
@@ -336,7 +336,7 @@ fn find_and_resolve_conflicts(
                             .unwrap_or(0)
                             >= 1
                         {
-                            current_resolution.x = true && entity.constraints.solid_planes.x;
+                            current_resolution.x = entity.constraints.solid_planes.x;
                         }
                     }
                     0 => {
@@ -357,7 +357,7 @@ fn find_and_resolve_conflicts(
                             .unwrap_or(0)
                             >= 1
                         {
-                            current_resolution.y = true && entity.constraints.solid_planes.y;
+                            current_resolution.y = entity.constraints.solid_planes.y;
                         }
                     }
                     0 => {
@@ -378,8 +378,10 @@ fn find_and_resolve_conflicts(
                     constraints: entity.constraints.clone(),
                 };
 
-                let event =
-                    gen_collision_event(&info, &inhabitants.iter().map(|t| t.entity).collect());
+                let event = gen_collision_event(
+                    &info,
+                    &inhabitants.iter().map(|t| t.entity).collect::<Box<_>>(),
+                );
 
                 (info, event)
             })
@@ -392,7 +394,8 @@ fn find_and_resolve_conflicts(
         .collect()
 }
 
-fn gen_collision_event(resolution: &ConflictInfo, colliders: &Vec<Entity>) -> EntityCollision {
+// TODO: move this to [`EntityCollision::new`]
+fn gen_collision_event(resolution: &ConflictInfo, colliders: &[Entity]) -> EntityCollision {
     EntityCollision {
         entity: resolution.entity,
         tile: resolution.position,

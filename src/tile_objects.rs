@@ -204,7 +204,7 @@ fn apply_entity_from_bounds(
                     }
                 })
                 .fold(None, |acc, e| -> Option<isize> {
-                    let acc = acc.or_else(|| e);
+                    let acc = acc.or(e);
 
                     Option::zip(acc, e).map(|(acc, e)| {
                         if e < acc && (e - current_z <= 2) {

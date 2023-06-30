@@ -126,7 +126,7 @@ pub fn setup(
     commands.spawn((PlayerBundle {
         player_controller_bundle: default(),
         sprite: SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle.clone(),
+            texture_atlas: texture_atlas_handle,
             sprite: TextureAtlasSprite::new(2),
             transform: Transform::from_xyz(0., 0., 1.),
             ..default()

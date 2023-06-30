@@ -94,6 +94,6 @@ pub(super) fn update_movement_goals(
 
         movement_goals.retain(|&(_, _, id)| id != 0); // remove any that were previously set by
                                                       // player controller
-        movement_goals.extend_from_slice(&*new_goals);
+        movement_goals.extend_from_slice(&new_goals);
     }
 }

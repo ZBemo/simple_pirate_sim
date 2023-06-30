@@ -16,9 +16,9 @@ impl ConsoleCommand for EchoConsole {
             String::new(),
             |acc, e| {
                 let mut new_string = String::new();
-                new_string.push_str(&*acc);
+                new_string.push_str(&acc);
                 new_string.push(' ');
-                new_string.push_str(&*e.string);
+                new_string.push_str(&e.string);
 
                 trace!("{}", new_string);
 
@@ -57,13 +57,13 @@ impl ConsoleCommand for ChangeNameConsole {
 }
 
 impl Command for ChangeNameCommand {
-    fn write(self, mut world: &mut World) {
+    fn write(self, world: &mut World) {
         match self {
             ChangeNameCommand::ChangeName(from, to) => {
                 let mut query = world.query::<&mut Name>();
                 let mut output = format!("renaming entities with name {} to {}", from, to);
 
-                for mut name in query.iter_mut(&mut world) {
+                for mut name in query.iter_mut(world) {
                     if name.as_str() == from {
                         name.set(to.clone());
                         output.push_str("renamed an entity\n");
@@ -72,17 +72,17 @@ impl Command for ChangeNameCommand {
 
                 world
                     .get_resource_mut::<super::io::CommandOutput>()
-                    .map(|mut r| r.0 = Some(output));
+                    .expect("Console Command called with no CommandOutput resource")
+                    .0 = Some(output);
             }
             ChangeNameCommand::WrongInputs(len) => {
                 world
                     .get_resource_mut::<super::io::CommandOutput>()
-                    .map(|mut r| {
-                        r.0 = Some(format!(
-                            "Wrong amount of inputs. Expected 2 inputs but instead was given {}",
-                            len
-                        ))
-                    });
+                    .expect("Console Command called with no CommandOutput resource")
+                    .0 = Some(format!(
+                    "Wrong amount of inputs. Expected 2 inputs but instead was given {}",
+                    len
+                ));
             }
         }
     }
@@ -136,7 +136,10 @@ impl ConsoleCommand for MoveConsole {
 
                 match to_move {
                     Some(new_entity) => {
-                        let tile_stretch = world.get_resource::<TileStretch>().unwrap().clone();
+                        let tile_stretch = world
+                            .get_resource::<TileStretch>()
+                            .expect("No TileStretch resource")
+                            .clone();
                         let transform = location_query.get_mut(world, new_entity);
 
                         if let Ok(mut transform) = transform {

@@ -19,7 +19,6 @@ fn check_open_console(keys: Res<Input<KeyCode>>, mut showing_console: ResMut<Con
     }
 }
 
-// should this be an exclusive system?
 fn do_io(
     mut input: Local<String>,
     mut output_history: Local<String>,
@@ -43,12 +42,12 @@ fn do_io(
         };
 
         output_history.push('\n');
-        output_history.push_str(&*string);
+        output_history.push_str(string);
     };
 
     if *waiting_for_command {
         if let Some(cur_command_output) = &**command_output {
-            write_output(&*cur_command_output);
+            write_output(cur_command_output);
             command_output.0 = None;
             *waiting_for_command = false;
         }
@@ -76,11 +75,11 @@ fn do_io(
                     if edited.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         // enter was pressed: run commmand
 
-                        match parse(&**input) {
+                        match parse(&input) {
                             Ok(tokens) => {
                                 let mut tokens = tokens;
-                                if tokens.len() == 0 {
-                                    tokens = parse(&"echo Please enter a command").unwrap();
+                                if tokens.is_empty() {
+                                    tokens = parse("echo Please enter a command").unwrap();
                                 };
 
                                 let mut tokens_iter = tokens.into_iter();
@@ -100,10 +99,7 @@ fn do_io(
                                 }
                             }
                             Err(error) => {
-                                write_output(&*format!(
-                                    "Error `{}` in input `{}`",
-                                    error, &**input
-                                ));
+                                write_output(&format!("Error `{}` in input `{}`", error, &*input));
                             }
                         };
 
