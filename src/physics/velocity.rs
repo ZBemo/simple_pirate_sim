@@ -2,8 +2,6 @@
 
 use bevy::prelude::*;
 
-use super::collider::Collider;
-
 /// Velocity for current frame relative to its parents velocity
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity

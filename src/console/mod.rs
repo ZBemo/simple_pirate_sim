@@ -65,10 +65,8 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
         return Err(ParseError::EndEscaped());
     } else if is_in_quotes {
         return Err(ParseError::EndQuoted());
-    } else {
-        if !cur_string.is_empty() {
-            tokens.push(Token { string: cur_string });
-        }
+    } else if !cur_string.is_empty() {
+        tokens.push(Token { string: cur_string });
     }
 
     trace!("parsed {} tokens", tokens.len());
