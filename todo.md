@@ -34,16 +34,15 @@ Physics-collision and resolution
    - [x] propogate velocities
    - [x] Collision checking
    - [x] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
-  - [x] Collision resolution
-  - [x] Collision event system
-  - [ ] "take" velocity from floor
-  - [ ] finalize, and probably re-architect continuous velocity
-  - [ ] fine tune gravity
- - [x] Information display setup for gui, easier development
+   - [x] Collision resolution
+   - [x] Collision event system
+   - [ ] "take" velocity from floor
+   - [ ] finalize, and probably re-architect continuous velocity
+   - [ ] fine tune gravity
  - [ ] Player Input
-   - [ ] Allow multiple movement goals, add them all together to get final movement goal
-   - [ ] set up rebinding
+   - [x] Allow multiple movement goals, add them all together to get final movement goal
    - [ ] Allow "freeze time" actions, which pause time while player aims etc along with "normal time" actions which should auto target
+   - [ ] set up rebinding
  - [ ] Player and AI interaction 
     - [ ] ladders
     - [ ] guns
@@ -75,10 +74,19 @@ Physics-collision and resolution
     - [ ] AI gives and takes commands
     - [ ] should be able to use same interactions as player
  - [ ] Dev console - mostly for testing
+    - [x] Basic command input/output and registration
+    - [ ] implement a standard library of useful commands
     - [ ] Redirect logging output to console if enabled
     - [ ] Dev console variables and/or $() syntax so that you can use command output as arguments to other commands
 
+# 0.2 Milestones
+We'll change version to  0.2 once all of these are satisfied. They'll be pretty vague and abstract milestones
+ - [ ] Full playability - NPCs and Human can at the very least steer ships and fire at each other, etc
+ - [ ] Ships - ships should be steerable, and have canon interactions, etc working. May not have sinking or destructibility implemented yet
+ - [ ] Menus - stretch goal - there should be a main menu, way to quit game, etc
+
 # Upgrades
+
 
 ## Physics
  - [x] use a configurable constraint system for colliders instead of like 6 different types
