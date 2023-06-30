@@ -90,11 +90,11 @@ fn setup_ships(
         sea_level.0,
     );
 
-    // if statement maps {0,1} => {-1,1} to get ship 2 below or to the left as well
+    // if statement maps {true,false} => {-1,1} to get ship 2 below or to the left as well
     let x_offset = g.range(SECOND_SHIP_OFFSET_MIN, SECOND_SHIP_OFFSET_MAX)
-        * if g.range(0, 1) == 1 { -1 } else { 1 };
+        * if g.rand::<bool>() { -1 } else { 1 };
     let y_offset = g.range(SECOND_SHIP_OFFSET_MIN, SECOND_SHIP_OFFSET_MAX)
-        * if g.range(0, 1) == 1 { -1 } else { 1 };
+        * if g.rand::<bool>() { -1 } else { 1 };
 
     let second_ship_translate_tile_space = &IVec3::new(
         x_offset + first_ship_translate_tile_space.x,
