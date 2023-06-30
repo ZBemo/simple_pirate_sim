@@ -20,7 +20,7 @@ use bevy::{asset::Asset, prelude::*};
 use crate::{
     physics::{self, collider::Collider},
     random::RandomGenerator,
-    tile_grid::TileStretch,
+    tile_grid::{self, TileStretch},
     tile_objects::{self, SpriteSheetHandle},
 };
 
@@ -73,18 +73,20 @@ pub struct SteeringWheel {}
 // setup ships system
 fn setup_ships(
     mut commands: Commands,
-    tile_stretch: Res<TileStretch>,
     mut generator: ResMut<RandomGenerator>,
-    asset_server: Res<AssetServer>,
+    tile_stretch: Res<TileStretch>,
+    spritesheet_handle: Res<tile_objects::SpriteSheetHandle>,
     sea_level: Res<SeaLevel>,
 ) {
+    let spritesheet_handle = &spritesheet_handle.0;
+
     // TODO: multiply these by the ship size or something
     const FIRST_SHIP_RANGE: i32 = 200;
     const SECOND_SHIP_OFFSET_MAX: i32 = 20;
     const SECOND_SHIP_OFFSET_MIN: i32 = 10;
 
     let mut g = generator;
-    let first_ship_translate_tile_space = &IVec3::new(
+    let first_ship_translate_tile_space = IVec3::new(
         g.range(-FIRST_SHIP_RANGE, FIRST_SHIP_RANGE),
         g.range(-FIRST_SHIP_RANGE, FIRST_SHIP_RANGE),
         sea_level.0,
@@ -96,32 +98,41 @@ fn setup_ships(
     let y_offset = g.range(SECOND_SHIP_OFFSET_MIN, SECOND_SHIP_OFFSET_MAX)
         * if g.rand::<bool>() { -1 } else { 1 };
 
-    let second_ship_translate_tile_space = &IVec3::new(
+    let second_ship_translate_tile_space = IVec3::new(
         x_offset + first_ship_translate_tile_space.x,
         y_offset + first_ship_translate_tile_space.y,
         1,
+    );
+
+    // spawn first ship
+    spawn_ship_from_blueprint(
+        &first_ship_translate_tile_space,
+        (0, 0),
+        &BASIC_SHIP,
+        &mut commands,
+        tile_stretch,
+        spritesheet_handle,
     );
 
     todo!()
 }
 
 fn spawn_ship_from_blueprint(
-    start_position: Vec3,
+    start_translation: &IVec3,
     dimensions: (u8, u8),
     blueprint: &[&str],
     commands: &mut Commands,
-    tile_stretch: &TileStretch,
+    tile_stretch: Res<TileStretch>,
+    spritesheet_handle: &Handle<TextureAtlas>,
 ) {
-    let mut position = start_position;
-
     let ship = commands
         .spawn((
-            Transform::from_translation(start_position),
+            Transform::from_translation(tile_stretch.tile_to_bevy(start_translation)),
             physics::PhysicsComponentBase::default(),
         ))
         .id();
 
-    // todo convert this to Iter::Zip(1..)
+    // todo convert this to Iter::enumerate
 
     for z in 0..blueprint.len() {
         for x in 0..dimensions.0 as usize {
@@ -129,22 +140,25 @@ fn spawn_ship_from_blueprint(
                 // index into blueprint
                 let char = blueprint[z]
                     .chars()
-                    .take(x * dimensions.0 as usize + y)
-                    .last()
-                    .expect("Improper blueprint dimensions");
+                    .nth(x * dimensions.0 as usize + y)
+                    .expect("Malformed blueprint or incorrect dimensions - attempted to index char that does not exist");
+
+                let current_translation = IVec3::new(x as i32, y as i32, z as i32);
 
                 match char {
-                    // 'w' => spawn_wall(commands, position.clone(), &ship, spritesheet_handle),
+                    ' ' => {} // ignore spaces
+                    'w' => spawn_wall(
+                        commands,
+                        tile_stretch.tile_to_bevy(&current_translation),
+                        &ship,
+                        spritesheet_handle,
+                    ),
                     c => {
                         panic!("blueprint char {} not recognized", c)
                     }
                 }
-
-                position.y += 1.;
             }
-            position.x += 1.;
         }
-        position.z += 1.
     }
 }
 
@@ -152,7 +166,7 @@ fn spawn_wall(
     commands: &mut Commands,
     location: Vec3,
     parent: &Entity,
-    spritesheet_handle: Handle<TextureAtlas>,
+    spritesheet_handle: &Handle<TextureAtlas>,
 ) {
     commands
         .spawn((
