@@ -66,14 +66,11 @@ fn main() {
         .add_state::<GameState>()
         .add_startup_system(setup)
         .add_startup_system(random::setup_generator)
-        .add_startup_system(controllers::register_types)
         .add_startup_system(tile_grid::register_types)
-        .add_system(controllers::update_goal_timeout.after(PhysicsSet::FinalizeVelocity))
         // .add_system(
         //     controllers::player::camera_follow_player
         //         .after(PhysicsSet::FinalMovement)
         // )
-        .add_system(controllers::player::update_movement_goals.before(PhysicsSet::FinalizeVelocity))
         // add system here
         .run();
 }
