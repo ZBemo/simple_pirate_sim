@@ -88,7 +88,7 @@ fn do_io(
                                 let command =
                                     unsafe { tokens_iter.next().unwrap_unchecked().string };
 
-                                let command_obj = console_commands.get(&command);
+                                let command_obj = console_commands.get(&Box::from(command));
 
                                 match command_obj {
                                     Some(command_obj) => {

@@ -2,8 +2,6 @@ mod basic_commands;
 mod io;
 pub mod registration;
 
-use std::process::Command;
-
 use bevy::{prelude::*, utils::HashMap};
 use thiserror::Error;
 
@@ -88,7 +86,7 @@ pub trait ConsoleCommand: Reflect {
 pub type ConsoleCommandRegistration = Box<dyn ConsoleCommand>;
 // TODO: figure out how to reflect
 #[derive(Deref, DerefMut, Resource)]
-pub(self) struct RegisteredConsoleCommands(HashMap<String, ConsoleCommandRegistration>);
+pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, ConsoleCommandRegistration>);
 
 pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
