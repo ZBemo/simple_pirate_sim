@@ -56,6 +56,7 @@ fn main() {
         .add_plugin(PhysicsPlugin)
         .add_plugin(tile_objects::Plugin)
         .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(controllers::Plugin)
         .add_plugin(console::Plugin)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Off) // Pixel art doesn't need aa, so keep off for now
