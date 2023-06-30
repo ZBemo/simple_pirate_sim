@@ -14,10 +14,8 @@ mod tile_objects;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use controllers::{MovementGoalTimeout, WalkSpeed};
-use physics::{
-    collider::Collider, MovementGoal, PhysicsComponentBase, PhysicsPlugin, PhysicsSet, Weight,
-};
+use controllers::{player::PlayerControllerBundle, WalkSpeed};
+use physics::{collider::Collider, PhysicsComponentBase, PhysicsPlugin, Weight};
 use tile_grid::TileStretch;
 use tile_objects::TileCamera;
 
@@ -37,13 +35,11 @@ enum GameState {
 struct PlayerBundle {
     sprite: SpriteSheetBundle,
     physics_component: physics::PhysicsComponentBase,
-    controller: controllers::player::Controller,
-    movement_goal: MovementGoal,
-    m_goal_timeout: MovementGoalTimeout,
     weight: Weight,
     walkspeed: WalkSpeed,
     collider: Collider,
     name: Name,
+    player_controller_bundle: PlayerControllerBundle,
 }
 
 #[derive(SystemSet, Hash, Eq, PartialEq, Debug, Clone)]
@@ -127,6 +123,7 @@ pub fn setup(
 
     // player
     commands.spawn((PlayerBundle {
+        player_controller_bundle: default(),
         sprite: SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.clone(),
             sprite: TextureAtlasSprite::new(2),
@@ -134,9 +131,6 @@ pub fn setup(
             ..default()
         },
         physics_component: PhysicsComponentBase::default(),
-        controller: controllers::player::Controller(),
-        movement_goal: MovementGoal(Vec3::ZERO),
-        m_goal_timeout: MovementGoalTimeout(0.),
         weight: Weight(0.),
         //TODO: figure out if 1. speed is really 1 grid per second
         walkspeed: WalkSpeed(5.),

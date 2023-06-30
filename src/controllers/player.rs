@@ -1,10 +1,17 @@
 use super::MovementGoals;
-use crate::{console, controllers::DIAG_SPEED};
+use crate::{console, controllers::DIAG_SPEED, physics::MovementGoal};
 use bevy::prelude::*;
 
 /// A marker for an entity controlled as a player
 #[derive(Component, Default)]
 pub struct Controller();
+
+#[derive(Bundle, Default)]
+pub struct PlayerControllerBundle {
+    movement_goals: MovementGoals,
+    movement_goal: MovementGoal,
+    controler: Controller,
+}
 
 /// a system to make the player the center of the screen
 #[allow(unused)]

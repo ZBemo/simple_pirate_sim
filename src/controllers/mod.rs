@@ -12,9 +12,6 @@ pub mod player;
 // make diagonals a little slower so they're less desireable
 const DIAG_SPEED: f32 = 1. / 1.5;
 
-/// This should probably be a f32 as it is exponentially more granular than necessary
-#[derive(Component, Default, Reflect)]
-pub struct MovementGoalTimeout(pub f64);
 #[derive(Component, Default, Reflect, Deref, DerefMut)]
 pub struct WalkSpeed(pub f32);
 
@@ -54,7 +51,6 @@ fn register_types(type_registry: Res<AppTypeRegistry>) {
     let mut type_registry_w = type_registry.write();
 
     type_registry_w.add_registration(self::MovementGoals::get_type_registration());
-    type_registry_w.add_registration(self::MovementGoalTimeout::get_type_registration());
     type_registry_w.add_registration(self::WalkSpeed::get_type_registration());
 }
 
