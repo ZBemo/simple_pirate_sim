@@ -42,6 +42,7 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     let mut is_backslash_escaped = false;
     let mut is_in_quotes = false;
 
+    trace!("c - \"     \\");
     for (i, char) in to_parse.char_indices() {
         trace!("{} - {} {}", char, is_in_quotes, is_backslash_escaped);
 
