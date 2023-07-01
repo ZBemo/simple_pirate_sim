@@ -1,3 +1,5 @@
+//! See [`RegisterConsoleCommand`]
+
 use super::{ConsoleCommandObject, RegisteredConsoleCommands};
 use bevy::{prelude::*, utils::HashMap};
 

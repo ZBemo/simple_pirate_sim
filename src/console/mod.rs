@@ -1,3 +1,12 @@
+//! Systems, Resources, and traits implementing a simple, extensible developer console with
+//! [`crate::bevy_egui`].
+//!
+//! The command line starts with the [`self::ConsoleCommand`] trait, and keeps a store of
+//! [`ConsoleCommand`] trait objects, which are registered through with
+//! [`registration::RegisterConsoleCommand`].
+//!
+//! [`io`] handles command input and output during the normal game loop.
+
 mod basic_commands;
 mod io;
 pub mod registration;
@@ -23,6 +32,8 @@ pub enum ParseError {
 }
 
 /// Parse commandline input. Currently just splits up strings with backslash and quote escaping
+///
+/// This needs to be moved either to io.rs or to io/parse.rs
 fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     trace!("parsing string `{}`", to_parse);
 
