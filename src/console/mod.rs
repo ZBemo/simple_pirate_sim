@@ -14,7 +14,7 @@ pub struct Token {
 
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("Unexpected character at 0:{0}; We expected you to escape either a space, backslash, or quote")]
+    #[error("Unexpected character at char {0}; We expected you to escape either a space, backslash, or quote")]
     EscapedIncorrectCharacter(usize),
     #[error("Input ended before closing all quotes.")]
     EndQuoted(),
@@ -22,7 +22,7 @@ pub enum ParseError {
     EndEscaped(),
 }
 
-/// do things like  escaping, split by spaces except in string
+/// Parse commandline input. Currently just splits up strings with backslash and quote escaping
 fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     trace!("parsing string `{}`", to_parse);
 
@@ -74,17 +74,20 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     Ok(tokens)
 }
 
+/// objects that implement this trait & are type-object safe can be registered as a console command
 #[reflect_trait]
 pub trait ConsoleCommand: Reflect {
-    /// Start the command. Must add a command to commands that updates Res<[`self::io::CommandOutput`]>
-    /// or update [`self::io::ComandOutput`] in someway
+    /// Start the command. Must add a command to commands that updates the [`self::CommandOutput`]
+    /// resource
     fn start_command(&self, input: Vec<Token>, commands: &mut Commands);
 }
 
-pub type ConsoleCommandRegistration = Box<dyn ConsoleCommand>;
-// TODO: figure out how to reflect
+/// A console command type-object for registration
+pub type ConsoleCommandObject = Box<dyn ConsoleCommand>;
+
+/// A resource to store all registered Console commands
 #[derive(Deref, DerefMut, Resource)]
-pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, ConsoleCommandRegistration>);
+pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, ConsoleCommandObject>);
 
 pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {

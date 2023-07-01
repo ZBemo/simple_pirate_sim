@@ -55,10 +55,11 @@ impl TileStretch {
 
     /// Fallible translation from bevy-space to tilespace.
     ///
-    /// Currently it will only return a `Err([FromBevyError])` if the provided translation does not lie on grid.
+    ///  It will return an error if the provided translation does not lie on grid. For graceful
+    ///  recovery, you will probably want to call [`GetTileError::to_closest`]
     ///
     /// This should be renamed try_into_tile or something similar. Then we should re-evaluate the
-    /// name of [`closest_tile`]
+    /// name of [`Self::get_closest`]
     pub fn get_tile<'a, 'b>(&'b self, t: &'a Vec3) -> Result<IVec3, GetTileError<'a, 'b>> {
         if t.round() != *t || t.x as i32 % self.x != 0 || t.y as i32 % self.y != 0 {
             Err(GetTileError::new(t, self))

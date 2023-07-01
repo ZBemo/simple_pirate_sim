@@ -3,15 +3,17 @@ use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 use super::parse;
 
-/// keep track of if the console is or isn't visible
+/// A resource tracking whether or not the console is currently open
 #[derive(Deref, DerefMut, Reflect, Resource)]
 pub struct ConsoleOpen(pub bool);
 
+/// The resource for console commands to write their output to
 #[derive(Deref, DerefMut, Resource, Reflect)]
 pub struct CommandOutput(pub Option<String>);
 
 const MAX_HISTORY_SIZE: usize = 500;
 
+/// a system to open the console when '\`' is pressed
 fn check_open_console(keys: Res<Input<KeyCode>>, mut showing_console: ResMut<ConsoleOpen>) {
     if keys.just_pressed(KeyCode::Grave) {
         trace!("showing console = true");
@@ -19,6 +21,7 @@ fn check_open_console(keys: Res<Input<KeyCode>>, mut showing_console: ResMut<Con
     }
 }
 
+/// behemoth system to Handle drawing the console and taking input
 fn do_io(
     mut input: Local<String>,
     mut output_history: Local<String>,

@@ -23,12 +23,11 @@ pub const GRAVITY: f32 = 9.8;
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
 /// We recommend running any system that plans to input into the Physics system before
-/// [`PhysicsSet::FinalizeVelocity`], although some may be able to run before
-/// [`PhysicsSet::CollisionCheck`] and be fine.
+/// [`PhysicsSet::FinalizeVelocity`], or it may not be considered at all or until the next frame.
 ///
 /// If wanting to use previously newly update locations, run after [`PhysicsSet::FinalizeMovement`]
 ///
-/// systems making use of collision checking should run after [`PhysicsSet::CollisionCheck`], or
+/// systems making use of collision checking should run after [`PhysicsSet::FinalizeCollision`], or
 /// collision data may be wildly inaccurate
 pub enum PhysicsSet {
     // PhysicsInput,
@@ -39,12 +38,12 @@ pub enum PhysicsSet {
 
 /// Any component with a weight will have gravity applied to it on each physics update
 ///
-/// Any entity with a Weight will have a velocity of [`GRAVITY`] * weight added to its relative
+/// Any entity with a Weight will have a velocity of [`GRAVITY`] * Weight added to its relative
 /// velocity during calculation.
 #[derive(Debug, Clone, Copy, Component, Deref, DerefMut, Reflect)]
 pub struct Weight(pub f32);
 
-/// A way to request movement for a specific entity. Expects the entity to have a [`VelocityBundle`]
+/// A way to request movement for a specific entity. Expects the entity to have a [`velocity::VelocityBundle`]
 ///
 /// Each axis on the inner Vec3 represents the entities requested speed in that direction, similar
 /// to a force diagram.
@@ -69,8 +68,6 @@ pub struct PhysicsComponentBase {
 
 /// Return any entities in `entities_iter` that would be hit by a ray starting at
 /// `start_translation` and moving on the tilegrid in the direction of `ray_vel`
-///
-/// Entities_iter must be of type Iterator<Item = (Entity, impl AsRef<GlobalTransform>)>
 pub fn tile_cast<TransRefItem, Iter>(
     start_translation: IVec3,
     ray_dir: IVec3,
