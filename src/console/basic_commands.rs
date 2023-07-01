@@ -5,7 +5,7 @@ use crate::tile_grid::TileStretch;
 use super::{
     registration::RegisterConsoleCommand, CommandOutput, ConsoleCommand, PrintStringCommand, Token,
 };
-use bevy::{app::AppExit, ecs::system::Command, prelude::*};
+use bevy::{app::AppExit, prelude::*};
 
 #[derive(Reflect)]
 struct EchoConsole;
@@ -20,52 +20,6 @@ impl ConsoleCommand for EchoConsole {
                 .collect::<Vec<_>>()
                 .join(" "),
         ))
-    }
-}
-
-/// update an entity's name
-///
-/// TODO: get rid of changecommand and use closures instead
-#[derive(Reflect)]
-struct ChangeNameConsole;
-struct ChangeNameCommand(String, String);
-
-impl ConsoleCommand for ChangeNameConsole {
-    fn start_command(&self, input: Vec<Token>, commands: &mut Commands) {
-        if input.len() != 2 {
-            commands.add(PrintStringCommand(format!(
-                "Wrong amount of inputs. Expected 2 inputs but instead was given {}",
-                input.len()
-            )));
-        } else {
-            // we just checked length
-            commands.add(unsafe {
-                ChangeNameCommand(
-                    input.get_unchecked(0).string.clone(),
-                    input.get_unchecked(1).string.clone(),
-                )
-            });
-        }
-    }
-}
-
-impl Command for ChangeNameCommand {
-    fn write(self, world: &mut World) {
-        let Self(from, to) = self;
-        let mut query = world.query::<&mut Name>();
-        let mut output = format!("renaming entities with name {} to {}", from, to);
-
-        for mut name in query.iter_mut(world) {
-            if name.as_str() == from {
-                name.set(to.clone());
-                output.push_str("renamed an entity\n");
-            }
-        }
-
-        world
-            .get_resource_mut::<super::io::CommandOutput>()
-            .expect("Console Command called with no CommandOutput resource")
-            .0 = Some(output);
     }
 }
 
@@ -143,21 +97,14 @@ impl ConsoleCommand for MoveConsole {
 }
 
 pub(super) fn setup_basic_commands(mut commands: Commands) {
-    commands.add(super::registration::RegisterConsoleCommand::new(
-        "echo".into(),
-        Box::new(EchoConsole),
-    ));
-    commands.add(super::registration::RegisterConsoleCommand::new(
-        "rename".into(),
-        Box::new(ChangeNameConsole),
-    ));
-
-    commands.add(super::registration::RegisterConsoleCommand::new(
-        "exit".into(),
-        Box::new(ExitConsole),
-    ));
-    commands.add(RegisterConsoleCommand::new(
-        "move".into(),
-        Box::new(MoveConsole),
-    ));
+    // run each command in this array
+    [
+        RegisterConsoleCommand::new("echo".into(), Box::new(EchoConsole)),
+        RegisterConsoleCommand::new("exit".into(), Box::new(ExitConsole)),
+        RegisterConsoleCommand::new("move".into(), Box::new(MoveConsole)),
+    ]
+    .into_iter()
+    .for_each(|to_register| {
+        commands.add(to_register);
+    });
 }
