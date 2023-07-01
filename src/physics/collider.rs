@@ -449,6 +449,7 @@ fn check_and_resolve_collisions(
 
     for resolution in resolutions {
         // TODO: Consider other colliders collision.
+        // TODO: We should update totalvelocity too?
 
         let mut rel_vel = unsafe { rel_velocity_q.get_mut(resolution.entity).unwrap_unchecked() };
         if resolution.to_block.z {

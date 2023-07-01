@@ -71,21 +71,14 @@ pub struct PhysicsComponentBase {
 /// `start_translation` and moving on the tilegrid in the direction of `ray_vel`
 ///
 /// Entities_iter must be of type Iterator<Item = (Entity, impl AsRef<GlobalTransform>)>
-///
-/// This uses a simple mathematical formula to decide if an entity is in the path of a ray,
-/// where we essentially translate everything so that start_translation is the origin \[0,0,0],
-/// and thus if an entity's offset from the origin modulo the ray velocity is equal to zero, then
-/// the ray would hit it.
-///
-/// It might make more sense to change ray_vel to ray_direction and clamp it [-1,1]
-pub fn tile_cast<'a, TransRefItem, Iter>(
+pub fn tile_cast<TransRefItem, Iter>(
     start_translation: IVec3,
     ray_dir: IVec3,
     tile_stretch: &TileStretch,
     entities_iter: Iter,
 ) -> Vec<Entity>
 where
-    TransRefItem: Borrow<GlobalTransform> + 'a,
+    TransRefItem: Borrow<GlobalTransform>,
     Iter: IntoIterator<Item = (Entity, TransRefItem)>,
 {
     let clamped_ray_dir = ray_dir.clamp(IVec3::NEG_ONE, IVec3::ONE);

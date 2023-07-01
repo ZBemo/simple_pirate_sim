@@ -6,10 +6,8 @@ use bevy::prelude::*;
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
 /// Bundle but no ticker
-///
-///  Relative Velocity should likely not be changed outside of the physics engine
 #[derive(Debug, Component, Clone, Default, Deref, Reflect)]
-pub struct RelativeVelocity(pub Vec3);
+pub(super) struct RelativeVelocity(pub(super) Vec3);
 
 /// RelativeVelocity + parent's TotalVelocity
 ///
@@ -17,7 +15,7 @@ pub struct RelativeVelocity(pub Vec3);
 ///
 /// All of an entity's parents must have a Velocity bundle in order for the entity to have one
 #[derive(Debug, Component, Clone, Default, Deref, Reflect)]
-pub struct TotalVelocity(Vec3);
+pub(super) struct TotalVelocity(Vec3);
 
 /// A maintained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
@@ -27,7 +25,7 @@ pub struct MantainedVelocity(pub Vec3);
 #[derive(Debug, Clone, Component, Default, Reflect)]
 pub struct VelocityFromGround;
 
-pub fn propagate_from_ground(
+fn propagate_from_ground(
     entity_q: Query<Entity, With<VelocityFromGround>>,
     total_vel_q: Query<&mut TotalVelocity>,
     relative_vel_q: Query<&mut RelativeVelocity>,
@@ -50,8 +48,6 @@ fn calculate_relative_velocity(
         Option<&MantainedVelocity>,
     )>,
 ) {
-    // let delta_time = time.delta().as_secs_f32();
-
     for component in phsyics_components.iter_mut() {
         let mut new_relative_velocity = Vec3::splat(0.);
 
@@ -77,7 +73,7 @@ fn calculate_relative_velocity(
 
 /// This function decays any persistent velocities.
 ///
-/// It needs a rework.
+/// It needs a rework, and is currently not used
 fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     const DECAY_CONST: f32 = 0.1;
     // TODO: use signs
@@ -107,7 +103,7 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
-/// This will propogate anything with no parents that has not had its total velocity updated since
+/// This will propagate anything with no parents that has not had its total velocity updated since
 /// last time this system was run
 ///
 /// This will get components with no parents or children that are missed by [`propagate_velocities`]
@@ -116,11 +112,12 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
 fn propogate_missed(
     mut no_parent_q: Query<(Ref<RelativeVelocity>, &mut TotalVelocity), Without<Parent>>,
 ) {
-    no_parent_q.iter_mut().for_each(|(relative, mut total)| {
-        if relative.is_changed() && !total.is_changed() {
+    no_parent_q
+        .iter_mut()
+        .filter(|(r, t)| r.is_changed() && !t.is_changed())
+        .for_each(|(relative, mut total)| {
             total.0 = relative.0;
-        };
-    });
+        });
 }
 
 /// Propagate velocities down from an entities parents so that its Total and Relative Velocity remains accurate
@@ -250,9 +247,10 @@ unsafe fn propagate_recursive(
     }
 }
 
-/// Allows an entity to exist in the physics system with a velocity
-/// Total velocity is the total velocity that the object should be moved, while relative velocity
-/// is how it is moving relative to its parent in the object hierarchy
+/// An entity with a VelocityBundle is able to be moved by the physics system.
+///
+/// All other interactions & features in the physics system operate under the assumption that an
+/// entity has all components from the VelocityBundle
 #[derive(Bundle, Debug, Default)]
 pub struct VelocityBundle {
     total: RelativeVelocity,

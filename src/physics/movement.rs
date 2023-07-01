@@ -10,9 +10,6 @@ use crate::tile_grid::TileStretch;
 ///
 /// Currently if a component has 0 velocity, its ticker will be reset to 0,0,0. In the future this
 /// should be changed so that you can reset your ticker trough a request like RequestResetTicker.
-///
-/// As this Ticker is meant to be wholly managed by the physics engine, it is not public, and must
-/// be instantiated trough a Bundle like [`PhysicsComponentBase`]
 #[derive(Debug, Component, Clone, Copy, Default, Deref, Reflect)]
 pub struct Ticker(Vec3);
 
@@ -21,15 +18,11 @@ pub struct Ticker(Vec3);
 ///
 /// This will reset any tickers with a TotalVelocity of 0 to 0,0,0. This may lead to bugs in the
 /// future
-///
-/// This will also avoid moving two [`ColliderType::Solid`] into each other by lessening their
-/// velocity.
 fn finalize_movement(
     mut phsyics_components: Query<(
         &mut Transform,
         &mut Ticker,
         &super::velocity::RelativeVelocity,
-        Option<&super::collider::Collider>,
     )>,
     tile_stretch: Res<TileStretch>,
     time: Res<Time>,
@@ -39,7 +32,7 @@ fn finalize_movement(
     //
     // also converts to 32x32
 
-    for (mut transform, mut ticker, total_velocity, _collider) in phsyics_components.iter_mut() {
+    for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
         // update ticker, only apply velocity * delta to keep time consistent
         ticker.0 += **total_velocity * time.delta_seconds();
 
