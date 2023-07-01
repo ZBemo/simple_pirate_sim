@@ -28,58 +28,44 @@ impl ConsoleCommand for EchoConsole {
 /// TODO: get rid of changecommand and use closures instead
 #[derive(Reflect)]
 struct ChangeNameConsole;
-enum ChangeNameCommand {
-    WrongInputs(usize),
-    ChangeName(String, String),
-}
+struct ChangeNameCommand(String, String);
 
 impl ConsoleCommand for ChangeNameConsole {
     fn start_command(&self, input: Vec<Token>, commands: &mut Commands) {
-        let command = if input.len() != 2 {
-            ChangeNameCommand::WrongInputs(input.len())
+        if input.len() != 2 {
+            commands.add(PrintStringCommand(format!(
+                "Wrong amount of inputs. Expected 2 inputs but instead was given {}",
+                input.len()
+            )));
         } else {
             // we just checked length
-            unsafe {
-                ChangeNameCommand::ChangeName(
+            commands.add(unsafe {
+                ChangeNameCommand(
                     input.get_unchecked(0).string.clone(),
                     input.get_unchecked(1).string.clone(),
                 )
-            }
-        };
-
-        commands.add(command)
+            });
+        }
     }
 }
 
 impl Command for ChangeNameCommand {
     fn write(self, world: &mut World) {
-        match self {
-            ChangeNameCommand::ChangeName(from, to) => {
-                let mut query = world.query::<&mut Name>();
-                let mut output = format!("renaming entities with name {} to {}", from, to);
+        let Self(from, to) = self;
+        let mut query = world.query::<&mut Name>();
+        let mut output = format!("renaming entities with name {} to {}", from, to);
 
-                for mut name in query.iter_mut(world) {
-                    if name.as_str() == from {
-                        name.set(to.clone());
-                        output.push_str("renamed an entity\n");
-                    }
-                }
-
-                world
-                    .get_resource_mut::<super::io::CommandOutput>()
-                    .expect("Console Command called with no CommandOutput resource")
-                    .0 = Some(output);
-            }
-            ChangeNameCommand::WrongInputs(len) => {
-                world
-                    .get_resource_mut::<super::io::CommandOutput>()
-                    .expect("Console Command called with no CommandOutput resource")
-                    .0 = Some(format!(
-                    "Wrong amount of inputs. Expected 2 inputs but instead was given {}",
-                    len
-                ));
+        for mut name in query.iter_mut(world) {
+            if name.as_str() == from {
+                name.set(to.clone());
+                output.push_str("renamed an entity\n");
             }
         }
+
+        world
+            .get_resource_mut::<super::io::CommandOutput>()
+            .expect("Console Command called with no CommandOutput resource")
+            .0 = Some(output);
     }
 }
 
