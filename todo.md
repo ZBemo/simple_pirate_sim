@@ -4,7 +4,8 @@
     - [x] split out collision
     - [x] split out velocity calculation to its own module
     - [x] consider splitting out movement
-- [x] change query function parameters to $NAME_q. will make code far more readable
+ - [x] change query function parameters to $NAME_q. will make code far more readable
+ - [ ] update`ConsoleCommand`s to pass in closures instead of trait-structs
  - [ ] consider changing console::io::ConsoleOpen to an enum
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
  - [ ] Strongly type TileSpace
