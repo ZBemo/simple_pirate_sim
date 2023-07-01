@@ -114,7 +114,7 @@ pub fn setup(
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.clone(),
             sprite: TextureAtlasSprite::new(5),
-            transform: Transform::from_translation(tilestretch.tile_to_bevy(&IVec3::new(1, 0, 1))),
+            transform: Transform::from_translation(tilestretch.get_bevy(&IVec3::new(1, 0, 1))),
             ..default()
         },
         tile_objects::TileObject::new(5, 6, 7),

@@ -21,16 +21,16 @@ pub struct TileStretch(IVec2);
 
 /// An error in conversion from bevy types
 ///
-/// Can only originate from [`TileStretch::bevy_to_tile`], and is bound to the lifetime of the two
+/// Can only originate from [`TileStretch::get_tile`], and is bound to the lifetime of the two
 /// arguments of that function.
 #[derive(Error, Debug)]
 #[error("Coordinates {to_translate} not divisible by stretch {:?}",tile_stretch.0)]
-pub struct FromBevyError<'a, 'b> {
+pub struct GetTileError<'a, 'b> {
     to_translate: &'a Vec3,
     tile_stretch: &'b TileStretch,
 }
 
-impl<'a, 'b> FromBevyError<'a, 'b> {
+impl<'a, 'b> GetTileError<'a, 'b> {
     fn new(to_translate: &'a Vec3, tile_stretch: &'b TileStretch) -> Self {
         Self {
             to_translate,
@@ -43,13 +43,13 @@ impl<'a, 'b> FromBevyError<'a, 'b> {
     /// This is useful for error recovery: for example; moving an entity to the closest tile
     /// location, or simply ignoring that it's off-grid and continuing as normal.
     pub fn to_closest(&self) -> IVec3 {
-        self.tile_stretch.closest_tile(self.to_translate)
+        self.tile_stretch.get_closest(self.to_translate)
     }
 }
 
 impl TileStretch {
     /// returns closest tile from a bevy translation
-    pub fn closest_tile(&self, t: &Vec3) -> IVec3 {
+    pub fn get_closest(&self, t: &Vec3) -> IVec3 {
         IVec3::new(t.x as i32 / self.x, t.y as i32 / self.y, t.z as i32)
     }
 
@@ -59,17 +59,17 @@ impl TileStretch {
     ///
     /// This should be renamed try_into_tile or something similar. Then we should re-evaluate the
     /// name of [`closest_tile`]
-    pub fn bevy_to_tile<'a, 'b>(&'b self, t: &'a Vec3) -> Result<IVec3, FromBevyError<'a, 'b>> {
+    pub fn get_tile<'a, 'b>(&'b self, t: &'a Vec3) -> Result<IVec3, GetTileError<'a, 'b>> {
         if t.round() != *t || t.x as i32 % self.x != 0 || t.y as i32 % self.y != 0 {
-            Err(FromBevyError::new(t, self))
+            Err(GetTileError::new(t, self))
         } else {
-            Ok(self.closest_tile(t))
+            Ok(self.get_closest(t))
         }
     }
 
     /// Take a tile translation and translate it bevy space. This is infallible, as all tile space
     /// should translate into bevy-space, ignoring floating point errors which we are not concerned with.
-    pub fn tile_to_bevy(&self, t: &IVec3) -> Vec3 {
+    pub fn get_bevy(&self, t: &IVec3) -> Vec3 {
         Vec3::new(
             t.x as f32 * self.x as f32,
             t.y as f32 * self.y as f32,

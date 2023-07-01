@@ -143,8 +143,8 @@ impl ConsoleCommand for MoveConsole {
                         let transform = location_query.get_mut(world, new_entity);
 
                         if let Ok(mut transform) = transform {
-                            *transform = transform
-                                .with_translation(tile_stretch.tile_to_bevy(&new_translation));
+                            *transform =
+                                transform.with_translation(tile_stretch.get_bevy(&new_translation));
                         }
 
                         output = "Moved an entity".into();

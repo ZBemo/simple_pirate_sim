@@ -175,7 +175,7 @@ fn predict_location(
     // the projected movement is already in tilespace, so just convert the current location, then
     // add
 
-    let current_tile = match tile_stretch.bevy_to_tile(&current_location) {
+    let current_tile = match tile_stretch.get_tile(&current_location) {
         Ok(t) => t,
         Err(t) => {
             error!("transform not on grid: {}", t);
@@ -235,7 +235,7 @@ fn check_collisions(
             transform.translation(),
             projected_tile_location
                 - tile_stretch
-                    .bevy_to_tile(&transform.translation())
+                    .get_tile(&transform.translation())
                     .map_or_else(|m| m.to_closest(), |m| m)
         );
 
@@ -244,7 +244,7 @@ fn check_collisions(
             entity,
             predicted_movement: projected_tile_location
                 - tile_stretch
-                    .bevy_to_tile(&transform.translation())
+                    .get_tile(&transform.translation())
                     .map_or_else(|m| m.to_closest(), |m| m),
             constraints: collider.constraints.clone(),
         };

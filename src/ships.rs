@@ -127,7 +127,7 @@ fn spawn_ship_from_blueprint(
 ) {
     let ship = commands
         .spawn((
-            Transform::from_translation(tile_stretch.tile_to_bevy(start_translation)),
+            Transform::from_translation(tile_stretch.get_bevy(start_translation)),
             physics::PhysicsComponentBase::default(),
         ))
         .id();
@@ -149,7 +149,7 @@ fn spawn_ship_from_blueprint(
                     ' ' => {} // ignore spaces
                     'w' => spawn_wall(
                         commands,
-                        tile_stretch.tile_to_bevy(&current_translation),
+                        tile_stretch.get_bevy(&current_translation),
                         &ship,
                         spritesheet_handle,
                     ),
