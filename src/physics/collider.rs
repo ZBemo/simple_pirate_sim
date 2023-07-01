@@ -23,15 +23,29 @@ use crate::tile_grid::TileStretch;
 #[derive(Debug, Clone, Deref, Reflect)]
 pub struct Impulse(IVec3);
 
+#[derive(Debug, Clone)]
+pub struct CollisionEntity {
+    pub constraints: Constraints,
+    pub entity: Entity,
+    pub violated: BVec3,
+}
+
 /// A collision Event. If an entity is in the collision on a specific location,  
 /// it will be in the hashmap, mapping to any impulse applied for conflict resolution.
-///
-/// Perhaps we should also have an EntityCollision event with HashMap<Entity,(Location,Impulse)>
 #[derive(Debug, Clone)]
-pub struct TileCollision {}
+pub struct TileCollision {
+    /// which tile
+    pub tile: IVec3,
+    /// which entities were involved
+    pub entities: Vec<CollisionEntity>,
+}
 
+/// An event where there was an entity collision
+///
+/// TODO: replace with TileCollision
 #[derive(Debug, Clone)]
 pub struct EntityCollision {
+    /// which entity was involved in the collision
     pub entity: Entity,
     pub tile: IVec3,
     pub conflict_along: BVec3,
@@ -59,7 +73,9 @@ pub struct Constraints {
     /// Essentially, if an object is moving along an axis with a sign the same as its Axis
     /// selection, it will trigger a conflict
     pub solid_planes: BVec3,
-    /// which axes it can be pushed along in order to resolve collision
+    /// Which axes it can be pushed along in order to resolve collision
+    ///
+    /// This is currently ignored
     pub move_along: BVec3,
 }
 
@@ -451,21 +467,17 @@ fn check_and_resolve_collisions(
     let resolutions = find_and_resolve_conflicts(&inhabited_tiles, &collider_q, &mut writer);
 
     for resolution in resolutions {
-        let rel_vel = rel_velocity_q.get_mut(resolution.entity).ok();
-        // safety: this was filtered from list of colliders
-
         // TODO: Consider other colliders collision.
 
-        if let Some(mut r_v) = rel_vel {
-            if resolution.to_block.z {
-                r_v.0.z = 0.;
-            }
-            if resolution.to_block.x {
-                r_v.0.x = 0.;
-            }
-            if resolution.to_block.y {
-                r_v.0.y = 0.;
-            }
+        let mut rel_vel = unsafe { rel_velocity_q.get_mut(resolution.entity).unwrap_unchecked() };
+        if resolution.to_block.z {
+            rel_vel.0.z = 0.;
+        }
+        if resolution.to_block.x {
+            rel_vel.0.x = 0.;
+        }
+        if resolution.to_block.y {
+            rel_vel.0.y = 0.;
         }
     }
 }
