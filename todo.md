@@ -35,7 +35,7 @@ Physics-collision and resolution
    - [x] Collision checking
    - [x] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
    - [x] Collision resolution
-   - [x] Collision event system
+   - [ ] Collision event system
    - [ ] "take" velocity from floor
    - [ ] finalize, and probably re-architect continuous velocity
    - [ ] fine tune gravity
