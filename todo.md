@@ -27,7 +27,7 @@ Physics-collision and resolution
  - [ ] conflict resolution should probably run on collision events, for better encapsulation 
  - [ ] Figure out when to send collision events, and what to include
    - [x] Entity collision events
-   - [ ] potentially have an asset with all of the collisions that occur in a frame stored for more advanced use.
+   - [ ] switch to tile collision event - should be more ergonomic
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
