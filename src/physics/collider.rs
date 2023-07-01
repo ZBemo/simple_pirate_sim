@@ -13,7 +13,7 @@
 
 // #![allow(unused)]
 
-use std::unreachable;
+use std::{hint::unreachable_unchecked, unreachable};
 
 use bevy::{prelude::*, utils::HashMap};
 
@@ -56,22 +56,27 @@ impl EntityCollision {
     pub fn was_in_conflict(&self) -> bool {
         self.conflict_along.any()
     }
+
+    fn new(resolution: &ConflictInfo, colliders: &[Entity]) -> Self {
+        EntityCollision {
+            entity: resolution.entity,
+            tile: resolution.position,
+            conflict_along: resolution.to_block,
+            colliding_with: colliders
+                .iter()
+                .filter(|e| **e != resolution.entity)
+                .cloned()
+                .collect(),
+        }
+    }
 }
 
 /// constraints put onto a collider and its collisions
 #[derive(Debug, Clone, Reflect)]
 pub struct Constraints {
-    /// which axes it is "solid" in a plane along, and thus will cause a collision conflict
+    /// which axes it is "solid"  along, and thus will cause a collision conflict
     ///
-    /// for example, a hallway oriented -x->+x might only allowing moving through it from +-x->+-x,
-    /// and so would have y as PosNeg, to prevent moving into it from the y axes
-    ///
-    /// diagonal movement will interpret solid axes in the most generous way possible, so in the
-    /// hallway example above as long as the entity moving into it is not at hallway.translate +/-
-    /// TileVec::Y, it will be able to move through it
-    ///
-    /// Essentially, if an object is moving along an axis with a sign the same as its Axis
-    /// selection, it will trigger a conflict
+    /// See the constants for [`Self`] for some examples
     pub solid_planes: BVec3,
     /// Which axes it can be pushed along in order to resolve collision
     ///
@@ -107,13 +112,11 @@ impl Constraints {
     };
 }
 
-/// a tile collider, specified in tile space. Importantly, size essentially functions as another
-/// corner of the Collider's "box", so a size of (0,0,0) should inhabit a single tile. See
-/// constraints for more size granularity
-///
 /// Currently, transform scale is not taken into account when calculating collision
 ///
 /// Any entity with a collider must also have a transform
+///
+/// See constraints for choices on how to handle collision
 #[derive(Component, Debug, Reflect)]
 pub struct Collider {
     pub constraints: Constraints,
@@ -303,6 +306,7 @@ fn find_and_resolve_conflicts(
 
             for entity in collision_map.iter() {
                 // safety: any entity involved in a collision must have a collider
+                // thus, we've already guaranteed that this entity has a collider associated
                 let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
 
                 // add entity to violatableplanes if it is violatable
@@ -338,10 +342,7 @@ fn find_and_resolve_conflicts(
                         // do nothing
                     }
                     _ => {
-                        #[cfg(debug_assertions)]
                         unreachable!();
-                        #[cfg(not(debug_assertions))]
-                        unreachable_unchecked()
                     }
                 }
                 match movement_signs.x {
@@ -359,10 +360,7 @@ fn find_and_resolve_conflicts(
                         // do nothing
                     }
                     _ => {
-                        #[cfg(debug_assertions)]
                         unreachable!();
-                        #[cfg(not(debug_assertions))]
-                        unreachable_unchecked()
                     }
                 }
                 match movement_signs.y {
@@ -380,10 +378,7 @@ fn find_and_resolve_conflicts(
                         // do nothing
                     }
                     _ => {
-                        #[cfg(debug_assertions)]
                         unreachable!();
-                        #[cfg(not(debug_assertions))]
-                        unreachable_unchecked()
                     }
                 }
 
@@ -394,7 +389,7 @@ fn find_and_resolve_conflicts(
                     constraints: entity.constraints.clone(),
                 };
 
-                let event = gen_collision_event(
+                let event = EntityCollision::new(
                     &info,
                     &inhabitants.iter().map(|t| t.entity).collect::<Box<_>>(),
                 );
@@ -408,20 +403,6 @@ fn find_and_resolve_conflicts(
             ret
         })
         .collect()
-}
-
-// TODO: move this to [`EntityCollision::new`]
-fn gen_collision_event(resolution: &ConflictInfo, colliders: &[Entity]) -> EntityCollision {
-    EntityCollision {
-        entity: resolution.entity,
-        tile: resolution.position,
-        conflict_along: resolution.to_block,
-        colliding_with: colliders
-            .iter()
-            .filter(|e| **e != resolution.entity)
-            .cloned()
-            .collect(),
-    }
 }
 
 /// Behemoth system for checking and then resolving collisions
@@ -482,7 +463,6 @@ fn check_and_resolve_collisions(
     }
 }
 
-#[cfg(debug_assertions)]
 fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>) {
     for event in events.iter() {
         trace!(
