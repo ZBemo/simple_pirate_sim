@@ -17,6 +17,7 @@ use thiserror::Error;
 pub use io::CommandOutput;
 pub use io::ConsoleOpen;
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Token {
     pub string: String,
 }
@@ -81,7 +82,7 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
         tokens.push(Token { string: cur_string });
     }
 
-    trace!("parsed {} tokens", tokens.len());
+    trace!("{:?}", tokens);
 
     Ok(tokens)
 }

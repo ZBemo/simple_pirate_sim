@@ -12,19 +12,14 @@ struct EchoConsole;
 
 impl ConsoleCommand for EchoConsole {
     fn start_command(&self, input: Vec<Token>, commands: &mut Commands) {
-        commands.add(PrintStringCommand(input.iter().fold(
-            String::new(),
-            |acc, e| {
-                let mut new_string = String::new();
-                new_string.push_str(&acc);
-                new_string.push(' ');
-                new_string.push_str(&e.string);
-
-                trace!("{}", new_string);
-
-                new_string
-            },
-        )))
+        commands.add(PrintStringCommand(
+            input
+                .iter()
+                .map(|i| &i.string)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" "),
+        ))
     }
 }
 
