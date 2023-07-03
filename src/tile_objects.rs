@@ -4,15 +4,11 @@
 //! In the future, setup spritesheet, tilestretch, etc and process spritesheet images
 
 // still in heavy development
-#![allow(unused)]
 
-use bevy::utils::HashMap;
 use bevy::{prelude::*, reflect::GetTypeRegistration};
-use std::collections::HashSet;
-use std::ops::{Add, Div};
 
 use crate::physics::PhysicsSet;
-use crate::{controllers, tile_grid::TileStretch};
+use crate::tile_grid::TileStretch;
 
 // 90 degrees in radians?
 pub const ROTATE_TILE: f32 = std::f32::consts::FRAC_1_PI;
