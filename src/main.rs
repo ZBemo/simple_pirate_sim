@@ -1,6 +1,8 @@
 // bevy requires complex types, most of which are quite reaable
 #![allow(clippy::type_complexity)]
 #![warn(clippy::unwrap_used)]
+#![warn(clippy::perf)]
+#![warn(clippy::pedantic)]
 
 mod console;
 mod controllers;

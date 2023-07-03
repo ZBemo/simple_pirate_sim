@@ -39,7 +39,8 @@ pub(super) fn update_movement_goals(
 
     let (mut movement_goals, walk_speed) = player.get_single_mut().expect("Player not found");
 
-    let mut new_goals = Vec::new();
+    // should never have to grow
+    let mut new_goals = Vec::with_capacity(7);
 
     for event in char_input_events.iter() {
         match event.char {

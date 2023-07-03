@@ -17,9 +17,6 @@ use crate::{controllers, tile_grid::TileStretch};
 // 90 degrees in radians?
 pub const ROTATE_TILE: f32 = std::f32::consts::FRAC_1_PI;
 
-// #[derive(Component, Debug, Deref)]
-// pub struct ObjectName(pub String);
-
 #[derive(Resource, Deref, DerefMut, Reflect)]
 pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
 
