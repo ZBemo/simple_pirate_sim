@@ -81,6 +81,8 @@ fn do_io(
                         match parse(&input) {
                             Ok(tokens) => {
                                 let mut tokens = tokens;
+
+                                #[allow(clippy::unwrap_used)]
                                 if tokens.is_empty() {
                                     tokens = parse("echo Please enter a command").unwrap();
                                 };

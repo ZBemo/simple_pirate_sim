@@ -269,7 +269,7 @@ impl bevy::prelude::Plugin for Plugin {
                 propogate_missed.after(propagate_velocities),
                 propagate_from_ground.after(propogate_missed),
             )
-                .in_set(super::PhysicsSet::FinalizeVelocity),
+                .in_set(super::PhysicsSet::Velocity),
         );
     }
 }

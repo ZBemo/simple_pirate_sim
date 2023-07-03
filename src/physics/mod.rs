@@ -23,17 +23,17 @@ pub const GRAVITY: f32 = 9.8;
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
 /// We recommend running any system that plans to input into the Physics system before
-/// [`PhysicsSet::FinalizeVelocity`], or it may not be considered at all or until the next frame.
+/// [`PhysicsSet::Velocity`], or it may not be considered at all or until the next frame.
 ///
-/// If wanting to use previously newly update locations, run after [`PhysicsSet::FinalizeMovement`]
+/// If wanting to use previously newly update locations, run after [`PhysicsSet::Movement`]
 ///
-/// systems making use of collision checking should run after [`PhysicsSet::FinalizeCollision`], or
+/// systems making use of collision checking should run after [`PhysicsSet::Collision`], or
 /// collision data may be wildly inaccurate
 pub enum PhysicsSet {
     // PhysicsInput,
-    FinalizeVelocity,
-    FinalizeCollision,
-    FinalizeMovement,
+    Velocity,
+    Collision,
+    Movement,
 }
 
 /// Any component with a weight will have gravity applied to it on each physics update
@@ -229,12 +229,10 @@ fn startup(type_registry: Res<AppTypeRegistry>, mut commands: Commands) {
 /// A plugin to setup essential physics systems
 ///
 /// Any system that wants to use the results of a physics engine update should not run until after
-/// [`PhysicsSet::FinalizeMovement`] has been completed
+/// [`PhysicsSet::Movement`] has been completed
 ///
 /// Any systems that want to affect the physics engine in a given frame must run before
-/// [`PhysicsSet::FinalizeVelocity`].
-///
-/// See the source of [`PhysicsPlugin::build`] for how systems are ordered.
+/// [`PhysicsSet::Velocity`].
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {

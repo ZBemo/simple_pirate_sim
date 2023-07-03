@@ -70,8 +70,8 @@ impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_system(
             finalize_movement
-                .in_set(super::PhysicsSet::FinalizeMovement)
-                .after(super::PhysicsSet::FinalizeCollision),
+                .in_set(super::PhysicsSet::Movement)
+                .after(super::PhysicsSet::Collision),
         );
     }
 }

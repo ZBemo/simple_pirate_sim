@@ -1,8 +1,7 @@
-// bevy requires complex types, most of which are quite reaable
-#![allow(clippy::type_complexity)]
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::perf)]
-#![warn(clippy::pedantic)]
+// most bevy systems violate these. Nothing I can do about it at the moment.
+#![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
 mod console;
 mod controllers;

@@ -58,12 +58,12 @@ pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(register_types)
-            .add_system(count_down_goals_timeout.after(PhysicsSet::FinalizeVelocity))
+            .add_system(count_down_goals_timeout.after(PhysicsSet::Velocity))
             .add_system(remove_timedout_goals.after(count_down_goals_timeout))
             .add_systems(
                 (player::update_movement_goals, goals_to_goal)
                     .chain()
-                    .before(PhysicsSet::FinalizeVelocity),
+                    .before(PhysicsSet::Velocity),
             );
     }
 }

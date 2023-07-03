@@ -129,7 +129,7 @@ impl Collider {
 }
 
 /// Predict the location of an entity  based on its current velocities. This will only be accurate
-/// in between FinalizeVelocity and FinalizeMovement
+/// in between [`PhysicsSet::Velocity`] and [`PhysicsSet::Movement`]
 ///
 /// TODO: switch this to predict_velocity, which is a more useful result, as it can just be added
 /// to transform.translation() to get predicted location, which seems to be used less often than
@@ -485,12 +485,12 @@ impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_system(
             check_and_resolve_collisions
-                .in_set(PhysicsSet::FinalizeCollision)
-                .after(PhysicsSet::FinalizeVelocity)
-                .before(PhysicsSet::FinalizeMovement),
+                .in_set(PhysicsSet::Collision)
+                .after(PhysicsSet::Velocity)
+                .before(PhysicsSet::Movement),
         )
-        .add_system(log_collisions.after(PhysicsSet::FinalizeCollision))
-        .add_system(check_and_resolve_collisions.after(PhysicsSet::FinalizeCollision))
+        .add_system(log_collisions.after(PhysicsSet::Collision))
+        .add_system(check_and_resolve_collisions.after(PhysicsSet::Collision))
         .add_event::<EntityCollision>();
     }
 }

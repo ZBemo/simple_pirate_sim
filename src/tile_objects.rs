@@ -238,6 +238,6 @@ pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(register_types)
-            .add_system(update_tile_sprites.after(PhysicsSet::FinalizeCollision));
+            .add_system(update_tile_sprites.after(PhysicsSet::Collision));
     }
 }
