@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 use bevy::{ecs::system::Command, prelude::*, reflect::GetTypeRegistration};
 
-use crate::console::{self, PrintStringCommand, ReflectConsoleCommand};
+use crate::console::{self, PrintStringCommand};
 use crate::tile_grid::TileStretch;
 
 pub mod collider;

@@ -87,16 +87,24 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     Ok(tokens)
 }
 
-/// objects that implement this trait & are type-object safe can be registered as a console command
-#[reflect_trait]
-pub trait ConsoleCommand: Reflect {
+/// Objects that implement this trait & are type-object safe can be registered as a console command
+///
+/// You should also be able to register closures/functions with the function signature
+/// (Vec<Token>,&mut Commands) -> ().
+pub trait ConsoleCommand {
     /// Start the command. Must add a command to commands that updates the [`self::CommandOutput`]
     /// resource
     fn start_command(&self, input: Vec<Token>, commands: &mut Commands);
 }
 
+impl<T: Fn(Vec<Token>, &mut Commands)> ConsoleCommand for T {
+    fn start_command(&self, input: Vec<Token>, commands: &mut Commands) {
+        self(input, commands)
+    }
+}
+
 /// A console command type-object for registration
-pub type ConsoleCommandObject = Box<dyn ConsoleCommand>;
+pub type ConsoleCommandObject = Box<dyn ConsoleCommand + Send + Sync>;
 
 /// A resource to store all registered Console commands
 #[derive(Deref, DerefMut, Resource)]

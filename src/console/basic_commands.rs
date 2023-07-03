@@ -7,23 +7,17 @@ use super::{
 };
 use bevy::{app::AppExit, prelude::*};
 
-#[derive(Reflect)]
-struct EchoConsole;
-
-impl ConsoleCommand for EchoConsole {
-    fn start_command(&self, input: Vec<Token>, commands: &mut Commands) {
-        commands.add(PrintStringCommand(
-            input
-                .iter()
-                .map(|i| &i.string)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(" "),
-        ))
-    }
+fn echo_command(input: Vec<Token>, commands: &mut Commands) {
+    commands.add(PrintStringCommand(
+        input
+            .iter()
+            .map(|i| &i.string)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" "),
+    ))
 }
 
-#[derive(Reflect)]
 struct ExitConsole;
 
 impl ConsoleCommand for ExitConsole {
@@ -32,7 +26,6 @@ impl ConsoleCommand for ExitConsole {
     }
 }
 
-#[derive(Reflect)]
 struct MoveConsole;
 
 impl ConsoleCommand for MoveConsole {
@@ -99,7 +92,7 @@ impl ConsoleCommand for MoveConsole {
 pub(super) fn setup_basic_commands(mut commands: Commands) {
     // run each command in this array
     [
-        RegisterConsoleCommand::new("echo".into(), Box::new(EchoConsole)),
+        RegisterConsoleCommand::new("echo".into(), Box::new(echo_command)),
         RegisterConsoleCommand::new("exit".into(), Box::new(ExitConsole)),
         RegisterConsoleCommand::new("move".into(), Box::new(MoveConsole)),
     ]
