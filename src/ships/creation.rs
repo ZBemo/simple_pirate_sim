@@ -1,74 +1,9 @@
-//! Functions and systems for creating and updating ships
-//!
-//! 'w' = wall
-//!
-//! 'f' = floor
-//!
-//! '>' = up, '<' = down
-//!
-//! 's' = steering wheel
-//!
-//! 'c' = canon
-//!
-//! ' ' = open space
-
-// still under heavy development
-#![allow(unused)]
-
-use bevy::{asset::Asset, prelude::*};
-
 use crate::{
-    physics::{self, collider::Collider},
-    random::RandomGenerator,
-    tile_grid::{self, TileStretch},
-    tile_objects::{self, SpriteSheetHandle},
+    physics, random::RandomGenerator, ships::BASIC_SHIP, tile_grid::TileStretch, tile_objects,
 };
+use bevy::prelude::*;
 
-/// a basic template for a ship. not piratey at all because I suck at art
-/// this ship is not yet leak proof
-const BASIC_SHIP: [&str; 3] = [
-    "
-     www  
-    wwfww  
-   wwfffww 
-  wwfffffww
-  wwfffffww
-  wwff>ffww
-  wwfffffww
-  wwwwwwwww",
-    "
-     www   
-    wwfww  
-   wwfffww 
-  wwffsffww
-  wwrfffrww
-  wwff<ffww
-  wwfffffww
-  wwwwwwwww",
-    "
-     fff    
-    ff ff  
-   ff   ff 
-  ff     ff
-  cf     fc
-  ff     ff
-  ff     ff
-  fffffffff",
-];
-
-pub struct ShipBundle;
-
-/// this doesn't belong here. the sea level of the world
-#[derive(Debug, Resource, Deref)]
-pub struct SeaLevel(i32);
-
-#[derive(Bundle)]
-pub struct SteeringWheelBundle {
-    main_component: SteeringWheel,
-}
-
-#[derive(Component)]
-pub struct SteeringWheel {}
+use super::SeaLevel;
 
 // setup ships system
 fn setup_ships(
@@ -170,7 +105,7 @@ fn spawn_wall(
 ) {
     commands
         .spawn((
-            Collider::new(physics::collider::Constraints::WALL),
+            physics::collider::Collider::new(physics::collider::Constraints::WALL),
             physics::velocity::VelocityBundle::default(),
             tile_objects::TileObject::new(202, 203, 204),
             Name::new("Ship Wall"),
