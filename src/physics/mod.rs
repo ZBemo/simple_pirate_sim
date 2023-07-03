@@ -115,8 +115,6 @@ where
         .collect()
 }
 
-#[derive(Reflect)]
-#[reflect(ConsoleCommand)]
 struct RaycastConsole;
 
 impl crate::console::ConsoleCommand for RaycastConsole {
