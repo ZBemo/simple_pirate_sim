@@ -203,6 +203,8 @@ fn check_collisions(
     tile_stretch: &TileStretch,
     delta_time: f32,
 ) -> HashMap<IVec3, Vec<InhabitingTile>> {
+    // TODO: look into tracking average amount of units w/ colliders. Reserve capacity for that
+    // much
     let mut collision_map: HashMap<IVec3, Vec<InhabitingTile>> = HashMap::new();
 
     // could loop concurrently to create a Vec of expected tiles, and then loop that in single

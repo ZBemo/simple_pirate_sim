@@ -8,9 +8,9 @@ pub struct RegisterConsoleCommand(Box<str>, ConsoleCommandObject);
 
 impl bevy::ecs::system::Command for RegisterConsoleCommand {
     fn write(self, world: &mut World) {
-        let mut registered_commands =
-            world.get_resource_or_insert_with(|| RegisteredConsoleCommands(HashMap::new()));
-        registered_commands.insert(self.0, self.1);
+        world
+            .get_resource_or_insert_with(|| RegisteredConsoleCommands(HashMap::new()))
+            .insert(self.0, self.1);
     }
 }
 
