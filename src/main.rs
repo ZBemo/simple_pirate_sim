@@ -1,5 +1,5 @@
 #![warn(clippy::unwrap_used)]
-#![warn(clippy::perf)]
+#![warn(clippy::perf, clippy::disallowed_types)]
 // most bevy systems violate these. Nothing I can do about it at the moment.
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
