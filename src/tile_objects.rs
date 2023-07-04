@@ -10,9 +10,6 @@ use bevy::{prelude::*, reflect::GetTypeRegistration};
 use crate::physics::PhysicsSet;
 use crate::tile_grid::TileStretch;
 
-// 90 degrees in radians?
-pub const ROTATE_TILE: f32 = std::f32::consts::FRAC_1_PI;
-
 #[derive(Resource, Deref, DerefMut, Reflect)]
 pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
 
@@ -43,10 +40,6 @@ impl TileObject {
             two_up_index: two_up,
         }
     }
-}
-
-fn process_sprites(sprites: Query<(&mut TextureAtlasSprite, &Transform)>) {
-    todo!()
 }
 
 pub fn setup_spritesheet(asset_server: Res<AssetServer>) {
@@ -127,9 +120,8 @@ pub fn update_tile_sprites(
             // the tilespace grid functions such that each grid centers on a multiple of
             // tilestretch.{x,y} on the {x,y} axis, and is the same size.
             let round_to_tile_space = |to_round: Vec2| -> Vec2 {
-                let rounded = to_round.round();
-                let x = (to_round.x + tile_stretch.x as f32 - (to_round.x % tile_stretch.x as f32));
-                let y = (to_round.y + tile_stretch.y as f32 - (to_round.y % tile_stretch.y as f32));
+                let x = to_round.x + tile_stretch.x as f32 - (to_round.x % tile_stretch.x as f32);
+                let y = to_round.y + tile_stretch.y as f32 - (to_round.y % tile_stretch.y as f32);
 
                 Vec2::new(x, y)
             };
@@ -164,7 +156,7 @@ fn apply_entity_from_bounds(
 ) {
     // check each tile object
     tile_object_q.par_iter_mut().for_each_mut(
-        |(mut option_sprite, mut option_visibility, transform, tile_object)| {
+        |(option_sprite, option_visibility, transform, tile_object)| {
             // ensure it has a sprite and a visibility associated
             let Some(mut sprite) = option_sprite else {
                 warn!("TileObject with no sprite!");
