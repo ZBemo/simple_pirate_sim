@@ -84,13 +84,15 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
 
     trace!("{:?}", tokens);
 
+    tokens.shrink_to_fit(); // you shouldn't really be pushing and pulling from it at all after
+                            // this
     Ok(tokens)
 }
 
 /// Objects that implement this trait & are type-object safe can be registered as a console command
 ///
 /// You should also be able to register closures/functions with the function signature
-/// (Vec<Token>,&mut Commands) -> ().
+/// (Vec<Token>,&mut Commands) -> (). Due to a blanket impl
 pub trait ConsoleCommand {
     /// Start the command. Must add a command to commands that updates the [`self::CommandOutput`]
     /// resource
