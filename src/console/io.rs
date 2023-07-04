@@ -89,6 +89,7 @@ fn do_io(
 
                                 let mut tokens_iter = tokens.into_iter();
 
+                                // SAFETY: we just ensured tokens isn't empty so len must be >= 1
                                 let command =
                                     unsafe { tokens_iter.next().unwrap_unchecked().string };
 

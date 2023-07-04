@@ -76,7 +76,7 @@ impl BB2 {
 }
 
 pub fn update_tile_sprites(
-    tile_camera_q: Query<Entity, With<TileCamera>>,
+    tile_camera_q: Query<Entity, (With<TileCamera>, With<Camera>)>,
     camera_q: Query<Ref<Camera>>,
     transform_q: Query<&GlobalTransform>,
     mut tile_object_q: Query<(
@@ -103,6 +103,7 @@ pub fn update_tile_sprites(
     let bounds: Vec<(BB2, f32)> = tile_camera_q
         .iter()
         .filter_map(|camera_entity| {
+            // SAFETY: we filter camera_q on With<Camera>
             let camera = unsafe { camera_q.get(camera_entity).unwrap_unchecked() };
             let camera_transform = transform_q
                 .get(camera_entity)

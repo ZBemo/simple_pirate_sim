@@ -289,7 +289,7 @@ struct ConflictInfo {
 /// we need to clarify that Entity, &Collider live for 'b, while both references are 'a. 'a  must
 /// be valid for >= 'b, and our return will be valid for 'a. It looks like hidden lifetimes from
 /// the collider query  are what mess things up
-fn find_and_resolve_conflicts(
+unsafe fn find_and_resolve_conflicts(
     collisions: &HashMap<IVec3, Vec<InhabitingTile>>,
     collider_q: &Query<(Entity, &Collider)>,
     writer: &mut EventWriter<EntityCollision>, // this should be separated into another function to
@@ -316,7 +316,7 @@ fn find_and_resolve_conflicts(
             let collision_map = inhabitants;
 
             for entity in collision_map.iter() {
-                // safety: any entity involved in a collision must have a collider
+                // SAFETY: any entity involved in a collision must have a collider
                 // thus, we've already guaranteed that this entity has a collider associated
                 let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
 
@@ -457,7 +457,10 @@ fn check_and_resolve_collisions(
         delta_time,
     );
 
-    let resolutions = find_and_resolve_conflicts(&inhabited_tiles, &collider_q, &mut writer);
+    // SAFETY: inhabited_tiles is "filtered" from a list of (Entity,&Collider), so we know that it
+    // will have a collider associated with itself
+    let resolutions =
+        unsafe { find_and_resolve_conflicts(&inhabited_tiles, &collider_q, &mut writer) };
 
     trace!("implementing resolutions");
     for resolution in resolutions {
