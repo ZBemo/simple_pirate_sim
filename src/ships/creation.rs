@@ -1,19 +1,38 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
-    physics, random::RandomGenerator, ships::BASIC_SHIP, tile_grid::TileStretch, tile_objects,
+    physics,
+    random::RandomGenerator,
+    ships::BASIC_SHIP,
+    tile_grid::TileStretch,
+    tile_objects::{self, SpriteSheetHandle},
 };
-use bevy::prelude::*;
+use bevy::{
+    ecs::system::{CommandQueue, SystemState},
+    prelude::*,
+    transform::commands,
+};
 
 use super::SeaLevel;
 
-// setup ships system
-fn setup_ships(
-    mut commands: Commands,
-    mut generator: ResMut<RandomGenerator>,
-    tile_stretch: Res<TileStretch>,
-    spritesheet_handle: Res<tile_objects::SpriteSheetHandle>,
-    sea_level: Res<SeaLevel>,
-) {
-    let spritesheet_handle = &spritesheet_handle.0;
+// setup ships through an exclusive system/Command
+fn setup_ships(world: &mut World) {
+    let mut system = SystemState::<(
+        ResMut<RandomGenerator>,
+        Res<TileStretch>,
+        Res<SpriteSheetHandle>,
+        Res<SeaLevel>,
+        Commands,
+    )>::new(world);
+
+    let (generator, tile_stretch, spritesheet_handle, sea_level, mut commands) =
+        system.get_mut(world);
+
+    // generator RandomGenerator
+    // tile_stretch: TileStretch
+    // commands: Commands
+    // spritesheet_handle: SpriteSheetHandle
+    // sea_level: SeaLevel
 
     // TODO: multiply these by the ship size or something
     const FIRST_SHIP_RANGE: i32 = 200;
@@ -45,11 +64,13 @@ fn setup_ships(
         (0, 0),
         &BASIC_SHIP,
         &mut commands,
-        tile_stretch,
-        spritesheet_handle,
+        &tile_stretch,
+        &spritesheet_handle,
     );
 
-    todo!()
+    todo!();
+
+    system.apply(world); // make it so our changes actually take effect
 }
 
 fn spawn_ship_from_blueprint(
@@ -57,7 +78,7 @@ fn spawn_ship_from_blueprint(
     dimensions: (u8, u8),
     blueprint: &[&str],
     commands: &mut Commands,
-    tile_stretch: Res<TileStretch>,
+    tile_stretch: &TileStretch,
     spritesheet_handle: &Handle<TextureAtlas>,
 ) {
     let ship = commands
