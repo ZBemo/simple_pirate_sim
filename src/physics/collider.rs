@@ -3,17 +3,15 @@
 //! Functions and documents in this module will often refer to `collisions` and `conflicts`, which
 //! are two different things. A conflict is when two or more colliders are going to move through a
 //! collider in a way that conflicts on both colliders' axis-planes, or vice-versa. It is the
-//! physics systems job to prevent any conflicts from actually happening. Usually through
+//! physics system's job to prevent any conflicts from actually happening. Usually through
 //! cancelling the velocity of one or more object.
 //!
-//! Collisions however, are solely when two colliders will overlap, which does not always
+//! Collisions however, are any time when two colliders will overlap, which does not always
 //! necessitate interference from the physics systems
 //!
 //! This module is probably rife with opportunities for performance improvements.
 
-// #![allow(unused)]
-
-use std::unreachable;
+use std::{fmt::Display, unreachable};
 
 use bevy::{prelude::*, utils::HashMap};
 
@@ -45,11 +43,20 @@ pub struct TileCollision {
 /// TODO: replace with TileCollision
 #[derive(Debug, Clone)]
 pub struct EntityCollision {
-    /// which entity was involved in the collision
     pub entity: Entity,
     pub tile: IVec3,
     pub conflict_along: BVec3,
     pub colliding_with: Vec<Entity>,
+}
+
+impl Display for EntityCollision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Entity: {:?}, Tile: {}, conflict_along: {}, Colliding: {:?}",
+            self.entity, self.tile, self.conflict_along, self.colliding_with
+        )
+    }
 }
 
 impl EntityCollision {
@@ -288,6 +295,8 @@ fn find_and_resolve_conflicts(
     writer: &mut EventWriter<EntityCollision>, // this should be separated into another function to
                                                // keep this one functionally pure
 ) -> Vec<ConflictInfo> {
+    trace!("Finding conflicts & resolutions");
+
     // start by mapping each possible movement violation to any entities that would have their collider
     // constraints violated
     #[derive(Debug, Default)]
@@ -400,6 +409,7 @@ fn find_and_resolve_conflicts(
             })
         })
         .map(|(ret, event)| {
+            trace!("sending event {}", event);
             // send event and discard as it's now irrelevant
             writer.send(event);
             ret
@@ -449,19 +459,18 @@ fn check_and_resolve_collisions(
 
     let resolutions = find_and_resolve_conflicts(&inhabited_tiles, &collider_q, &mut writer);
 
+    trace!("implementing resolutions");
     for resolution in resolutions {
-        // TODO: Consider other colliders collision.
-        // TODO: We should update totalvelocity too?
-
-        let mut rel_vel = unsafe { rel_velocity_q.get_mut(resolution.entity).unwrap_unchecked() };
-        if resolution.to_block.z {
-            rel_vel.0.z = 0.;
-        }
-        if resolution.to_block.x {
-            rel_vel.0.x = 0.;
-        }
-        if resolution.to_block.y {
-            rel_vel.0.y = 0.;
+        if let Some(mut rel_vel) = rel_velocity_q.get_mut(resolution.entity).ok() {
+            if resolution.to_block.z {
+                rel_vel.0.z = 0.;
+            }
+            if resolution.to_block.x {
+                rel_vel.0.x = 0.;
+            }
+            if resolution.to_block.y {
+                rel_vel.0.y = 0.;
+            }
         }
     }
 }

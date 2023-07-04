@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use super::PhysicsSet;
+
 /// Velocity for current frame relative to its parents velocity
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
@@ -13,7 +15,8 @@ pub(super) struct RelativeVelocity(pub(super) Vec3);
 ///
 /// TotalVelocity will = RelativeVelocity when an entity has no parents
 ///
-/// All of an entity's parents must have a Velocity bundle in order for the entity to have one
+/// This is currently only guaranteed to be accurate between [`PhysicsSet::Velocity`] and
+/// [`PhysicsSet::Collision`]
 #[derive(Debug, Component, Clone, Default, Deref, Reflect)]
 pub(super) struct TotalVelocity(Vec3);
 
@@ -103,19 +106,20 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
-/// This will propagate anything with no parents that has not had its total velocity updated since
-/// last time this system was run
+/// Any entity with no children or parents will be missed by [`propagate_velocities`]. To fix this,
+/// query on these entities and set their total velocity equal to their relative.
 ///
-/// This will get components with no parents or children that are missed by [`propagate_velocities`]
-///
-/// There is probably a better way to filter this
+/// Don't bother checking is_changed(), as the total number of velocity-enabled entities without
+/// parents or children should be relatively small
 fn propogate_missed(
-    mut no_parent_q: Query<(Ref<RelativeVelocity>, &mut TotalVelocity), Without<Parent>>,
+    mut no_parent_q: Query<
+        (&RelativeVelocity, &mut TotalVelocity),
+        (Without<Parent>, Without<Children>),
+    >,
 ) {
     no_parent_q
-        .iter_mut()
-        .filter(|(r, t)| r.is_changed() && !t.is_changed())
-        .for_each(|(relative, mut total)| {
+        .par_iter_mut()
+        .for_each_mut(|(relative, mut total)| {
             total.0 = relative.0;
         });
 }
@@ -266,10 +270,10 @@ impl bevy::prelude::Plugin for Plugin {
                 calculate_relative_velocity,
                 propagate_velocities.after(calculate_relative_velocity),
                 decay_persistent_velocity.after(calculate_relative_velocity),
-                propogate_missed.after(propagate_velocities),
+                propogate_missed.after(calculate_relative_velocity),
                 propagate_from_ground.after(propogate_missed),
             )
-                .in_set(super::PhysicsSet::Velocity),
+                .in_set(PhysicsSet::Velocity),
         );
     }
 }

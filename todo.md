@@ -19,6 +19,7 @@
 # Current 
 Physics-collision and resolution 
  - [x] Chunk up into functions
+ - [ ] change to tile cast for predicting collison for better accuracy
  - [ ] figure out all different modes of resolution
     - [x] clamp velocity - the preferred mode of resolution, essentially remove velocity from the object to stop it from moving into colliders
     - [ ] apply velocity - a second choice, "push" the collider out of the collision zone
