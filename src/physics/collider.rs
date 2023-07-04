@@ -512,10 +512,7 @@ impl bevy::prelude::Plugin for Plugin {
 #[cfg(test)]
 mod test {
     use bevy::{
-        prelude::{
-            debug, warn, App, Commands, Events, GlobalTransform, Name, Query, SpatialBundle,
-            Transform, Vec3,
-        },
+        prelude::{App, Events, Name, Vec3},
         time::Time,
         transform::TransformBundle,
     };
