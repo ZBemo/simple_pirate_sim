@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::PhysicsSet;
+use super::{movement::Ticker, PhysicsSet};
 
 /// Velocity for current frame relative to its parents velocity
 ///
@@ -259,6 +259,7 @@ unsafe fn propagate_recursive(
 pub struct VelocityBundle {
     total: RelativeVelocity,
     relative_total: TotalVelocity,
+    ticker: Ticker,
 }
 
 pub struct Plugin;

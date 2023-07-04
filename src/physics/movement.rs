@@ -30,11 +30,13 @@ fn finalize_movement(
     // this will make it so entities only move a tile once an entire tiles worth of movement
     // has been "made", keeping it in a grid based system
     //
-    // also converts to 32x32
+    // also converts from grid to tile_stretch
+
+    let delta_time = time.delta_seconds();
 
     for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
         // update ticker, only apply velocity * delta to keep time consistent
-        ticker.0 += **total_velocity * time.delta_seconds();
+        ticker.0 += **total_velocity * delta_time;
 
         debug!("updating with ticker {}", ticker.0);
 

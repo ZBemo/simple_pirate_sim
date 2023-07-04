@@ -508,3 +508,70 @@ impl bevy::prelude::Plugin for Plugin {
         .add_event::<EntityCollision>();
     }
 }
+
+#[cfg(test)]
+mod test {
+    use bevy::{
+        prelude::{
+            debug, warn, App, Commands, Events, GlobalTransform, Name, Query, SpatialBundle,
+            Transform, Vec3,
+        },
+        time::Time,
+        transform::TransformBundle,
+    };
+
+    use crate::{
+        physics::{velocity::VelocityBundle, MovementGoal},
+        test,
+    };
+
+    use super::Collider;
+
+    #[test]
+    /// collision should work under super basic conditions
+    fn collision_works_basic() {
+        let mut app = App::new();
+
+        app.add_plugin(test::DefaultTestPlugin);
+
+        app.add_plugin(crate::physics::PhysicsPlugin);
+
+        app.world.spawn((
+            Name::new("Move"),
+            VelocityBundle::default(),
+            Collider::new(super::Constraints::WALL),
+            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
+            MovementGoal(Vec3::new(1., 1., 0.)),
+        ));
+
+        app.world.spawn((
+            Name::new("Wall"),
+            Collider::new(super::Constraints::WALL),
+            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(2., 2., 0.)),
+        ));
+
+        app.setup();
+
+        // run long enough for Move to move x + 2, y +2
+        while app
+            .world
+            .resource::<Events<super::EntityCollision>>()
+            .is_empty()
+        {
+            app.update();
+
+            if app.world.resource::<Time>().elapsed_seconds() >= 3. {
+                panic!("Three seconds elapsed but no collision detected");
+            }
+        }
+
+        let collisions = app.world.resource::<Events<super::EntityCollision>>();
+        let mut reader = collisions.get_reader();
+
+        assert!(!reader.is_empty(collisions));
+
+        let collisions = reader.iter(collisions).collect::<Vec<_>>();
+
+        assert_eq!(collisions.len(), 2);
+    }
+}

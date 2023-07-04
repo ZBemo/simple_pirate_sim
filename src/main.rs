@@ -9,6 +9,8 @@ mod gui;
 mod physics;
 mod random;
 mod ships;
+#[cfg(test)]
+mod test;
 mod tile_grid;
 mod tile_objects;
 
