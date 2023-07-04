@@ -33,8 +33,8 @@ fn propagate_from_ground(
     total_vel_q: Query<&mut TotalVelocity>,
     relative_vel_q: Query<&mut RelativeVelocity>,
 ) {
-    // todo!()
-    error!("Must implement propagate from ground!")
+    todo!()
+    // error!("Must implement propagate from ground!")
 }
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
@@ -272,7 +272,7 @@ impl bevy::prelude::Plugin for Plugin {
                 propagate_velocities.after(calculate_relative_velocity),
                 decay_persistent_velocity.after(calculate_relative_velocity),
                 propogate_missed.after(calculate_relative_velocity),
-                propagate_from_ground.after(propogate_missed),
+                // propagate_from_ground.after(propogate_missed),
             )
                 .in_set(PhysicsSet::Velocity),
         );

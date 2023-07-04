@@ -512,7 +512,7 @@ impl bevy::prelude::Plugin for Plugin {
 #[cfg(test)]
 mod test {
     use bevy::{
-        prelude::{App, Events, Name, Vec3},
+        prelude::{App, Events, GlobalTransform, Name, Vec3},
         time::Time,
         transform::TransformBundle,
     };
@@ -533,19 +533,25 @@ mod test {
 
         app.add_plugin(crate::physics::PhysicsPlugin);
 
-        app.world.spawn((
-            Name::new("Move"),
-            VelocityBundle::default(),
-            Collider::new(super::Constraints::WALL),
-            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
-            MovementGoal(Vec3::new(1., 1., 0.)),
-        ));
+        let move_id = app
+            .world
+            .spawn((
+                Name::new("Move"),
+                VelocityBundle::default(),
+                Collider::new(super::Constraints::WALL),
+                TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
+                MovementGoal(Vec3::new(1., 1., 0.)),
+            ))
+            .id();
 
-        app.world.spawn((
-            Name::new("Wall"),
-            Collider::new(super::Constraints::WALL),
-            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(2., 2., 0.)),
-        ));
+        let wall_id = app
+            .world
+            .spawn((
+                Name::new("Wall"),
+                Collider::new(super::Constraints::WALL),
+                TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(2., 2., 0.)),
+            ))
+            .id();
 
         app.setup();
 
@@ -570,5 +576,9 @@ mod test {
         let collisions = reader.iter(collisions).collect::<Vec<_>>();
 
         assert_eq!(collisions.len(), 2);
+
+        let translation = |id| app.world.get::<GlobalTransform>(id).unwrap().translation();
+
+        assert_ne!(translation(move_id), translation(wall_id));
     }
 }

@@ -7,7 +7,7 @@ pub struct DefaultTestPlugin;
 
 impl Plugin for DefaultTestPlugin {
     fn build(&self, app: &mut App) {
-        // 32x32 pixels for testing
+        // 1<->1 conversion for simplicity
         app.insert_resource(TileStretch::new(IVec2::new(1, 1)));
 
         // system to log location of every named entity

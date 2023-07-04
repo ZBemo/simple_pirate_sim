@@ -1,5 +1,4 @@
 # General code cleanliness
- - [ ] tests
  - [x] use IVec3 in places where it makes sense (like everywhere)
  - [x] split physics.rs into multiple modules
     - [x] split out collision
@@ -18,6 +17,11 @@
  - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
 
 # Current 
+Tests
+ - [x] TileGrid
+ - [x] Collisions 
+ - [ ] Velocity (kind of tested by collisions)
+ - [ ] TotalVelocity propagation
 Physics-collision and resolution 
  - [x] Chunk up into functions
  - [ ] change to tile cast for predicting collison for better accuracy
