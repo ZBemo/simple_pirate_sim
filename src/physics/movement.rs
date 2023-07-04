@@ -66,6 +66,13 @@ fn finalize_movement(
     }
 }
 
+/// A bundle allowing an entity to be moved by the physics system
+#[derive(Bundle)]
+pub struct MovementBundle {
+    velocity_bundle: super::velocity::VelocityBundle,
+    ticker: Ticker,
+}
+
 pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {

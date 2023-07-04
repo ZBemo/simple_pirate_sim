@@ -251,15 +251,13 @@ unsafe fn propagate_recursive(
     }
 }
 
-/// An entity with a VelocityBundle is able to be moved by the physics system.
+/// You probably want [`super::movement::MovementBundle`]
 ///
-/// All other interactions & features in the physics system operate under the assumption that an
-/// entity has all components from the VelocityBundle
+/// This bundle allows an entity to be acted on by all systems in the velocity module/plugin
 #[derive(Bundle, Debug, Default)]
 pub struct VelocityBundle {
     total: RelativeVelocity,
     relative_total: TotalVelocity,
-    ticker: Ticker,
 }
 
 pub struct Plugin;
