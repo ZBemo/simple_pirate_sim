@@ -1,4 +1,5 @@
 # General code cleanliness
+ - [ ] tests
  - [x] use IVec3 in places where it makes sense (like everywhere)
  - [x] split physics.rs into multiple modules
     - [x] split out collision
