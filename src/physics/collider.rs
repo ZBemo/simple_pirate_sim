@@ -13,7 +13,7 @@
 
 // #![allow(unused)]
 
-use std::{hint::unreachable_unchecked, unreachable};
+use std::unreachable;
 
 use bevy::{prelude::*, utils::HashMap};
 

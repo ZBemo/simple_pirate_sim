@@ -28,12 +28,6 @@ fn setup_ships(world: &mut World) {
     let (generator, tile_stretch, spritesheet_handle, sea_level, mut commands) =
         system.get_mut(world);
 
-    // generator RandomGenerator
-    // tile_stretch: TileStretch
-    // commands: Commands
-    // spritesheet_handle: SpriteSheetHandle
-    // sea_level: SeaLevel
-
     // TODO: multiply these by the ship size or something
     const FIRST_SHIP_RANGE: i32 = 200;
     const SECOND_SHIP_OFFSET_MAX: i32 = 20;
@@ -106,7 +100,7 @@ fn spawn_ship_from_blueprint(
                     'w' => spawn_wall(
                         commands,
                         tile_stretch.get_bevy(&current_translation),
-                        &ship,
+                        ship,
                         spritesheet_handle,
                     ),
                     c => {
@@ -121,7 +115,7 @@ fn spawn_ship_from_blueprint(
 fn spawn_wall(
     commands: &mut Commands,
     location: Vec3,
-    parent: &Entity,
+    parent: Entity,
     spritesheet_handle: &Handle<TextureAtlas>,
 ) {
     commands
@@ -138,5 +132,5 @@ fn spawn_wall(
                 ..default()
             },
         ))
-        .set_parent(*parent);
+        .set_parent(parent);
 }
