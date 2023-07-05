@@ -4,7 +4,12 @@ use bevy::prelude::*;
 
 use super::{movement::Ticker, PhysicsSet};
 
-/// Velocity for current frame relative to its parents velocity
+/// The Velocity that an entity moves at individually. For example, if an entities parent has a
+/// TotalVelocity of (1,0,0) and the entity has a RelativeVelocity of (0,1,0) it will move (1,1,0)
+/// grids per second in total
+///
+/// RelativeVelocity is multiplied by delta_time before being applied, & acts on the tile_grid. eg
+/// a TotalVelocity of (1,1,0) should move up one grid and one grid to the right each second.
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
 /// Bundle but no ticker
@@ -14,6 +19,9 @@ pub(super) struct RelativeVelocity(pub(super) Vec3);
 /// RelativeVelocity + parent's TotalVelocity
 ///
 /// TotalVelocity will = RelativeVelocity when an entity has no parents
+///
+/// RelativeVelocity is multiplied by delta_time before being applied, & acts on the tile_grid. eg
+/// a TotalVelocity of (1,1,0) should move up one grid and one grid to the right each second.
 ///
 /// This is currently only guaranteed to be accurate between [`PhysicsSet::Velocity`] and
 /// [`PhysicsSet::Collision`]
