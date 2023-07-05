@@ -518,7 +518,7 @@ mod test {
     };
 
     use crate::{
-        physics::{velocity::VelocityBundle, MovementGoal},
+        physics::{movement::MovementBundle, MovementGoal},
         test,
     };
 
@@ -537,7 +537,7 @@ mod test {
             .world
             .spawn((
                 Name::new("Move"),
-                VelocityBundle::default(),
+                MovementBundle::default(),
                 Collider::new(super::Constraints::WALL),
                 TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
                 MovementGoal(Vec3::new(1., 1., 0.)),
@@ -581,4 +581,182 @@ mod test {
 
         assert_ne!(translation(move_id), translation(wall_id));
     }
+
+    #[test]
+    /// collision should work under super basic conditions
+    fn collision_works_skips() {
+        let mut app = App::new();
+
+        app.add_plugin(test::DefaultTestPlugin);
+
+        app.add_plugin(crate::physics::PhysicsPlugin);
+
+        let move_id = app
+            .world
+            .spawn((
+                Name::new("Move"),
+                MovementBundle::default(),
+                Collider::new(super::Constraints::WALL),
+                TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
+                MovementGoal(Vec3::new(1., 1., 0.)),
+            ))
+            .id();
+
+        let wall_id = app
+            .world
+            .spawn((
+                Name::new("Wall"),
+                Collider::new(super::Constraints::WALL),
+                TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(2., 2., 0.)),
+            ))
+            .id();
+
+        app.setup();
+
+        app.world
+            .resource_mut::<Time>()
+            .set_relative_speed_f64(1000.);
+
+        // run long enough for Move to move x + 2, y +2
+        while app
+            .world
+            .resource::<Events<super::EntityCollision>>()
+            .is_empty()
+        {
+            app.update();
+
+            if app.world.resource::<Time>().elapsed_seconds() >= 3. {
+                panic!("Three seconds (Time::elapsed_seconds) elapsed but no collision detected");
+            }
+        }
+
+        let collisions = app.world.resource::<Events<super::EntityCollision>>();
+        let mut reader = collisions.get_reader();
+
+        assert!(!reader.is_empty(collisions));
+
+        let collisions = reader.iter(collisions).collect::<Vec<_>>();
+
+        assert_eq!(collisions.len(), 2);
+
+        let translation = |id| app.world.get::<GlobalTransform>(id).unwrap().translation();
+
+        assert_ne!(translation(move_id), translation(wall_id));
+    }
+}
+
+fn tile_cast_collision(
+    collider_q: Query<(Entity, &Collider)>,
+    total_vel_q: Query<&TotalVelocity>,
+    relative_vel_q: Query<&mut RelativeVelocity>,
+    ticker_q: Query<&Ticker>,
+    name_q: Query<&Name>,
+    transform_q: Query<&GlobalTransform>,
+    time: Res<Time>,
+    tile_stretch: Res<TileStretch>,
+) {
+    let delta_time = time.delta_seconds();
+
+    let predicted_map = predict_locations(
+        &collider_q,
+        &total_vel_q,
+        &ticker_q,
+        &name_q,
+        &transform_q,
+        delta_time,
+        &tile_stretch,
+    );
+
+    let find_entity = |fe: Entity| {
+        predicted_map
+            .iter()
+            .find_map(|(t, e)| (fe == *e).then(|| t))
+    };
+    let find_tile = |ft: IVec3| -> Vec<_> {
+        predicted_map
+            .iter()
+            .filter_map(|(t, e)| (ft == *t).then(|| e))
+            .collect()
+    };
+
+    for (entity, collider) in collider_q.iter() {
+        todo!()
+    }
+}
+
+/// Predict the change in grid location of an entity based on its current velocities. This will only be accurate
+/// in between [`PhysicsSet::Velocity`] and [`PhysicsSet::Movement`] \(ie. during
+/// [`PhsyicsSet::Collision`])
+fn calc_movement(
+    total_vel: Option<&TotalVelocity>,
+    ticked_vel: Option<&Ticker>,
+    time_delta: f32,
+    tile_stretch: &TileStretch,
+    name: &str,
+) -> IVec3 {
+    // if either of these are not present assume they will contribute to moving the entity
+    // If they are, just copy them
+    let total_velocity = total_vel.map_or_else(|| Vec3::ZERO, |c| **c);
+    let ticked_velocity = ticked_vel.map_or_else(|| Vec3::ZERO, |c| **c);
+
+    // its projected movement will just be however much the ticker is already filled, along
+    // with its total velocity times the time delta to get how much it will move this frame
+    //
+
+    let projected_movement_raw = total_velocity * time_delta + ticked_velocity;
+
+    // multiplying Signum before flooring makes sure it will floor towards zero, then we just
+    // reverse it
+    let projected_movement_rounded = (projected_movement_raw * projected_movement_raw.signum())
+        .floor()
+        * projected_movement_raw.signum();
+
+    trace!("predicting {}", name);
+    trace!(
+        "total velocity {}, ticked velocity {}",
+        total_velocity,
+        ticked_velocity
+    );
+    trace!(
+        "projected raw, rounded {}, {}",
+        projected_movement_raw,
+        projected_movement_rounded
+    );
+
+    // the projected movement is already in tilespace, so just convert the current location, then
+    // add
+    projected_movement_rounded.as_ivec3()
+}
+
+/// return a hashmap of (predicted location)->(Entity,Constraints)
+fn predict_locations(
+    collider_q: &Query<(Entity, &Collider)>,
+    total_vel_q: &Query<&TotalVelocity>,
+    ticker_q: &Query<&Ticker>,
+    name_q: &Query<&Name>,
+    transform_q: &Query<&GlobalTransform>,
+    delta_time: f32,
+    tile_stretch: &TileStretch,
+) -> Vec<(IVec3, Entity)> {
+    collider_q
+        .iter()
+        .map(|(entity, collider)| {
+            let predicted_location = calc_movement(
+                total_vel_q.get(entity).ok(),
+                ticker_q.get(entity).ok(),
+                delta_time,
+                tile_stretch,
+                name_q
+                    .get(entity)
+                    .map_or_else(|_| "Unnamed Entity", |s| s.as_str()),
+            ) + tile_stretch.get_closest(
+                &transform_q
+                    .get(entity)
+                    .expect("Collider on entity with no transform")
+                    .translation(),
+            );
+
+            (predicted_location, entity)
+        })
+        .collect()
 }
