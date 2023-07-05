@@ -3,13 +3,11 @@ name = "bevy_simple_test"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 # speed improvements for dev builds. opt-level assumes we won't be debugging dependencies,
 # and rustflags assumes we won't be building in dev mode for distribution.
 [profile.dev.package."*"]
 opt-level = 3
-# rustflags = ["-C","target-cpu=native"]
+# rustflags = ["-C","target-cpu=+sse3"] # we can assume everybody has sse3
 
 [profile.release]
 lto = "thin"
@@ -26,10 +24,10 @@ default-features = false
 features = [
   # if you add dynamic linking, remember not to commit
 
-  # instead of dynamic linking, if working on linux, on a fairly recent computer I recomend using 
+  # instead of dynamic linking, if working on linux, on a fairly recent computer I recommend using 
   # mold linker. I have found that recompiling debug with mold and rust 1.69 
-  # (likely because of newly enabled incremental builds)  
   # has nearly negligible speed differences from recompiling debug with dynamic_lib
+  # (likely because of newly enabled incremental builds)  
 
   # bevy features we (probably) make use of 
   "bevy_asset",
@@ -47,4 +45,3 @@ features = [
   "x11",
   "wayland"
 ]
-
