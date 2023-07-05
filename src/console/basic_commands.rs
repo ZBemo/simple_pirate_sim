@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::tile_grid::TileStretch;
 
-use super::{registration::RegisterConsoleCommand, CommandOutput, PrintStringCommand, Token};
+use super::{registration::RegisterConsoleCommand, ConsoleOutput, PrintStringCommand, Token};
 use bevy::{app::AppExit, prelude::*};
 
 fn echo_command(input: Vec<Token>, commands: &mut Commands) {
@@ -69,9 +69,8 @@ fn move_command(input: Vec<Token>, commands: &mut Commands) {
                 None => output = "Could not find entity".into(),
             }
 
-            if let Some(mut to_output) = world.get_resource_mut::<CommandOutput>() {
-                to_output.0 = Some(output)
-            }
+            world.send_event(ConsoleOutput::String(output));
+            world.send_event(ConsoleOutput::End);
         }),
         Err(e) => commands.add(PrintStringCommand(format!("Parsing error `{}`", e))),
     }

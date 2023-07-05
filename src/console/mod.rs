@@ -14,8 +14,8 @@ pub mod registration;
 use bevy::{prelude::*, utils::HashMap};
 use thiserror::Error;
 
-pub use io::CommandOutput;
 pub use io::ConsoleOpen;
+pub use io::ConsoleOutput;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Token {
@@ -126,9 +126,7 @@ pub struct PrintStringCommand(pub String);
 
 impl bevy::ecs::system::Command for PrintStringCommand {
     fn write(self, world: &mut World) {
-        world
-            .get_resource_mut::<self::io::CommandOutput>()
-            .expect("Console Command called with no Resource for output")
-            .0 = Some(self.0);
+        world.send_event(ConsoleOutput::String(self.0));
+        world.send_event(ConsoleOutput::End);
     }
 }

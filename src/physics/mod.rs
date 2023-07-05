@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 use bevy::{ecs::system::Command, prelude::*, reflect::GetTypeRegistration};
 
-use crate::console::{self, PrintStringCommand};
+use crate::console::{self, ConsoleOutput, PrintStringCommand};
 use crate::tile_grid::TileStretch;
 
 pub mod collider;
@@ -115,44 +115,40 @@ where
         .collect()
 }
 
-struct RaycastConsole;
+fn raycast_console(input: Vec<crate::console::Token>, commands: &mut Commands) {
+    // raycast start_x start_y start_z dir_x dir_y dir_z
 
-impl crate::console::ConsoleCommand for RaycastConsole {
-    fn start_command(&self, input: Vec<crate::console::Token>, commands: &mut Commands) {
-        // raycast start_x start_y start_z dir_x dir_y dir_z
+    if input.len() != 6 {
+        commands.add(PrintStringCommand(format!(
+            "Incorrect length: expected 6 arguments but was given {}",
+            input.len()
+        )));
+    } else {
+        let vectors_result = || -> Result<(IVec3, IVec3), <i32 as FromStr>::Err> {
+            let start_x: i32 = input[0].string.parse()?;
+            let start_y: i32 = input[1].string.parse()?;
+            let start_z: i32 = input[2].string.parse()?;
+            let dir_x: i32 = input[3].string.parse()?;
+            let dir_y: i32 = input[4].string.parse()?;
+            let dir_z: i32 = input[5].string.parse()?;
 
-        if input.len() != 6 {
-            commands.add(PrintStringCommand(format!(
-                "Incorrect length: expected 6 arguments but was given {}",
-                input.len()
-            )));
-        } else {
-            let vectors_result = || -> Result<(IVec3, IVec3), <i32 as FromStr>::Err> {
-                let start_x: i32 = input[0].string.parse()?;
-                let start_y: i32 = input[1].string.parse()?;
-                let start_z: i32 = input[2].string.parse()?;
-                let dir_x: i32 = input[3].string.parse()?;
-                let dir_y: i32 = input[4].string.parse()?;
-                let dir_z: i32 = input[5].string.parse()?;
+            Ok((
+                IVec3::new(start_x, start_y, start_z),
+                IVec3::new(dir_x, dir_y, dir_z),
+            ))
+        }();
 
-                Ok((
-                    IVec3::new(start_x, start_y, start_z),
-                    IVec3::new(dir_x, dir_y, dir_z),
-                ))
-            }();
-
-            match vectors_result {
-                Ok(vectors) => commands.add(RaycastCommand {
-                    start: vectors.0,
-                    direction: vectors.1,
-                }),
-                Err(e) => commands.add(PrintStringCommand(format!(
-                    "Invalid arguments: error `{}`",
-                    e
-                ))),
-            };
+        match vectors_result {
+            Ok(vectors) => commands.add(RaycastCommand {
+                start: vectors.0,
+                direction: vectors.1,
+            }),
+            Err(e) => commands.add(PrintStringCommand(format!(
+                "Invalid arguments: error `{}`",
+                e
+            ))),
         };
-    }
+    };
 }
 
 struct RaycastCommand {
@@ -199,11 +195,8 @@ impl Command for RaycastCommand {
             output = "No entities on ray".into();
         }
 
-        let mut output_res = world
-            .get_resource_mut::<crate::console::CommandOutput>()
-            .expect("Console command ran without initializing CommandOutput Resource");
-
-        output_res.0 = Some(output);
+        world.send_event(ConsoleOutput::String(output));
+        world.send_event(ConsoleOutput::End);
     }
 }
 
@@ -211,7 +204,7 @@ fn startup(type_registry: Res<AppTypeRegistry>, mut commands: Commands) {
     // register raycast command
     commands.add(console::registration::RegisterConsoleCommand::new(
         "raycast".into(),
-        Box::new(RaycastConsole),
+        Box::new(raycast_console),
     ));
 
     let mut type_registry_w = type_registry.write();
