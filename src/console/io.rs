@@ -13,7 +13,9 @@ pub struct ConsoleOpen(pub bool);
 
 /// events for a command to output to console
 pub enum ConsoleOutput {
+    /// A string to write to the console.
     String(String),
+    /// Tells the console that the current command has ended
     End,
 }
 

@@ -94,8 +94,8 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
 /// You should also be able to register closures/functions with the function signature
 /// (Vec<Token>,&mut Commands) -> (). Due to a blanket impl
 pub trait ConsoleCommand {
-    /// Start the command. Must add a command to commands that updates the [`self::CommandOutput`]
-    /// resource
+    /// Start the command. Must add a command to commands that eventually sends a
+    /// [`ConsoleOutput::End`] event
     fn start_command(&self, input: Vec<Token>, commands: &mut Commands);
 }
 
