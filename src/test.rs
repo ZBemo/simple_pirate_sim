@@ -8,7 +8,7 @@ pub struct DefaultTestPlugin;
 impl Plugin for DefaultTestPlugin {
     fn build(&self, app: &mut App) {
         // 1<->1 conversion for simplicity
-        app.insert_resource(TileStretch::new(IVec2::new(1, 1)));
+        app.insert_resource(TileStretch::new(1, 1));
 
         // system to log location of every named entity
         app.add_system(|q: Query<(&GlobalTransform, &Name)>| {

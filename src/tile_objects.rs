@@ -121,8 +121,8 @@ pub fn update_tile_sprites(
             // the tilespace grid functions such that each grid centers on a multiple of
             // tilestretch.{x,y} on the {x,y} axis, and is the same size.
             let round_to_tile_space = |to_round: Vec2| -> Vec2 {
-                let x = to_round.x + tile_stretch.x as f32 - (to_round.x % tile_stretch.x as f32);
-                let y = to_round.y + tile_stretch.y as f32 - (to_round.y % tile_stretch.y as f32);
+                let x = to_round.x + tile_stretch.0 as f32 - (to_round.x % tile_stretch.0 as f32);
+                let y = to_round.y + tile_stretch.1 as f32 - (to_round.y % tile_stretch.1 as f32);
 
                 Vec2::new(x, y)
             };
@@ -138,7 +138,7 @@ pub fn update_tile_sprites(
         })
         .collect();
 
-    apply_entity_from_bounds(bounds, &mut tile_object_q);
+    apply_entity_from_bounds(&bounds, &mut tile_object_q);
 }
 
 // because we're parallel iterating over everything as essentially its own entity, and that's all we
@@ -147,7 +147,7 @@ pub fn update_tile_sprites(
 // this function is split out in case bevy system piping ever becomes beneficially performant, and
 // useful
 fn apply_entity_from_bounds(
-    all_bounds: Vec<(BB2, f32)>,
+    all_bounds: &[(BB2, f32)],
     tile_object_q: &mut Query<(
         Option<&mut TextureAtlasSprite>,
         Option<&mut Visibility>,

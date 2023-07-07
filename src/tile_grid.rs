@@ -16,8 +16,38 @@ use thiserror::Error;
 /// the right grid.
 ///
 /// This should be a UVec2 for proper typing, but IVec2 makes conversions easier?
-#[derive(Resource, Clone, Deref, Reflect, Debug)]
-pub struct TileStretch(IVec2);
+#[derive(Resource, Clone, Reflect, Debug)]
+pub struct TileStretch(pub u8, pub u8);
+
+impl From<IVec2> for TileStretch {
+    fn from(value: IVec2) -> Self {
+        Self::new(value.x as u8, value.y as u8)
+    }
+}
+
+impl From<UVec2> for TileStretch {
+    fn from(value: UVec2) -> Self {
+        Self::new(value.x as u8, value.y as u8)
+    }
+}
+
+impl From<TileStretch> for IVec2 {
+    fn from(value: TileStretch) -> Self {
+        Self::new(value.0 as i32, value.1 as i32)
+    }
+}
+
+impl From<TileStretch> for UVec2 {
+    fn from(value: TileStretch) -> Self {
+        Self::new(value.0 as u32, value.1 as u32)
+    }
+}
+
+impl From<TileStretch> for Vec2 {
+    fn from(value: TileStretch) -> Self {
+        Self::new(value.0 as f32, value.1 as f32)
+    }
+}
 
 /// An error in conversion from bevy types
 ///
@@ -50,7 +80,11 @@ impl<'a, 'b> GetTileError<'a, 'b> {
 impl TileStretch {
     /// returns closest tile from a bevy translation
     pub fn get_closest(&self, t: &Vec3) -> IVec3 {
-        IVec3::new(t.x as i32 / self.x, t.y as i32 / self.y, t.z as i32)
+        IVec3::new(
+            t.x as i32 / self.0 as i32,
+            t.y as i32 / self.1 as i32,
+            t.z as i32,
+        )
     }
 
     /// Fallible translation from bevy-space to tilespace.
@@ -61,7 +95,7 @@ impl TileStretch {
     /// This should be renamed try_into_tile or something similar. Then we should re-evaluate the
     /// name of [`Self::get_closest`]
     pub fn get_tile<'a, 'b>(&'b self, t: &'a Vec3) -> Result<IVec3, GetTileError<'a, 'b>> {
-        if t.round() != *t || t.x as i32 % self.x != 0 || t.y as i32 % self.y != 0 {
+        if t.round() != *t || t.x as i32 % self.0 as i32 != 0 || t.y as i32 % self.1 as i32 != 0 {
             Err(GetTileError::new(t, self))
         } else {
             Ok(self.get_closest(t))
@@ -72,14 +106,14 @@ impl TileStretch {
     /// should translate into bevy-space, ignoring floating point errors which we are not concerned with.
     pub fn get_bevy(&self, t: &IVec3) -> Vec3 {
         Vec3::new(
-            t.x as f32 * self.x as f32,
-            t.y as f32 * self.y as f32,
+            t.x as f32 * self.0 as f32,
+            t.y as f32 * self.1 as f32,
             t.z as f32,
         )
     }
 
-    pub fn new(v: IVec2) -> Self {
-        Self(v)
+    pub fn new(x: u8, y: u8) -> Self {
+        Self(x, y)
     }
 }
 
@@ -91,14 +125,14 @@ pub fn register_types(type_registry: Res<AppTypeRegistry>) {
 
 #[cfg(test)]
 mod test {
-    use bevy::prelude::{IVec2, IVec3, Vec3};
+    use bevy::prelude::{IVec3, Vec3};
 
     use super::TileStretch;
 
     #[test]
     fn round_trip() {
         let start = Vec3::new(32., 64., 3.);
-        let tile_stretch = TileStretch(IVec2::new(32, 32));
+        let tile_stretch = TileStretch(32, 32);
 
         let cast_to_grid = tile_stretch.get_tile(&start).unwrap();
 
@@ -112,7 +146,7 @@ mod test {
     #[test]
     fn fail_off_grid() {
         let start = Vec3::new(33., 64., 3.);
-        let tile_stretch = TileStretch(IVec2::new(32, 32));
+        let tile_stretch = TileStretch(32, 32);
 
         let cast_to_grid = tile_stretch.get_tile(&start);
 
