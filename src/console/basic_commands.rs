@@ -43,13 +43,9 @@ fn move_command(input: Vec<Token>, commands: &mut Commands) {
             let mut location_query = world.query::<&mut Transform>();
             let output: String;
 
-            let to_move = name_query.iter(world).find_map(|e| {
-                if e.1.as_str() == name {
-                    Some(e.0)
-                } else {
-                    None
-                }
-            });
+            let to_move = name_query
+                .iter(world)
+                .find_map(|e| (e.1.as_str() == name).then(|| e.0));
 
             match to_move {
                 Some(new_entity) => {

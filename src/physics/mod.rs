@@ -106,11 +106,8 @@ where
             let ray_will_hit_z = (closest_tile.z == 0 && ray_dir.z == 0)
                 || closest_tile.z.signum() == ray_dir.z.signum();
 
-            if closest_tile == IVec3::ZERO || ray_will_hit_x && ray_will_hit_y && ray_will_hit_z {
-                Some(entity)
-            } else {
-                None
-            }
+            (closest_tile == IVec3::ZERO || ray_will_hit_x && ray_will_hit_y && ray_will_hit_z)
+                .then(|| entity)
         })
         .collect()
 }
