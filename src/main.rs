@@ -92,7 +92,7 @@ pub fn setup(
     // dwarfs (0,2)
     // TODO: base on spritesheet
     let tilestretch: TileStretch = TileStretch::new(32, 32);
-    commands.insert_resource(tilestretch.clone());
+    commands.insert_resource(tilestretch);
 
     let texture_handle = asset_server.load("tilesets/main.png");
 
