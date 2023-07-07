@@ -275,7 +275,6 @@ mod test {
 
     use bevy::{
         prelude::{App, BuildWorldChildren, Name, Transform, Vec3},
-        time::Time,
         transform::TransformBundle,
     };
 
@@ -294,6 +293,7 @@ mod test {
 
         app.add_plugin(crate::physics::PhysicsPlugin);
 
+        // this should have RelVel == TotalVel with both being Vec3::X
         let no_parent = app
             .world
             .spawn((
@@ -303,6 +303,8 @@ mod test {
                 TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             ))
             .id();
+
+        // this should have RelVel == TotalVel with both being Vec3::X
         let moving_parent = app
             .world
             .spawn((
@@ -312,6 +314,7 @@ mod test {
                 TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             ))
             .id();
+        // this should have RelVel == moving_parent's TotalVel with both being Vec3::X
         let still_child = app
             .world
             .spawn((
@@ -321,6 +324,8 @@ mod test {
             ))
             .set_parent(moving_parent)
             .id();
+
+        // this should have RelVel == TotalVel with both at 0
         let still_parent = app
             .world
             .spawn((
@@ -329,6 +334,7 @@ mod test {
                 TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             ))
             .id();
+        // this should have RelVel == TotalVel with both at Vec3::X
         let moving_child = app
             .world
             .spawn((
@@ -342,9 +348,12 @@ mod test {
 
         app.setup();
 
-        while app.world.resource::<Time>().elapsed_seconds() <= 5. {
+        let mut frames = 0;
+        // run updates for 5 seconds
+        while frames <= 60 {
             app.update();
 
+            frames += 1;
             // check velocities here
 
             let total_vel = |id| app.world.get::<TotalVelocity>(id).unwrap().0;
