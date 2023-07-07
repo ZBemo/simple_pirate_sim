@@ -36,6 +36,12 @@ pub struct MantainedVelocity(pub Vec3);
 #[derive(Debug, Clone, Component, Default, Reflect)]
 pub struct VelocityFromGround;
 
+fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
+    total_vel_q.iter_mut().for_each(|mut t| {
+        *t = TotalVelocity::default();
+    });
+}
+
 fn propagate_from_ground(
     entity_q: Query<Entity, With<VelocityFromGround>>,
     total_vel_q: Query<&mut TotalVelocity>,
@@ -114,24 +120,6 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
     }
 }
 
-/// Any entity with no children or parents will be missed by [`propagate_velocities`]. To fix this,
-/// query on these entities and set their total velocity equal to their relative.
-///
-/// Don't bother checking is_changed(), as the total number of velocity-enabled entities without
-/// parents or children should be relatively small
-fn propogate_missed(
-    mut no_parent_q: Query<
-        (&RelativeVelocity, &mut TotalVelocity),
-        (Without<Parent>, Without<Children>),
-    >,
-) {
-    no_parent_q
-        .par_iter_mut()
-        .for_each_mut(|(relative, mut total)| {
-            total.0 = relative.0;
-        });
-}
-
 /// Propagate velocities down from an entities parents so that its Total and Relative Velocity remains accurate
 ///
 /// needs parent total and child relative along with child total
@@ -139,9 +127,16 @@ fn propogate_missed(
 /// This is lifted from the bevy source code, which is dual-licensed under the Apache 2.0, and MIT
 /// license. See <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
 /// or <https://github.com/bevyengine/bevy/LICENSE-MIT>
+///
+/// TODO: Take velocity from feet here
 fn propagate_velocities(
     mut root_query: Query<
-        (Entity, &Children, Ref<RelativeVelocity>, &mut TotalVelocity),
+        (
+            Entity,
+            Option<&Children>,
+            Ref<RelativeVelocity>,
+            &mut TotalVelocity,
+        ),
         Without<Parent>,
     >,
     velocity_query: Query<
@@ -163,21 +158,14 @@ fn propagate_velocities(
                     .map_or_else(|_| "UnnamedEntity".into(), |n| n.to_string())
             );
 
-            let changed = relative.is_changed();
-            if changed {
-                total.0 = relative.0;
-            }
+            total.0 += relative.0;
+
+            let Some(children) = children else {return};
 
             for (child, actual_parent) in parent_query.iter_many(children) {
                 assert_eq!(actual_parent.get(), entity, "Bad hierarchy");
                 unsafe {
-                    propagate_recursive(
-                        &total,
-                        &velocity_query,
-                        &parent_query,
-                        child,
-                        changed || actual_parent.is_changed(),
-                    );
+                    propagate_recursive(&total, &velocity_query, &parent_query, child);
                 }
             }
         });
@@ -193,7 +181,6 @@ unsafe fn propagate_recursive(
     >,
     parent_query: &Query<(Entity, Ref<Parent>)>,
     entity: Entity,
-    mut changed: bool,
 ) {
     let (global_matrix, children) = {
         let Ok((relative, mut total, children)) =
@@ -227,10 +214,7 @@ unsafe fn propagate_recursive(
                 return;
             };
 
-        changed |= relative.is_changed();
-        if changed {
-            total.0 = parent_total.0 + relative.0;
-        }
+        total.0 += parent_total.0 + relative.0;
         (parent_total, children)
     };
 
@@ -253,7 +237,6 @@ unsafe fn propagate_recursive(
                 velocity_query,
                 parent_query,
                 child,
-                changed || actual_parent.is_changed(),
             );
         }
     }
@@ -274,10 +257,12 @@ impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             (
+                zero_total_vel,
                 calculate_relative_velocity,
-                propagate_velocities.after(calculate_relative_velocity),
-                decay_persistent_velocity.after(calculate_relative_velocity),
-                propogate_missed.after(calculate_relative_velocity),
+                propagate_velocities
+                    .after(calculate_relative_velocity)
+                    .after(zero_total_vel),
+                // propagate_missed.after(calculate_relative_velocity),
                 // propagate_from_ground.after(propogate_missed),
             )
                 .in_set(PhysicsSet::Velocity),
