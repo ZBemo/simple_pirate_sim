@@ -5,14 +5,15 @@
     - [x] split out velocity calculation to its own module
     - [x] consider splitting out movement
  - [x] change query function parameters to $NAME_q. will make code far more readable
- - [ ] update`ConsoleCommand`s to pass in closures instead of trait-structs
+ - [x] update`ConsoleCommand`s to pass in closures instead of trait-structs
+ - [x] set up cargo clippy and lint 
+ - [ ] Look at updating the string type for console parsing to pare down on clones, consider a COW
  - [ ] consider changing console::io::ConsoleOpen to an enum
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
  - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
  - [ ] consider splitting long systems into piped systems where useful
- - [ ] set up cargo clippy and lint 
  - [ ] start checking docs for correctness
  - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
 
@@ -20,8 +21,8 @@
 Tests
  - [x] TileGrid
  - [x] Collisions 
+ - [x] TotalVelocity propagation
  - [ ] Velocity (kind of tested by collisions)
- - [ ] TotalVelocity propagation
 Physics-collision and resolution 
  - [x] Chunk up into functions
  - [ ] change to tile cast for predicting collison for better accuracy
