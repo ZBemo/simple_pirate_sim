@@ -269,3 +269,101 @@ impl bevy::prelude::Plugin for Plugin {
         );
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use bevy::{
+        prelude::{App, BuildWorldChildren, Name, Transform, Vec3},
+        time::Time,
+        transform::TransformBundle,
+    };
+
+    use crate::{
+        physics::{velocity::RelativeVelocity, MovementGoal},
+        test,
+    };
+
+    use super::{TotalVelocity, VelocityBundle};
+
+    #[test]
+    fn total_velocity_is_propagated() {
+        let mut app = App::new();
+
+        app.add_plugin(test::DefaultTestPlugin);
+
+        app.add_plugin(crate::physics::PhysicsPlugin);
+
+        let no_parent = app
+            .world
+            .spawn((
+                Name::new("No parent"),
+                VelocityBundle::default(),
+                MovementGoal(Vec3::X),
+                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
+            ))
+            .id();
+        let moving_parent = app
+            .world
+            .spawn((
+                Name::new("Moving Parent"),
+                VelocityBundle::default(),
+                MovementGoal(Vec3::X),
+                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
+            ))
+            .id();
+        let still_child = app
+            .world
+            .spawn((
+                Name::new("Still Child"),
+                VelocityBundle::default(),
+                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
+            ))
+            .set_parent(moving_parent)
+            .id();
+        let still_parent = app
+            .world
+            .spawn((
+                Name::new("Still Parent"),
+                VelocityBundle::default(),
+                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
+            ))
+            .id();
+        let moving_child = app
+            .world
+            .spawn((
+                Name::new("Moving Child"),
+                MovementGoal(Vec3::X),
+                VelocityBundle::default(),
+                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
+            ))
+            .set_parent(still_parent)
+            .id();
+
+        app.setup();
+
+        while app.world.resource::<Time>().elapsed_seconds() <= 5. {
+            app.update();
+
+            // check velocities here
+
+            let total_vel = |id| app.world.get::<TotalVelocity>(id).unwrap().0;
+            let relative_vel = |id| app.world.get::<RelativeVelocity>(id).unwrap().0;
+
+            assert_eq!(total_vel(no_parent), Vec3::X);
+            assert_eq!(relative_vel(no_parent), Vec3::X);
+
+            assert_eq!(total_vel(moving_parent), Vec3::X);
+            assert_eq!(relative_vel(moving_parent), Vec3::X);
+
+            assert_eq!(total_vel(still_child), Vec3::X);
+            assert_eq!(relative_vel(still_child), Vec3::ZERO);
+
+            assert_eq!(total_vel(still_parent), Vec3::ZERO);
+            assert_eq!(relative_vel(still_parent), Vec3::ZERO);
+
+            assert_eq!(total_vel(moving_child), Vec3::X);
+            assert_eq!(relative_vel(moving_child), Vec3::X);
+        }
+    }
+}
