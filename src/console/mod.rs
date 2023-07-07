@@ -11,6 +11,8 @@ mod basic_commands;
 mod io;
 pub mod registration;
 
+use std::collections::VecDeque;
+
 use bevy::{prelude::*, utils::HashMap};
 use thiserror::Error;
 
@@ -35,10 +37,10 @@ pub enum ParseError {
 /// Parse commandline input. Currently just splits up strings with backslash and quote escaping
 ///
 /// This needs to be moved either to io.rs or to io/parse.rs
-fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
+fn parse(to_parse: &str) -> Result<VecDeque<Token>, ParseError> {
     trace!("parsing string `{}`", to_parse);
 
-    let mut tokens: Vec<Token> = Vec::new();
+    let mut tokens: VecDeque<Token> = VecDeque::new();
     let mut cur_string = String::new();
     let mut is_backslash_escaped = false;
     let mut is_in_quotes = false;
@@ -66,7 +68,7 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
                 '\\' => is_backslash_escaped = true,
                 '"' => is_in_quotes = true,
                 ' ' => {
-                    tokens.push(Token { string: cur_string });
+                    tokens.push_back(Token { string: cur_string });
                     cur_string = String::new();
                 }
                 c => cur_string.push(c),
@@ -79,7 +81,7 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
     } else if is_in_quotes {
         return Err(ParseError::EndQuoted());
     } else if !cur_string.is_empty() {
-        tokens.push(Token { string: cur_string });
+        tokens.push_back(Token { string: cur_string });
     }
 
     trace!("{:?}", tokens);
@@ -96,11 +98,11 @@ fn parse(to_parse: &str) -> Result<Vec<Token>, ParseError> {
 pub trait ConsoleCommand {
     /// Start the command. Must add a command to commands that eventually sends a
     /// [`ConsoleOutput::End`] event
-    fn start_command(&self, input: Vec<Token>, commands: &mut Commands);
+    fn start_command(&self, input: VecDeque<Token>, commands: &mut Commands);
 }
 
-impl<T: Fn(Vec<Token>, &mut Commands)> ConsoleCommand for T {
-    fn start_command(&self, input: Vec<Token>, commands: &mut Commands) {
+impl<T: Fn(VecDeque<Token>, &mut Commands)> ConsoleCommand for T {
+    fn start_command(&self, input: VecDeque<Token>, commands: &mut Commands) {
         self(input, commands)
     }
 }

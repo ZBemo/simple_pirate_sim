@@ -7,7 +7,7 @@
 //! should be put into its own module.
 
 use std::borrow::Borrow;
-use std::str::FromStr;
+use std::collections::VecDeque;
 
 use bevy::{ecs::system::Command, prelude::*, reflect::GetTypeRegistration};
 
@@ -108,7 +108,7 @@ pub fn tile_cast(
         .collect()
 }
 
-fn raycast_console(input: Vec<crate::console::Token>, commands: &mut Commands) {
+fn raycast_console(input: VecDeque<crate::console::Token>, commands: &mut Commands) {
     // raycast start_x start_y start_z dir_x dir_y dir_z
 
     if input.len() != 6 {

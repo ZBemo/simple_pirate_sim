@@ -1,11 +1,11 @@
-use std::str::FromStr;
+use std::{collections::VecDeque, str::FromStr};
 
 use crate::tile_grid::TileStretch;
 
 use super::{registration::RegisterConsoleCommand, ConsoleOutput, PrintStringCommand, Token};
 use bevy::{app::AppExit, prelude::*};
 
-fn echo_command(input: Vec<Token>, commands: &mut Commands) {
+fn echo_command(input: VecDeque<Token>, commands: &mut Commands) {
     commands.add(PrintStringCommand(
         input
             .iter()
@@ -14,11 +14,11 @@ fn echo_command(input: Vec<Token>, commands: &mut Commands) {
     ))
 }
 
-fn exit_command(_input: Vec<Token>, commands: &mut Commands) {
+fn exit_command(_input: VecDeque<Token>, commands: &mut Commands) {
     commands.add(|world: &mut World| world.send_event(AppExit));
 }
 
-fn move_command(input: Vec<Token>, commands: &mut Commands) {
+fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
     if input.len() != 4 {
         commands.add(PrintStringCommand(format!(
             "Wrong amount of inputs. Expected 4, got {}",
@@ -27,12 +27,12 @@ fn move_command(input: Vec<Token>, commands: &mut Commands) {
         return;
     }
 
-    let name = input[0].string.clone();
+    let name = input.pop_front().unwrap().string;
 
     let parsed = || -> Result<IVec3, <i32 as FromStr>::Err> {
-        let x = input[1].string.parse::<i32>()?;
-        let y = input[2].string.parse::<i32>()?;
-        let z = input[3].string.parse::<i32>()?;
+        let x = input.pop_front().unwrap().string.parse::<i32>()?;
+        let y = input.pop_front().unwrap().string.parse::<i32>()?;
+        let z = input.pop_front().unwrap().string.parse::<i32>()?;
 
         Ok(IVec3::new(x, y, z))
     }();
