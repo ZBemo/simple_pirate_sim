@@ -68,16 +68,12 @@ pub struct PhysicsComponentBase {
 
 /// Return any entities in `entities_iter` that would be hit by a ray starting at
 /// `start_translation` and moving on the tilegrid in the direction of `ray_vel`
-pub fn tile_cast<TransRefItem, Iter>(
+pub fn tile_cast(
     start_translation: IVec3,
     ray_dir: IVec3,
     tile_stretch: &TileStretch,
-    entities_iter: Iter,
-) -> Vec<Entity>
-where
-    TransRefItem: Borrow<GlobalTransform>,
-    Iter: IntoIterator<Item = (Entity, TransRefItem)>,
-{
+    entities_iter: impl IntoIterator<Item = (Entity, impl Borrow<GlobalTransform>)>,
+) -> Vec<Entity> {
     let clamped_ray_dir = ray_dir.clamp(IVec3::NEG_ONE, IVec3::ONE);
     #[cfg(debug_assertions)]
     if clamped_ray_dir != ray_dir {
@@ -121,7 +117,8 @@ fn raycast_console(input: Vec<crate::console::Token>, commands: &mut Commands) {
             input.len()
         )));
     } else {
-        let vectors_result = || -> Result<(IVec3, IVec3), <i32 as FromStr>::Err> {
+        // TODO: switch this to using try blocks once out of nightly
+        let vectors_result = || -> Result<_, <i32 as std::str::FromStr>::Err> {
             let start_x: i32 = input[0].string.parse()?;
             let start_y: i32 = input[1].string.parse()?;
             let start_z: i32 = input[2].string.parse()?;
