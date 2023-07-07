@@ -67,7 +67,7 @@ fn finalize_movement(
 }
 
 /// A bundle allowing an entity to be moved by the physics system
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct MovementBundle {
     velocity_bundle: super::velocity::VelocityBundle,
     ticker: Ticker,
