@@ -49,11 +49,11 @@ fn finalize_movement(
             ticker.0.z -= 1. * z_sign;
         }
         while ticker.y.abs() >= 1. {
-            transform.translation.y += tile_stretch.y as f32 * y_sign;
+            transform.translation.y += tile_stretch.0 as f32 * y_sign;
             ticker.0.y -= 1. * y_sign;
         }
         while ticker.0.x.abs() >= 1. {
-            transform.translation.x += tile_stretch.x as f32 * x_sign;
+            transform.translation.x += tile_stretch.1 as f32 * x_sign;
             ticker.0.x -= 1. * x_sign;
         }
 

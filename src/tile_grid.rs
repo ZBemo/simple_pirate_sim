@@ -16,7 +16,7 @@ use thiserror::Error;
 /// the right grid.
 ///
 /// This should be a UVec2 for proper typing, but IVec2 makes conversions easier?
-#[derive(Resource, Clone, Reflect, Debug)]
+#[derive(Resource, Clone, Copy, Reflect, Debug)]
 pub struct TileStretch(pub u8, pub u8);
 
 impl From<IVec2> for TileStretch {
