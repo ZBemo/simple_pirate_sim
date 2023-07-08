@@ -162,7 +162,7 @@ mod test {
         let start = Vec3::new(33., 64., 3.);
         let tile_stretch = TileStretch(32, 32);
 
-        let cast_to_grid = tile_stretch.get_tile(&start);
+        let cast_to_grid = tile_stretch.get_tile(start);
 
         assert!(cast_to_grid.is_err());
 
