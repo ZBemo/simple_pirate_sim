@@ -1,12 +1,14 @@
 //! Materials for establishing and working with a tile "grid" or map for use with spritesheets
 //!
-//! If something is "on grid" then that means it is the dimensions of tile_stretch*tile_stretch and
-//! is situated on a multiple of tile_stretch.{x,y} in the {x,y} direction.
+//! A TileStretch defines the canonical dimensions of a single grid on the world's tile grid, which
+//! nearly all entities should sit within.
 //!
-//! So, if the current tile stretch is 32*32, then for something to be on grid translate.{x,y} % 32
-//! must = 0. Its Z must be a whole number.
+//! TileStretch exists to hopefully easily deal with the use of different sized spritesheets, and
+//! to allow any system that wishes to to work solely at the tilespace level.
 //!
-//! We assume Zs are always a whole number.
+//! If something is "on grid" then that means its global transform's x is a multiple of
+//! TileStretch.0 and its y is a multiple of TileStretch.1. Its Z should be a whole number.
+//! There should only be one TileStretch per world, as there is only one spritesheet loaded.
 
 use std::{borrow::Borrow, marker::PhantomData};
 
