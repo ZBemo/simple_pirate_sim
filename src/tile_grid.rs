@@ -17,7 +17,9 @@ use thiserror::Error;
 /// IVec<->Vec should be done trough TileStretch to ensure that sprites are being displayed within
 /// the right grid.
 ///
-/// This should be a UVec2 for proper typing, but IVec2 makes conversions easier?
+/// Self::0 is x, Self::1 is y
+///
+/// TODO: change from tuple fields to named x,y
 #[derive(Resource, Clone, Copy, Reflect, Debug)]
 pub struct TileStretch(pub u8, pub u8);
 
