@@ -169,6 +169,6 @@ mod test {
         let closest = cast_to_grid.unwrap_err().to_closest();
 
         assert_eq!(closest, IVec3::new(1, 2, 3));
-        assert_eq!(tile_stretch.get_closest(&start), closest);
+        assert_eq!(tile_stretch.get_closest(start), closest);
     }
 }
