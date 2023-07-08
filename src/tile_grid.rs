@@ -148,11 +148,11 @@ mod test {
         let start = Vec3::new(32., 64., 3.);
         let tile_stretch = TileStretch(32, 32);
 
-        let cast_to_grid = tile_stretch.get_tile(&start).unwrap();
+        let cast_to_grid = tile_stretch.get_tile(start).unwrap();
 
         assert_eq!(cast_to_grid, IVec3::new(1, 2, 3));
 
-        let cast_to_bevy = tile_stretch.get_bevy(&cast_to_grid);
+        let cast_to_bevy = tile_stretch.get_bevy(cast_to_grid);
 
         assert_eq!(start, cast_to_bevy);
     }

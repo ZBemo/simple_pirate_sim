@@ -57,7 +57,7 @@ fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
 
                     if let Ok(mut transform) = transform {
                         *transform =
-                            transform.with_translation(tile_stretch.get_bevy(&new_translation));
+                            transform.with_translation(tile_stretch.get_bevy(new_translation));
                     }
 
                     output = "Moved an entity".into();

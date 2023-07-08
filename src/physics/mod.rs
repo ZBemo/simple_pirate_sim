@@ -88,7 +88,7 @@ pub fn tile_cast(
         .filter_map(|(entity, transform)| -> Option<Entity> {
             let translation = transform.borrow().translation();
             // cast to grid
-            let closest_tile = tile_stretch.get_closest(&translation);
+            let original_closest = tile_stretch.get_closest(translation);
             // translate so that start_translation is origin
             let closest_tile = closest_tile - start_translation;
 

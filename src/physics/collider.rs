@@ -182,7 +182,7 @@ fn predict_location(
     // the projected movement is already in tilespace, so just convert the current location, then
     // add
 
-    let current_tile = match tile_stretch.get_tile(&current_location) {
+    let current_tile = match tile_stretch.get_tile(current_location) {
         Ok(t) => t,
         Err(t) => {
             error!("transform not on grid: {}", t);

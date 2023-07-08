@@ -99,7 +99,7 @@ fn spawn_ship_from_blueprint(
                     ' ' => {} // ignore spaces
                     'w' => spawn_wall(
                         commands,
-                        tile_stretch.get_bevy(&current_translation),
+                        tile_stretch.get_bevy(current_translation),
                         ship,
                         spritesheet_handle,
                     ),
