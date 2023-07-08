@@ -8,6 +8,8 @@
 //!
 //! We assume Zs are always a whole number.
 
+use std::{borrow::Borrow, marker::PhantomData};
+
 use bevy::{prelude::*, reflect::GetTypeRegistration};
 use thiserror::Error;
 
@@ -55,16 +57,20 @@ impl From<TileStretch> for Vec2 {
 /// arguments of that function.
 #[derive(Error, Debug)]
 #[error("Coordinates {to_translate} not divisible by stretch {:?}",tile_stretch.0)]
-pub struct GetTileError<'a, 'b> {
-    to_translate: &'a Vec3,
+pub struct GetTileError<'a, 'b, V: Borrow<Vec3> + 'a> {
+    to_translate: V,
     tile_stretch: &'b TileStretch,
+    // ensures this doesn't outlive V which should live for 'a
+    ensurance: PhantomData<&'a ()>,
 }
 
-impl<'a, 'b> GetTileError<'a, 'b> {
-    fn new(to_translate: &'a Vec3, tile_stretch: &'b TileStretch) -> Self {
+impl<'a, 'b, V: Borrow<Vec3>> GetTileError<'a, 'b, V> {
+    fn new(to_translate: V, tile_stretch: &'b TileStretch) -> Self {
         Self {
             to_translate,
             tile_stretch,
+            // ensure this lives as long as V?
+            ensurance: PhantomData::default(),
         }
     }
 
@@ -73,13 +79,14 @@ impl<'a, 'b> GetTileError<'a, 'b> {
     /// This is useful for error recovery: for example; moving an entity to the closest tile
     /// location, or simply ignoring that it's off-grid and continuing as normal.
     pub fn to_closest(&self) -> IVec3 {
-        self.tile_stretch.get_closest(self.to_translate)
+        self.tile_stretch.get_closest(self.to_translate.borrow())
     }
 }
 
 impl TileStretch {
     /// returns closest tile from a bevy translation
-    pub fn get_closest(&self, t: &Vec3) -> IVec3 {
+    pub fn get_closest(&self, t: impl Borrow<Vec3>) -> IVec3 {
+        let t = t.borrow();
         IVec3::new(
             t.x as i32 / self.0 as i32,
             t.y as i32 / self.1 as i32,
@@ -94,8 +101,14 @@ impl TileStretch {
     ///
     /// This should be renamed try_into_tile or something similar. Then we should re-evaluate the
     /// name of [`Self::get_closest`]
-    pub fn get_tile<'a, 'b>(&'b self, t: &'a Vec3) -> Result<IVec3, GetTileError<'a, 'b>> {
-        if t.round() != *t || t.x as i32 % self.0 as i32 != 0 || t.y as i32 % self.1 as i32 != 0 {
+    pub fn get_tile<'a, 'b, V: Borrow<Vec3> + 'a>(
+        &'b self,
+        t: V,
+    ) -> Result<IVec3, GetTileError<'a, 'b, V>> {
+        if t.borrow().round() != *t.borrow()
+            || t.borrow().x as i32 % self.0 as i32 != 0
+            || t.borrow().y as i32 % self.1 as i32 != 0
+        {
             Err(GetTileError::new(t, self))
         } else {
             Ok(self.get_closest(t))
@@ -104,7 +117,8 @@ impl TileStretch {
 
     /// Take a tile translation and translate it bevy space. This is infallible, as all tile space
     /// should translate into bevy-space, ignoring floating point errors which we are not concerned with.
-    pub fn get_bevy(&self, t: &IVec3) -> Vec3 {
+    pub fn get_bevy(&self, t: impl Borrow<IVec3>) -> Vec3 {
+        let t = t.borrow();
         Vec3::new(
             t.x as f32 * self.0 as f32,
             t.y as f32 * self.1 as f32,
