@@ -9,6 +9,17 @@
 //! If something is "on grid" then that means its global transform's x is a multiple of
 //! TileStretch.0 and its y is a multiple of TileStretch.1. Its Z should be a whole number.
 //! There should only be one TileStretch per world, as there is only one spritesheet loaded.
+//!
+//! Methods in this crate generally acccept Borrow<IVec3> or Borrow<Vec3> for methods that do
+//! translation. This is so that you can pass in either an owned Vector or a reference to that
+//! Vector and have both work as expected.
+//!
+//! Using [`Borrow`] instead of [`AsRef`] makes sense as we expect all references to behave exactly
+//! as the owned equivalent.
+//!
+//! As IVec3 and Vec3 implement Copy there is actually no need to ever pass a reference to a Vec,
+//! but we might as well keep this implementation unless there are demonstrated perf issues from
+//! it.
 
 use std::{borrow::Borrow, marker::PhantomData};
 
