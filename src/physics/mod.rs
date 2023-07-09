@@ -73,7 +73,7 @@ pub fn tile_cast(
     ray_dir: IVec3,
     tile_stretch: &TileStretch,
     entities_iter: impl IntoIterator<Item = (Entity, impl Borrow<GlobalTransform>)>,
-) -> Vec<Entity> {
+) -> Vec<(Entity, Vec3)> {
     let clamped_ray_dir = ray_dir.clamp(IVec3::NEG_ONE, IVec3::ONE);
     #[cfg(debug_assertions)]
     if clamped_ray_dir != ray_dir {
@@ -85,25 +85,26 @@ pub fn tile_cast(
 
     entities_iter
         .into_iter()
-        .filter_map(|(entity, transform)| -> Option<Entity> {
+        .filter_map(|(entity, transform)| {
             let translation = transform.borrow().translation();
             // cast to grid
             let original_closest = tile_stretch.get_closest(translation);
             // translate so that start_translation is origin
-            let closest_tile = closest_tile - start_translation;
+            let translated_closest = original_closest - start_translation;
 
             // if ray doesn't move on {x,y,z} axis, and entity is on 0 of that axis, then ray will
             // hit on that axis. Otherwise, if it is in the same direction that the ray is moving
             // then it will hit
-            let ray_will_hit_x = (closest_tile.x == 0 && ray_dir.x == 0)
-                || closest_tile.x.signum() == ray_dir.x.signum();
-            let ray_will_hit_y = (closest_tile.y == 0 && ray_dir.y == 0)
-                || closest_tile.y.signum() == ray_dir.y.signum();
-            let ray_will_hit_z = (closest_tile.z == 0 && ray_dir.z == 0)
-                || closest_tile.z.signum() == ray_dir.z.signum();
+            let ray_will_hit_x = (translated_closest.x == 0 && ray_dir.x == 0)
+                || translated_closest.x.signum() == ray_dir.x.signum();
+            let ray_will_hit_y = (translated_closest.y == 0 && ray_dir.y == 0)
+                || translated_closest.y.signum() == ray_dir.y.signum();
+            let ray_will_hit_z = (translated_closest.z == 0 && ray_dir.z == 0)
+                || translated_closest.z.signum() == ray_dir.z.signum();
 
-            (closest_tile == IVec3::ZERO || ray_will_hit_x && ray_will_hit_y && ray_will_hit_z)
-                .then(|| entity)
+            (translated_closest == IVec3::ZERO
+                || ray_will_hit_x && ray_will_hit_y && ray_will_hit_z)
+                .then(|| (entity, translation))
         })
         .collect()
 }
@@ -169,11 +170,11 @@ impl Command for RaycastCommand {
         for entity in entities {
             // log name or whatever
             let name = name_query
-                .get(world, entity)
+                .get(world, entity.0)
                 .map_or_else(|_| "UnNamed Entity", |n| n.as_str());
 
             let translation = entity_query
-                .get(world, entity)
+                .get(world, entity.0)
                 .expect("Entity found in raycast but has no translation. This is not possible")
                 .1
                 .translation();

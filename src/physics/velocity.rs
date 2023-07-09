@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::physics::tile_cast;
+
 use super::{movement::Ticker, PhysicsSet};
 
 /// The Velocity that an entity moves at individually. For example, if an entities parent has a
@@ -33,8 +35,10 @@ pub(super) struct TotalVelocity(Vec3);
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
 pub struct MantainedVelocity(pub Vec3);
 
-#[derive(Debug, Clone, Component, Default, Reflect)]
+#[derive(Debug, Clone, Component, Default)]
 pub struct VelocityFromGround;
+#[derive(Debug, Clone, Component, Default)]
+pub struct GroundVelocity;
 
 fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
     total_vel_q.iter_mut().for_each(|mut t| {
@@ -44,11 +48,46 @@ fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
 
 fn propagate_from_ground(
     entity_q: Query<Entity, With<VelocityFromGround>>,
-    total_vel_q: Query<&mut TotalVelocity>,
-    relative_vel_q: Query<&mut RelativeVelocity>,
+    global_transform_q: Query<(Entity, &GlobalTransform)>,
+    mut total_vel_q: Query<&mut TotalVelocity>,
+    mut relative_vel_q: Query<&mut RelativeVelocity>,
+    tile_stretch: Res<crate::tile_grid::TileStretch>,
 ) {
-    todo!()
-    // error!("Must implement propagate from ground!")
+    trace!("Begin propagate from ground");
+
+    for e in entity_q.iter() {
+        let translation = global_transform_q
+            .get(e)
+            .expect("Velocity From Ground tagged with no transformBundle")
+            .1
+            .translation();
+
+        let below = tile_cast(
+            tile_stretch.get_closest(translation),
+            IVec3::NEG_Z,
+            &tile_stretch,
+            &global_transform_q,
+        );
+
+        for (fe, _) in below
+            .into_iter()
+            .filter(|(_, pos)| 0. < pos.z - translation.z && pos.z - translation.z <= 1.)
+        {
+            let floor_total_v = total_vel_q.get(fe).map_or_else(|_| Vec3::ZERO, |t| t.0);
+
+            trace!("Adding total v {floor_total_v} from floor to entity above it");
+
+            let mut e_total_v = total_vel_q
+                .get_mut(e)
+                .expect("Tagged velocity from ground with no VelocityBundle");
+            let mut e_rel_vel = relative_vel_q
+                .get_mut(e)
+                .expect("Tagged velocity from ground with no VelocityBundle");
+
+            e_total_v.0 += floor_total_v;
+            e_rel_vel.0 += floor_total_v;
+        }
+    }
 }
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
@@ -263,7 +302,7 @@ impl bevy::prelude::Plugin for Plugin {
                     .after(calculate_relative_velocity)
                     .after(zero_total_vel),
                 // propagate_missed.after(calculate_relative_velocity),
-                // propagate_from_ground.after(propogate_missed),
+                propagate_from_ground.after(propagate_velocities),
             )
                 .in_set(PhysicsSet::Velocity),
         );
