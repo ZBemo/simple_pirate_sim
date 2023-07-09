@@ -13,7 +13,7 @@ pub struct Seed(u64);
 
 /// A random number generator, but as a resource
 #[derive(Resource, Deref, DerefMut)]
-pub struct RandomGenerator(RandomNumberGenerator);
+pub struct Generator(RandomNumberGenerator);
 
 pub fn setup_generator(mut commands: Commands) {
     let seed = std::time::SystemTime::now()
@@ -22,5 +22,5 @@ pub fn setup_generator(mut commands: Commands) {
         .as_secs();
 
     commands.insert_resource(Seed(seed));
-    commands.insert_resource(RandomGenerator(RandomNumberGenerator::seeded(seed)));
+    commands.insert_resource(Generator(RandomNumberGenerator::seeded(seed)));
 }

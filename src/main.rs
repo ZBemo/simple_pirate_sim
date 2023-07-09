@@ -7,6 +7,7 @@
     clippy::too_many_arguments,
     // clippy::needless_pass_by_value // TODO: separate out system functions from non-system 
 )]
+#![allow(clippy::cast_possible_truncation)]
 
 mod console;
 mod controllers;
@@ -117,12 +118,24 @@ pub fn setup(
         TileCamera(),
     ));
 
-    // random wall one layer down
     commands.spawn((
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.clone(),
             sprite: TextureAtlasSprite::new(5),
-            transform: Transform::from_translation(tilestretch.get_bevy(&IVec3::new(1, 0, 1))),
+            transform: Transform::from_translation(tilestretch.get_bevy(IVec3::new(1, 0, 1))),
+            ..default()
+        },
+        tile_objects::TileObject::new(5, 6, 7),
+        Name::new("Random Wall"),
+        Collider::new(physics::collider::Constraints::WALL),
+    ));
+
+    // moving wall
+    commands.spawn((
+        SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle.clone(),
+            sprite: TextureAtlasSprite::new(5),
+            transform: Transform::from_translation(tilestretch.get_bevy(IVec3::new(1, 0, 0))),
             ..default()
         },
         tile_objects::TileObject::new(5, 6, 7),

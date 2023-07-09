@@ -19,7 +19,7 @@ use bevy::prelude::*;
 
 use crate::{
     physics::{self, collider::Collider},
-    random::RandomGenerator,
+    random::Generator,
     tile_grid::TileStretch,
     tile_objects,
 };

@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     physics,
-    random::RandomGenerator,
+    random::Generator,
     ships::BASIC_SHIP,
     tile_grid::TileStretch,
     tile_objects::{self, SpriteSheetHandle},
@@ -18,20 +18,19 @@ use super::SeaLevel;
 // setup ships through an exclusive system/Command
 fn setup_ships(world: &mut World) {
     let mut system = SystemState::<(
-        ResMut<RandomGenerator>,
+        ResMut<Generator>,
         Res<TileStretch>,
         Res<SpriteSheetHandle>,
         Res<SeaLevel>,
         Commands,
     )>::new(world);
-
-    let (generator, tile_stretch, spritesheet_handle, sea_level, mut commands) =
-        system.get_mut(world);
-
     // TODO: multiply these by the ship size or something
     const FIRST_SHIP_RANGE: i32 = 200;
     const SECOND_SHIP_OFFSET_MAX: i32 = 20;
     const SECOND_SHIP_OFFSET_MIN: i32 = 10;
+
+    let (generator, tile_stretch, spritesheet_handle, sea_level, mut commands) =
+        system.get_mut(world);
 
     let mut g = generator;
     let first_ship_translate_tile_space = IVec3::new(
@@ -84,6 +83,8 @@ fn spawn_ship_from_blueprint(
 
     // todo convert this to Iter::enumerate
 
+    // having the loop the way that it is makes it clear how and why we're getting and using x,y,z
+    #[allow(clippy::needless_range_loop)]
     for z in 0..blueprint.len() {
         for x in 0..dimensions.0 as usize {
             for y in 0..dimensions.1 as usize {
@@ -104,7 +105,7 @@ fn spawn_ship_from_blueprint(
                         spritesheet_handle,
                     ),
                     c => {
-                        panic!("blueprint char {} not recognized", c)
+                        panic!("blueprint char {c} not recognized")
                     }
                 }
             }
