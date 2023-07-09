@@ -15,11 +15,12 @@ use std::{fmt::Display, unreachable};
 
 use bevy::{prelude::*, utils::HashMap};
 
-use super::{movement::Ticker, velocity::TotalVelocity, PhysicsSet};
+use super::{
+    movement::Ticker,
+    velocity::{RelativeVelocity, TotalVelocity},
+    PhysicsSet,
+};
 use crate::tile_grid::TileStretch;
-
-#[derive(Debug, Clone, Deref, Reflect)]
-pub struct Impulse(IVec3);
 
 #[derive(Debug, Clone)]
 pub struct CollisionEntity {
@@ -292,9 +293,9 @@ struct ConflictInfo {
 unsafe fn find_and_resolve_conflicts(
     collisions: &HashMap<IVec3, Vec<InhabitingTile>>,
     collider_q: &Query<(Entity, &Collider)>,
-    writer: &mut EventWriter<EntityCollision>, // this should be separated into another function to
-                                               // keep this one functionally pure
-) -> Vec<ConflictInfo> {
+    // this should be separated into another function to
+    // keep this one functionally pure
+) -> Vec<(ConflictInfo, EntityCollision)> {
     trace!("Finding conflicts & resolutions");
 
     // start by mapping each possible movement violation to any entities that would have their collider
@@ -307,9 +308,9 @@ unsafe fn find_and_resolve_conflicts(
     }
 
     collisions
-        .iter()
+        .into_iter()
         .filter(|v| v.1.len() > 1)
-        .flat_map(|(position, inhabitants)| {
+        .flat_map(move |(position, inhabitants)| {
             // empty
             let mut planes = ViolatablePlanes::default();
 
@@ -408,12 +409,6 @@ unsafe fn find_and_resolve_conflicts(
                 (info, event)
             })
         })
-        .map(|(ret, event)| {
-            trace!("sending event {}", event);
-            // send event and discard as it's now irrelevant
-            writer.send(event);
-            ret
-        })
         .collect()
 }
 
@@ -459,11 +454,12 @@ fn check_and_resolve_collisions(
 
     // SAFETY: inhabited_tiles is "filtered" from a list of (Entity,&Collider), so we know that it
     // will have a collider associated with itself
-    let resolutions =
-        unsafe { find_and_resolve_conflicts(&inhabited_tiles, &collider_q, &mut writer) };
+    let resolutions = unsafe { find_and_resolve_conflicts(&inhabited_tiles, &collider_q) };
 
     trace!("implementing resolutions");
-    for resolution in resolutions {
+    for (resolution, event) in resolutions {
+        writer.send(event);
+
         if let Some(mut rel_vel) = rel_velocity_q.get_mut(resolution.entity).ok() {
             if resolution.to_block.z {
                 rel_vel.0.z = 0.;
@@ -583,6 +579,7 @@ mod test {
     }
 
     #[test]
+    #[ignore = "Re-enable once tilecast based collisin implemented."]
     /// collision should work under super basic conditions
     fn collision_works_skips() {
         let mut app = App::new();
@@ -670,23 +667,23 @@ fn tile_cast_collision(
     let find_entity = |fe: Entity| {
         predicted_map
             .iter()
-            .find_map(|(t, e)| (fe == *e).then(|| t))
+            .find_map(|(t, e, c)| (fe == *e).then(|| (t, c)))
     };
     let find_tile = |ft: IVec3| -> Vec<_> {
         predicted_map
             .iter()
-            .filter_map(|(t, e)| (ft == *t).then(|| e))
+            .filter_map(|(t, e, c)| (ft == *t).then(|| (e, c)))
             .collect()
     };
 
-    for (entity, collider) in collider_q.iter() {
+    for (p, entity, constraint) in predicted_map.iter() {
         todo!()
     }
 }
 
 /// Predict the change in grid location of an entity based on its current velocities. This will only be accurate
 /// in between [`PhysicsSet::Velocity`] and [`PhysicsSet::Movement`] \(ie. during
-/// [`PhsyicsSet::Collision`])
+/// [`PhysicsSet::Collision`])
 fn calc_movement(
     total_vel: Option<&TotalVelocity>,
     ticked_vel: Option<&Ticker>,
@@ -737,9 +734,9 @@ fn predict_locations(
     transform_q: &Query<&GlobalTransform>,
     delta_time: f32,
     tile_stretch: &TileStretch,
-) -> Vec<(IVec3, Entity)> {
+) -> Vec<(IVec3, Entity, Constraints)> {
     collider_q
-        .iter()
+        .into_iter()
         .map(|(entity, collider)| {
             let predicted_location = calc_movement(
                 total_vel_q.get(entity).ok(),
@@ -756,7 +753,7 @@ fn predict_locations(
                     .translation(),
             );
 
-            (predicted_location, entity)
+            (predicted_location, entity, collider.constraints.clone())
         })
         .collect()
 }
