@@ -8,6 +8,7 @@
 
 use std::borrow::Borrow;
 use std::collections::VecDeque;
+use std::error::Error;
 
 use bevy::{ecs::system::Command, prelude::*, reflect::GetTypeRegistration};
 
@@ -16,6 +17,7 @@ use crate::tile_grid::TileStretch;
 
 pub mod collider;
 pub mod movement;
+mod tile_cast;
 pub mod velocity;
 
 /// The gravity constant used for weight velocity gain
@@ -66,49 +68,7 @@ pub struct PhysicsComponentBase {
     total_velocity: velocity::VelocityBundle,
 }
 
-/// Return any entities in `entities_iter` that would be hit by a ray starting at
-/// `start_translation` and moving on the tilegrid in the direction of `ray_vel`
-pub fn tile_cast(
-    start_translation: IVec3,
-    ray_dir: IVec3,
-    tile_stretch: &TileStretch,
-    entities_iter: impl IntoIterator<Item = (Entity, impl Borrow<GlobalTransform>)>,
-) -> Vec<(Entity, Vec3)> {
-    let clamped_ray_dir = ray_dir.clamp(IVec3::NEG_ONE, IVec3::ONE);
-    #[cfg(debug_assertions)]
-    if clamped_ray_dir != ray_dir {
-        warn!(
-            "ray_dir of {} is not clamped, clamping down to {}",
-            ray_dir, clamped_ray_dir
-        )
-    };
-
-    entities_iter
-        .into_iter()
-        .filter_map(|(entity, transform)| {
-            let translation = transform.borrow().translation();
-            // cast to grid
-            let original_closest = tile_stretch.get_closest(translation);
-            // translate so that start_translation is origin
-            let translated_closest = original_closest - start_translation;
-
-            // if ray doesn't move on {x,y,z} axis, and entity is on 0 of that axis, then ray will
-            // hit on that axis. Otherwise, if it is in the same direction that the ray is moving
-            // then it will hit
-            let ray_will_hit_x = (translated_closest.x == 0 && ray_dir.x == 0)
-                || translated_closest.x.signum() == ray_dir.x.signum();
-            let ray_will_hit_y = (translated_closest.y == 0 && ray_dir.y == 0)
-                || translated_closest.y.signum() == ray_dir.y.signum();
-            let ray_will_hit_z = (translated_closest.z == 0 && ray_dir.z == 0)
-                || translated_closest.z.signum() == ray_dir.z.signum();
-
-            (translated_closest == IVec3::ZERO
-                || ray_will_hit_x && ray_will_hit_y && ray_will_hit_z)
-                .then(|| (entity, translation))
-        })
-        .collect()
-}
-
+// TODO: move to self::tile_cast
 fn raycast_console(input: VecDeque<crate::console::Token>, commands: &mut Commands) {
     // raycast start_x start_y start_z dir_x dir_y dir_z
 
@@ -119,17 +79,17 @@ fn raycast_console(input: VecDeque<crate::console::Token>, commands: &mut Comman
         )));
     } else {
         // TODO: switch this to using try blocks once out of nightly
-        let vectors_result = || -> Result<_, <i32 as std::str::FromStr>::Err> {
+        let vectors_result = || -> Result<_, Box<dyn Error>> {
             let start_x: i32 = input[0].string.parse()?;
             let start_y: i32 = input[1].string.parse()?;
             let start_z: i32 = input[2].string.parse()?;
-            let dir_x: i32 = input[3].string.parse()?;
-            let dir_y: i32 = input[4].string.parse()?;
-            let dir_z: i32 = input[5].string.parse()?;
+            let dir_x: f32 = input[3].string.parse()?;
+            let dir_y: f32 = input[4].string.parse()?;
+            let dir_z: f32 = input[5].string.parse()?;
 
             Ok((
                 IVec3::new(start_x, start_y, start_z),
-                IVec3::new(dir_x, dir_y, dir_z),
+                Vec3::new(dir_x, dir_y, dir_z),
             ))
         }();
 
@@ -148,7 +108,7 @@ fn raycast_console(input: VecDeque<crate::console::Token>, commands: &mut Comman
 
 struct RaycastCommand {
     start: IVec3,
-    direction: IVec3,
+    direction: Vec3,
 }
 
 impl Command for RaycastCommand {
@@ -160,11 +120,12 @@ impl Command for RaycastCommand {
             .expect("No tile stretch initialized??");
         let mut output = String::new();
 
-        let entities = tile_cast(
+        let entities = tile_cast::tile_cast(
             self.start,
             self.direction,
-            tile_stretch,
+            *tile_stretch,
             entity_query.iter(world),
+            true,
         );
 
         for entity in entities {

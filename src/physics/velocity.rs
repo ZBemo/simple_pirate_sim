@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::physics::tile_cast;
 
-use super::{movement::Ticker, PhysicsSet};
+use super::PhysicsSet;
 
 /// The Velocity that an entity moves at individually. For example, if an entities parent has a
 /// TotalVelocity of (1,0,0) and the entity has a RelativeVelocity of (0,1,0) it will move (1,1,0)
@@ -15,8 +15,8 @@ use super::{movement::Ticker, PhysicsSet};
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
 /// Bundle but no ticker
-#[derive(Debug, Component, Clone, Default, Deref, Reflect)]
-pub(super) struct RelativeVelocity(pub(super) Vec3);
+#[derive(Debug, Component, Clone, Default, Deref, DerefMut, Reflect)]
+pub(super) struct RelativeVelocity(pub Vec3);
 
 /// RelativeVelocity + parent's TotalVelocity
 ///
@@ -27,8 +27,8 @@ pub(super) struct RelativeVelocity(pub(super) Vec3);
 ///
 /// This is currently only guaranteed to be accurate between [`PhysicsSet::Velocity`] and
 /// [`PhysicsSet::Collision`]
-#[derive(Debug, Component, Clone, Default, Deref, Reflect)]
-pub(super) struct TotalVelocity(Vec3);
+#[derive(Debug, Component, Clone, Default, Deref, DerefMut, Reflect)]
+pub(super) struct TotalVelocity(pub Vec3);
 
 /// A maintained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
@@ -62,17 +62,15 @@ fn propagate_from_ground(
             .1
             .translation();
 
-        let below = tile_cast(
+        let below = tile_cast::tile_cast(
             tile_stretch.get_closest(translation),
-            IVec3::NEG_Z,
-            &tile_stretch,
-            &global_transform_q,
+            Vec3::NEG_Z,
+            *tile_stretch,
+            global_transform_q.iter(),
+            false,
         );
 
-        for (fe, _) in below
-            .into_iter()
-            .filter(|(_, pos)| 0. < pos.z - translation.z && pos.z - translation.z <= 1.)
-        {
+        for (fe, _) in below.into_iter() {
             let floor_total_v = total_vel_q.get(fe).map_or_else(|_| Vec3::ZERO, |t| t.0);
 
             trace!("Adding total v {floor_total_v} from floor to entity above it");

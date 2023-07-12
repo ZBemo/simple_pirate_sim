@@ -156,10 +156,7 @@ pub fn setup(
         weight: Weight(0.),
         //TODO: figure out if 1. speed is really 1 grid per second
         walkspeed: WalkSpeed(5.),
-        collider: Collider::new(physics::collider::Constraints {
-            solid_planes: BVec3::TRUE,
-            move_along: BVec3::TRUE,
-        }),
+        collider: Collider::new(physics::collider::Constraints::ENTITY),
         name: Name::new("Player"),
     },));
 

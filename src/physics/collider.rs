@@ -11,16 +11,17 @@
 //!
 //! This module is probably rife with opportunities for performance improvements.
 
-use std::{fmt::Display, unreachable};
+use std::fmt::Display;
 
 use bevy::{prelude::*, utils::HashMap};
 
 use super::{
     movement::Ticker,
+    tile_cast::tile_cast,
     velocity::{RelativeVelocity, TotalVelocity},
     PhysicsSet,
 };
-use crate::tile_grid::TileStretch;
+use crate::tile_grid::{TileStretch, GetTileLocation,};
 
 #[derive(Debug, Clone)]
 pub struct CollisionEntity {
@@ -80,12 +81,13 @@ impl EntityCollision {
 }
 
 /// constraints put onto a collider and its collisions
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, Copy, Reflect)]
 pub struct Constraints {
     /// which axes it is "solid"  along, and thus will cause a collision conflict
     ///
     /// See the constants for [`Self`] for some examples
-    pub solid_planes: BVec3,
+    pub pos_solid_planes: BVec3,
+    pub neg_solid_planes: BVec3,
     /// Which axes it can be pushed along in order to resolve collision
     ///
     /// This is currently ignored
@@ -94,28 +96,29 @@ pub struct Constraints {
 
 impl Constraints {
     pub const WALL: Self = Self {
-        solid_planes: BVec3::TRUE,
+        pos_solid_planes: BVec3::TRUE,
+        neg_solid_planes: BVec3::TRUE,
         move_along: BVec3::FALSE,
     };
     pub const FLOOR: Self = Self {
-        solid_planes: BVec3 {
+        pos_solid_planes: BVec3 {
             x: false,
             y: false,
             z: true,
         },
+        neg_solid_planes: BVec3::FALSE,
         move_along: BVec3::FALSE,
     };
     pub const ENTITY: Self = Self {
-        solid_planes: BVec3 {
-            x: true,
-            y: true,
-            z: true,
-        },
+        pos_solid_planes: BVec3::TRUE,
+        neg_solid_planes: BVec3::TRUE,
+
         move_along: BVec3::TRUE,
     };
 
     pub const SENSOR: Self = Self {
-        solid_planes: BVec3::FALSE,
+        pos_solid_planes: BVec3::FALSE,
+        neg_solid_planes: BVec3::FALSE,
         move_along: BVec3::FALSE,
     };
 }
@@ -148,7 +151,7 @@ fn predict_location(
     ticked_vel: Option<&Ticker>,
     current_location: Vec3,
     time_delta: f32,
-    tile_stretch: &TileStretch,
+    tile_stretch: TileStretch,
     name: &str,
 ) -> IVec3 {
     // if either of these are not present assume they will contribute to moving the entity
@@ -208,7 +211,7 @@ fn check_collisions(
     velocity_q: &Query<&super::velocity::TotalVelocity>,
     ticker_q: &Query<&super::movement::Ticker>,
     name_q: &Query<&Name>,
-    tile_stretch: &TileStretch,
+    tile_stretch: TileStretch,
     delta_time: f32,
 ) -> HashMap<IVec3, Vec<InhabitingTile>> {
     // TODO: look into tracking average amount of units w/ colliders. Reserve capacity for that
@@ -243,19 +246,14 @@ fn check_collisions(
         trace!(
             "pushing inhabiting with real location of {}, predicted movement of {}",
             transform.translation(),
-            projected_tile_location
-                - tile_stretch
-                    .get_tile(&transform.translation())
-                    .map_or_else(|m| m.to_closest(), |m| m)
+            projected_tile_location - tile_stretch.get_closest(&transform.translation())
         );
 
         // TODO: this might need error handling
         let tile = InhabitingTile {
             entity,
             predicted_movement: projected_tile_location
-                - tile_stretch
-                    .get_tile(&transform.translation())
-                    .map_or_else(|m| m.to_closest(), |m| m),
+                - tile_stretch.get_closest(&transform.translation()),
             constraints: collider.constraints.clone(),
         };
 
@@ -298,118 +296,124 @@ unsafe fn find_and_resolve_conflicts(
 ) -> Vec<(ConflictInfo, EntityCollision)> {
     trace!("Finding conflicts & resolutions");
 
-    // start by mapping each possible movement violation to any entities that would have their collider
-    // constraints violated
-    #[derive(Debug, Default)]
-    struct ViolatablePlanes {
-        x: Vec<Entity>,
-        y: Vec<Entity>,
-        z: Vec<Entity>,
-    }
+    #[cfg(all())]
+    return Vec::new();
 
-    collisions
-        .into_iter()
-        .filter(|v| v.1.len() > 1)
-        .flat_map(move |(position, inhabitants)| {
-            // empty
-            let mut planes = ViolatablePlanes::default();
+    #[cfg(any())]
+    {
+        // start by mapping each possible movement violation to any entities that would have their collider
+        // constraints violated
+        #[derive(Debug, Default)]
+        struct ViolatablePlanes {
+            x: Vec<Entity>,
+            y: Vec<Entity>,
+            z: Vec<Entity>,
+        }
 
-            let collision_map = inhabitants;
+        collisions
+            .into_iter()
+            .filter(|v| v.1.len() > 1)
+            .flat_map(move |(position, inhabitants)| {
+                // empty
+                let mut planes = ViolatablePlanes::default();
 
-            for entity in collision_map.iter() {
-                // SAFETY: any entity involved in a collision must have a collider
-                // thus, we've already guaranteed that this entity has a collider associated
-                let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
+                let collision_map = inhabitants;
 
-                // add entity to violatableplanes if it is violatable
-                if collider.constraints.solid_planes.z {
-                    planes.z.push(entity.entity)
+                for entity in collision_map.iter() {
+                    // SAFETY: any entity involved in a collision must have a collider
+                    // thus, we've already guaranteed that this entity has a collider associated
+                    let collider = unsafe { collider_q.get(entity.entity).unwrap_unchecked().1 };
+
+                    // add entity to violatableplanes if it is violatable
+                    if collider.constraints.solid_planes.z {
+                        planes.z.push(entity.entity)
+                    }
+                    if collider.constraints.solid_planes.y {
+                        planes.y.push(entity.entity)
+                    }
+                    if collider.constraints.solid_planes.x {
+                        planes.x.push(entity.entity)
+                    }
                 }
-                if collider.constraints.solid_planes.y {
-                    planes.y.push(entity.entity)
-                }
-                if collider.constraints.solid_planes.x {
-                    planes.x.push(entity.entity)
-                }
-            }
 
-            // now, check for collisions
-            collision_map.iter().map(move |entity| {
-                let movement_signs = entity.predicted_movement.signum();
-                let mut current_resolution: BVec3 = BVec3::FALSE;
-                debug!("{}->{}", movement_signs, entity.predicted_movement);
+                // now, check for collisions
+                collision_map.iter().map(move |entity| {
+                    let movement_signs = entity.predicted_movement.signum();
+                    let mut current_resolution: BVec3 = BVec3::FALSE;
+                    debug!("{}->{}", movement_signs, entity.predicted_movement);
 
-                match movement_signs.z {
-                    1 | -1 => {
-                        if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
-                            .map(|e| e.0)
-                            .last()
-                            .unwrap_or(0)
-                            >= 1
-                        {
-                            current_resolution.z = entity.constraints.solid_planes.z;
+                    match movement_signs.z {
+                        1 | -1 => {
+                            if Iterator::zip(1.., planes.z.iter().filter(|e| **e != entity.entity))
+                                .map(|e| e.0)
+                                .last()
+                                .unwrap_or(0)
+                                >= 1
+                            {
+                                current_resolution.z = entity.constraints.solid_planes.z;
+                            }
+                        }
+                        0 => {
+                            // do nothing
+                        }
+                        _ => {
+                            unreachable!();
                         }
                     }
-                    0 => {
-                        // do nothing
-                    }
-                    _ => {
-                        unreachable!();
-                    }
-                }
-                match movement_signs.x {
-                    1 | -1 => {
-                        if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
-                            .map(|e| e.0)
-                            .last()
-                            .unwrap_or(0)
-                            >= 1
-                        {
-                            current_resolution.x = entity.constraints.solid_planes.x;
+                    match movement_signs.x {
+                        1 | -1 => {
+                            if Iterator::zip(1.., planes.x.iter().filter(|e| **e != entity.entity))
+                                .map(|e| e.0)
+                                .last()
+                                .unwrap_or(0)
+                                >= 1
+                            {
+                                current_resolution.x = entity.constraints.solid_planes.x;
+                            }
+                        }
+                        0 => {
+                            // do nothing
+                        }
+                        _ => {
+                            unreachable!();
                         }
                     }
-                    0 => {
-                        // do nothing
-                    }
-                    _ => {
-                        unreachable!();
-                    }
-                }
-                match movement_signs.y {
-                    1 | -1 => {
-                        if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
-                            .map(|e| e.0)
-                            .last()
-                            .unwrap_or(0)
-                            >= 1
-                        {
-                            current_resolution.y = entity.constraints.solid_planes.y;
+                    match movement_signs.y {
+                        1 | -1 => {
+                            if Iterator::zip(1.., planes.y.iter().filter(|e| **e != entity.entity))
+                                .map(|e| e.0)
+                                .last()
+                                .unwrap_or(0)
+                                >= 1
+                            {
+                                current_resolution.y = entity.constraints.solid_planes.y;
+                            }
+                        }
+                        0 => {
+                            // do nothing
+                        }
+                        _ => {
+                            unreachable!();
                         }
                     }
-                    0 => {
-                        // do nothing
-                    }
-                    _ => {
-                        unreachable!();
-                    }
-                }
 
-                let info = ConflictInfo {
-                    entity: entity.entity,
-                    to_block: current_resolution,
-                    position: *position,
-                    constraints: entity.constraints.clone(),
-                };
+                    let info = ConflictInfo {
+                        entity: entity.entity,
+                        to_block: current_resolution,
+                        position: *position,
+                        constraints: entity.constraints.clone(),
+                    };
 
-                let event = EntityCollision::new(
-                    &info,
-                    &inhabitants.iter().map(|t| t.entity).collect::<Box<_>>(),
-                );
+                    let event = EntityCollision::new(
+                        &info,
+                        &inhabitants.iter().map(|t| t.entity).collect::<Box<_>>(),
+                    );
 
-                (info, event)
+                    (info, event)
+                })
             })
-        })
-        .collect()
+            .collect()
+    }
 }
 
 /// Behemoth system for checking and then resolving collisions
@@ -448,7 +452,7 @@ fn check_and_resolve_collisions(
         &total_velocity_q,
         &ticker_q,
         &name_q,
-        &tile_stretch,
+        *tile_stretch,
         delta_time,
     );
 
@@ -644,8 +648,8 @@ mod test {
 
 fn tile_cast_collision(
     collider_q: Query<(Entity, &Collider)>,
-    total_vel_q: Query<&TotalVelocity>,
-    relative_vel_q: Query<&mut RelativeVelocity>,
+    mut total_vel_q: Query<&mut TotalVelocity>,
+    mut relative_vel_q: Query<&mut RelativeVelocity>,
     ticker_q: Query<&Ticker>,
     name_q: Query<&Name>,
     transform_q: Query<&GlobalTransform>,
@@ -663,22 +667,74 @@ fn tile_cast_collision(
         delta_time,
         &tile_stretch,
     );
+    // we need a vec (Vec3,)
 
-    let find_entity = |fe: Entity| {
-        predicted_map
-            .iter()
-            .find_map(|(t, e, c)| (fe == *e).then(|| (t, c)))
-    };
-    let find_tile = |ft: IVec3| -> Vec<_> {
-        predicted_map
-            .iter()
-            .filter_map(|(t, e, c)| (ft == *t).then(|| (e, c)))
-            .collect()
-    };
+    predicted_map.iter().for_each(|&(entity, predicted_translation)| {
+        // send out event here
+        if let Some(mut vel) = total_vel_q.get_mut(entity).ok() {
+            let translation =
+            transform_q
+                .get(entity)
+                .expect("Entity with collider but no transform")
+                .location(*tile_stretch);
 
-    for (p, entity, constraint) in predicted_map.iter() {
-        todo!()
-    }
+            let hit_entities = tile_cast(
+                translation,
+                **vel,
+                *tile_stretch,
+                predicted_map.iter(),
+                false,
+            );
+
+            // for sorting; we know that an entity will either be on the same tile, or not the same
+            // tile. 
+
+            let total_vel_signs =  (predicted_translation - translation).signum();
+            let closest_entities = hit_entities.iter().fold(None, |acc,elem| {
+                match acc {
+                    None => Some(vec![elem]),
+                    Some(mut acc) => {
+
+                        // vec should always have len > 0
+                        let acc_t = acc[0].1.as_vec3().distance(translation.as_vec3());
+                        let elem_t = elem.1.as_vec3().distance(translation.as_vec3());
+
+                        // does this skip elements?
+                        if elem_t == acc_t {
+                            acc.push(elem);
+                            Some(acc)
+                        } else if elem_t < acc_t {
+                            Some(vec![elem])
+                        } else {
+                            Some(acc)
+                        }
+                    }
+                }
+            });
+
+            
+
+            // .0 is negative plane, .1 is positive
+            let all_solid_axes = closest_entities.into_iter().flatten().fold((BVec3::FALSE,BVec3::FALSE),|acc,elem|{
+                let constraints = unsafe { collider_q.get(elem.0).unwrap_unchecked() }.1.constraints;
+                
+                (acc.0 | constraints.neg_solid_planes, acc.0 | constraints.pos_solid_planes)
+            });
+
+            if total_vel_signs.x == 1 && all_solid_axes.0.x {
+                // remove velocity here
+                todo!()
+            } else if total_vel_signs.x == -1 && all_solid_axes.1.x {
+                todo!()
+            }
+
+            // solve from all_solid_axes
+
+            todo!("Find closest entity that it will hit, and only have a collision if that entity is going to be moved into next frame");
+
+            // raycast out with predicted_map
+        }
+    });
 }
 
 /// Predict the change in grid location of an entity based on its current velocities. This will only be accurate
@@ -720,24 +776,23 @@ fn calc_movement(
         projected_movement_rounded
     );
 
-    // the projected movement is already in tilespace, so just convert the current location, then
-    // add
+    // the projected movement is already in tilespace & rounded, so just cast
     projected_movement_rounded.as_ivec3()
 }
 
 /// return a hashmap of (predicted location)->(Entity,Constraints)
 fn predict_locations(
     collider_q: &Query<(Entity, &Collider)>,
-    total_vel_q: &Query<&TotalVelocity>,
+    total_vel_q: &Query<&mut TotalVelocity>,
     ticker_q: &Query<&Ticker>,
     name_q: &Query<&Name>,
     transform_q: &Query<&GlobalTransform>,
     delta_time: f32,
     tile_stretch: &TileStretch,
-) -> Vec<(IVec3, Entity, Constraints)> {
+) -> Vec<(Entity, IVec3)> {
     collider_q
         .into_iter()
-        .map(|(entity, collider)| {
+        .map(|(entity, _)| {
             let predicted_location = calc_movement(
                 total_vel_q.get(entity).ok(),
                 ticker_q.get(entity).ok(),
@@ -753,7 +808,7 @@ fn predict_locations(
                     .translation(),
             );
 
-            (predicted_location, entity, collider.constraints.clone())
+            (entity, predicted_location)
         })
         .collect()
 }

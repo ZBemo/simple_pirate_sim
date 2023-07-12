@@ -184,3 +184,33 @@ mod test {
         assert_eq!(tile_stretch.get_closest(start), closest);
     }
 }
+
+/// A trait for getting a tile location from a struct.
+pub trait GetTileLocation {
+    fn location(&self, tile_stretch: TileStretch) -> IVec3;
+}
+
+impl GetTileLocation for GlobalTransform {
+    fn location(&self, tile_stretch: TileStretch) -> IVec3 {
+        tile_stretch.get_closest(self.translation())
+    }
+}
+
+impl GetTileLocation for &GlobalTransform {
+    fn location(&self, tile_stretch: TileStretch) -> IVec3 {
+        tile_stretch.get_closest(self.translation())
+    }
+}
+
+impl GetTileLocation for Vec3 {
+    fn location(&self, tile_stretch: TileStretch) -> IVec3 {
+        tile_stretch.get_closest(self)
+    }
+}
+
+// hacky. assume IVec3 is already in tile space
+impl GetTileLocation for IVec3 {
+    fn location(&self, _: TileStretch) -> IVec3 {
+        *self
+    }
+}
