@@ -1,10 +1,10 @@
 //! See [`RegisterConsoleCommand`]
 
-use super::{ConsoleCommandObject, RegisteredConsoleCommands};
+use super::{CommandObject, RegisteredConsoleCommands};
 use bevy::{prelude::*, utils::HashMap};
 
 /// a struct to easily register a [`super::ConsoleCommand`] for the console to use
-pub struct RegisterConsoleCommand(Box<str>, ConsoleCommandObject);
+pub struct RegisterConsoleCommand(Box<str>, CommandObject);
 
 impl bevy::ecs::system::Command for RegisterConsoleCommand {
     fn apply(self, world: &mut World) {
@@ -16,7 +16,7 @@ impl bevy::ecs::system::Command for RegisterConsoleCommand {
 
 impl RegisterConsoleCommand {
     /// create a registration command that will register `to_register`
-    pub fn new(name: Box<str>, command: ConsoleCommandObject) -> Self {
+    pub fn new(name: Box<str>, command: CommandObject) -> Self {
         Self(name, command)
     }
 }

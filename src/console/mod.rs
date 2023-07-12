@@ -53,7 +53,7 @@ fn parse(to_parse: &str) -> Result<VecDeque<Token>, ParseError> {
             match char {
                 ' ' | '\\' | '"' => {
                     cur_string.push(char);
-                    is_backslash_escaped = false
+                    is_backslash_escaped = false;
                 }
                 _ => return Err(ParseError::EscapedIncorrectCharacter(i)),
             }
@@ -95,24 +95,24 @@ fn parse(to_parse: &str) -> Result<VecDeque<Token>, ParseError> {
 ///
 /// You should also be able to register closures/functions with the function signature
 /// (Vec<Token>,&mut Commands) -> (). Due to a blanket impl
-pub trait ConsoleCommand {
+pub trait Command {
     /// Start the command. Must add a command to commands that eventually sends a
     /// [`ConsoleOutput::End`] event
     fn start_command(&self, input: VecDeque<Token>, commands: &mut Commands);
 }
 
-impl<T: Fn(VecDeque<Token>, &mut Commands)> ConsoleCommand for T {
+impl<T: Fn(VecDeque<Token>, &mut Commands)> Command for T {
     fn start_command(&self, input: VecDeque<Token>, commands: &mut Commands) {
-        self(input, commands)
+        self(input, commands);
     }
 }
 
 /// A console command type-object for registration
-pub type ConsoleCommandObject = Box<dyn ConsoleCommand + Send + Sync>;
+pub type CommandObject = Box<dyn Command + Send + Sync>;
 
 /// A resource to store all registered Console commands
 #[derive(Deref, DerefMut, Resource)]
-pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, ConsoleCommandObject>);
+pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, CommandObject>);
 
 pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {

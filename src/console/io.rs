@@ -117,7 +117,7 @@ fn do_io(
                             }
                         };
 
-                        *input = "".to_string();
+                        *input = String::new();
                         edited.request_focus();
                     }
                     ui.input(|i| {

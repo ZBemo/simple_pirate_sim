@@ -10,8 +10,8 @@ fn echo_command(input: VecDeque<Token>, commands: &mut Commands) {
         input
             .iter()
             .map(|i| &i.string)
-            .fold("".to_owned(), |acc, str| format!("{acc}{str} ")),
-    ))
+            .fold(String::new(), |acc, str| format!("{acc}{str} ")),
+    ));
 }
 
 fn exit_command(_input: VecDeque<Token>, commands: &mut Commands) {
@@ -27,8 +27,10 @@ fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
         return;
     }
 
+    #[allow(clippy::unwrap_used)]
     let name = input.pop_front().unwrap().string;
 
+    #[allow(clippy::unwrap_used)]
     let parsed = || -> Result<IVec3, <i32 as FromStr>::Err> {
         let x = input.pop_front().unwrap().string.parse::<i32>()?;
         let y = input.pop_front().unwrap().string.parse::<i32>()?;
@@ -45,14 +47,12 @@ fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
 
             let to_move = name_query
                 .iter(world)
-                .find_map(|e| (e.1.as_str() == name).then(|| e.0));
+                .find_map(|e| (e.1.as_str() == name).then_some(e.0));
 
             match to_move {
                 Some(new_entity) => {
-                    let tile_stretch = world
-                        .get_resource::<TileStretch>()
-                        .expect("No TileStretch resource")
-                        .clone();
+                    let tile_stretch = *world.resource::<TileStretch>();
+
                     let transform = location_query.get_mut(world, new_entity);
 
                     if let Ok(mut transform) = transform {
@@ -68,19 +68,17 @@ fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
             world.send_event(Output::String(output));
             world.send_event(Output::End);
         }),
-        Err(e) => commands.add(PrintStringCommand(format!("Parsing error `{}`", e))),
+        Err(e) => commands.add(PrintStringCommand(format!("Parsing error `{e}`"))),
     }
 }
 
 pub(super) fn setup_basic_commands(mut commands: Commands) {
     // run each command in this array
-    [
+    for to_register in [
         RegisterConsoleCommand::new("echo".into(), Box::new(echo_command)),
         RegisterConsoleCommand::new("exit".into(), Box::new(exit_command)),
         RegisterConsoleCommand::new("move".into(), Box::new(move_command)),
-    ]
-    .into_iter()
-    .for_each(|to_register| {
+    ] {
         commands.add(to_register);
-    });
+    }
 }
