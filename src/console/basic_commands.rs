@@ -2,7 +2,7 @@ use std::{collections::VecDeque, str::FromStr};
 
 use crate::tile_grid::TileStretch;
 
-use super::{registration::RegisterConsoleCommand, ConsoleOutput, PrintStringCommand, Token};
+use super::{registration::RegisterConsoleCommand, Output, PrintStringCommand, Token};
 use bevy::{app::AppExit, prelude::*};
 
 fn echo_command(input: VecDeque<Token>, commands: &mut Commands) {
@@ -65,8 +65,8 @@ fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
                 None => output = "Could not find entity".into(),
             }
 
-            world.send_event(ConsoleOutput::String(output));
-            world.send_event(ConsoleOutput::End);
+            world.send_event(Output::String(output));
+            world.send_event(Output::End);
         }),
         Err(e) => commands.add(PrintStringCommand(format!("Parsing error `{}`", e))),
     }

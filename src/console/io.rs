@@ -5,7 +5,7 @@ use super::parse;
 
 /// A resource tracking whether or not the console is currently open
 #[derive(Deref, DerefMut, Reflect, Resource)]
-pub struct ConsoleOpen(pub bool);
+pub struct IsOpen(pub bool);
 
 // /// The resource for console commands to write their output to
 // #[derive(Deref, DerefMut, Resource, Reflect)]
@@ -13,7 +13,7 @@ pub struct ConsoleOpen(pub bool);
 
 #[derive(Event, Clone)]
 /// events for a command to output to console
-pub enum ConsoleOutput {
+pub enum Output {
     /// A string to write to the console.
     String(String),
     /// Tells the console that the current command has ended
@@ -23,10 +23,10 @@ pub enum ConsoleOutput {
 const MAX_HISTORY_SIZE: usize = 500;
 
 /// a system to open the console when '\`' is pressed
-fn check_open_console(keys: Res<Input<KeyCode>>, mut showing_console: ResMut<ConsoleOpen>) {
+fn check_open_console(keys: Res<Input<KeyCode>>, mut showing_console: ResMut<IsOpen>) {
     if keys.just_pressed(KeyCode::Grave) {
         trace!("showing console = true");
-        *showing_console = ConsoleOpen(true);
+        *showing_console = IsOpen(true);
     }
 }
 
@@ -36,8 +36,8 @@ fn do_io(
     mut output_history: Local<String>,
     mut waiting_for_command: Local<bool>,
     mut context: EguiContexts,
-    mut showing_console: ResMut<ConsoleOpen>,
-    mut command_output: EventReader<ConsoleOutput>,
+    mut showing_console: ResMut<IsOpen>,
+    mut command_output: EventReader<Output>,
     console_commands: Res<super::RegisteredConsoleCommands>,
     mut commands: Commands,
 ) {
@@ -60,8 +60,8 @@ fn do_io(
     if *waiting_for_command {
         for event in command_output.iter() {
             match event {
-                ConsoleOutput::String(output) => write_output(output),
-                ConsoleOutput::End => *waiting_for_command = false,
+                Output::String(output) => write_output(output),
+                Output::End => *waiting_for_command = false,
             }
         }
     }
@@ -131,10 +131,10 @@ fn do_io(
 }
 
 fn startup(mut commands: Commands, type_registry: Res<AppTypeRegistry>) {
-    commands.insert_resource(ConsoleOpen(false));
+    commands.insert_resource(IsOpen(false));
 
     let mut w = type_registry.write();
-    w.add_registration(ConsoleOpen::get_type_registration());
+    w.add_registration(IsOpen::get_type_registration());
 }
 
 pub(super) struct Plugin;
@@ -142,6 +142,6 @@ impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, (check_open_console, do_io).chain())
             .add_systems(Startup, startup)
-            .add_event::<ConsoleOutput>();
+            .add_event::<Output>();
     }
 }

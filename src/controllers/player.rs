@@ -31,7 +31,7 @@ pub(super) fn camera_follow_player(
 pub(super) fn update_movement_goals(
     mut char_input_events: EventReader<ReceivedCharacter>,
     mut player: Query<(&mut MovementGoals, &super::WalkSpeed), With<Controller>>,
-    console_open: Res<console::ConsoleOpen>,
+    console_open: Res<console::IsOpen>,
 ) {
     if **console_open {
         return;

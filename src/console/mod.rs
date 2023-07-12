@@ -16,8 +16,8 @@ use std::collections::VecDeque;
 use bevy::{prelude::*, utils::HashMap};
 use thiserror::Error;
 
-pub use io::ConsoleOpen;
-pub use io::ConsoleOutput;
+pub use io::IsOpen;
+pub use io::Output;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Token {
@@ -128,7 +128,7 @@ pub struct PrintStringCommand(pub String);
 
 impl bevy::ecs::system::Command for PrintStringCommand {
     fn apply(self, world: &mut World) {
-        world.send_event(ConsoleOutput::String(self.0));
-        world.send_event(ConsoleOutput::End);
+        world.send_event(Output::String(self.0));
+        world.send_event(Output::End);
     }
 }

@@ -11,7 +11,7 @@ use std::error::Error;
 
 use bevy::{ecs::system::Command, prelude::*, reflect::GetTypeRegistration};
 
-use crate::console::{self, ConsoleOutput, PrintStringCommand};
+use crate::console::{self, Output, PrintStringCommand};
 use crate::tile_grid::TileStretch;
 
 pub mod collider;
@@ -151,8 +151,8 @@ impl Command for RaycastCommand {
             output = "No entities on ray".into();
         }
 
-        world.send_event(ConsoleOutput::String(output));
-        world.send_event(ConsoleOutput::End);
+        world.send_event(Output::String(output));
+        world.send_event(Output::End);
     }
 }
 
