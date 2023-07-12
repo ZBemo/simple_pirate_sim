@@ -118,7 +118,7 @@ pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, self::basic_commands::setup_basic_commands)
-            .add_plugin(self::io::Plugin);
+            .add_plugins(self::io::Plugin);
     }
 }
 
