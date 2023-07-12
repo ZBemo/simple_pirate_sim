@@ -14,12 +14,12 @@ lto = "thin"
 
 [dependencies]
 # bevy dependency below
-bevy-inspector-egui = {version = "0.18", default-features = false}
+bevy-inspector-egui = {version = "0.19"}
 bracket-random = "0.8"
 thiserror = "1.0"
 
 [dependencies.bevy]
-version = "0.10"
+version = "0.11"
 default-features = false
 features = [
   # if you add dynamic linking, remember not to commit
@@ -38,6 +38,7 @@ features = [
   "bevy_winit",
   "bevy_ui",
   "subpixel_glyph_atlas",
+  "multi-threaded",
 
   "png", 
 

@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use crate::tile_grid::TileStretch;
 
+use super::PhysicsSet;
+
 /// A Ticker, used to keep track of when to actually move a physics component by
 /// buffering velocity into its ticker until at least a whole tile has been moved.
 ///
@@ -77,10 +79,6 @@ pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_system(
-            finalize_movement
-                .in_set(super::PhysicsSet::Movement)
-                .after(super::PhysicsSet::Collision),
-        );
+        app.add_systems(Update, finalize_movement.in_set(PhysicsSet::Movement));
     }
 }

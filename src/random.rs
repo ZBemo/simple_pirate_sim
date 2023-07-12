@@ -1,5 +1,5 @@
-//! simple wrappers around bracket_random
-//!
+//! simple wrappers around `bracket_random`
+//
 //! this probably shouldn't be a single file, but it doesn't particularly fit anywhere else yet
 
 use std::time::UNIX_EPOCH;

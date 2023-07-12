@@ -32,7 +32,7 @@ pub struct CollisionEntity {
 
 /// A collision Event. If an entity is in the collision on a specific location,  
 /// it will be in the hashmap, mapping to any impulse applied for conflict resolution.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Event)]
 pub struct TileCollision {
     /// which tile
     pub tile: IVec3,
@@ -43,7 +43,7 @@ pub struct TileCollision {
 /// An event where there was an entity collision
 ///
 /// TODO: replace with TileCollision
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Event)]
 pub struct EntityCollision {
     pub entity: Entity,
     pub tile: IVec3,
@@ -497,14 +497,12 @@ pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
-            check_and_resolve_collisions
-                .in_set(PhysicsSet::Collision)
-                .after(PhysicsSet::Velocity)
-                .before(PhysicsSet::Movement),
+        app.
+            add_systems(
+            Update,
+            check_and_resolve_collisions.in_set(PhysicsSet::Collision)
         )
-        .add_system(log_collisions.after(PhysicsSet::Collision))
-        .add_system(check_and_resolve_collisions.after(PhysicsSet::Collision))
+        .add_systems(Update,log_collisions.after(PhysicsSet::Collision))
         .add_event::<EntityCollision>();
     }
 }
@@ -529,9 +527,8 @@ mod test {
     fn collision_works_basic() {
         let mut app = App::new();
 
-        app.add_plugin(test::DefaultTestPlugin);
-
-        app.add_plugin(crate::physics::PhysicsPlugin);
+        app.add_plugins(test::DefaultTestPlugin);
+        app.add_plugins(crate::physics::PhysicsPlugin);
 
         let move_id = app
             .world
@@ -553,7 +550,8 @@ mod test {
             ))
             .id();
 
-        app.setup();
+        // TODO: is this necessary?
+        app.cleanup();
 
         // run long enough for Move to move x + 2, y +2
         while app
@@ -588,9 +586,9 @@ mod test {
     fn collision_works_skips() {
         let mut app = App::new();
 
-        app.add_plugin(test::DefaultTestPlugin);
+        app.add_plugins(test::DefaultTestPlugin);
 
-        app.add_plugin(crate::physics::PhysicsPlugin);
+        app.add_plugins(crate::physics::PhysicsPlugin);
 
         let move_id = app
             .world
@@ -612,7 +610,8 @@ mod test {
             ))
             .id();
 
-        app.setup();
+        // TODO: is this necessary?
+        app.cleanup();
 
         app.world
             .resource_mut::<Time>()

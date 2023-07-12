@@ -11,14 +11,14 @@ impl Plugin for DefaultTestPlugin {
         app.insert_resource(TileStretch::new(1, 1));
 
         // system to log location of every named entity
-        app.add_system(|q: Query<(&GlobalTransform, &Name)>| {
+        app.add_systems(PostUpdate, |q: Query<(&GlobalTransform, &Name)>| {
             q.iter()
-                .for_each(|e| debug!("{}: {}", e.1.to_string(), e.0.translation()))
+                .for_each(|e| debug!("{}: {}", e.1.to_string(), e.0.translation()));
         });
 
         // almost every system assumes these plugins are present
-        app.add_plugin(bevy::log::LogPlugin::default())
-            .add_plugin(bevy::time::TimePlugin)
-            .add_plugin(bevy::transform::TransformPlugin);
+        app.add_plugins(bevy::log::LogPlugin::default())
+            .add_plugins(bevy::time::TimePlugin)
+            .add_plugins(bevy::transform::TransformPlugin);
     }
 }

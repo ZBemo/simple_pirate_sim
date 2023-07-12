@@ -7,7 +7,7 @@ use bevy::{prelude::*, utils::HashMap};
 pub struct RegisterConsoleCommand(Box<str>, ConsoleCommandObject);
 
 impl bevy::ecs::system::Command for RegisterConsoleCommand {
-    fn write(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         world
             .get_resource_or_insert_with(|| RegisteredConsoleCommands(HashMap::new()))
             .insert(self.0, self.1);

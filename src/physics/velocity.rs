@@ -293,15 +293,13 @@ pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
+            Update,
             (
-                zero_total_vel,
-                calculate_relative_velocity,
-                propagate_velocities
-                    .after(calculate_relative_velocity)
-                    .after(zero_total_vel),
-                // propagate_missed.after(calculate_relative_velocity),
-                propagate_from_ground.after(propagate_velocities),
+                (zero_total_vel, calculate_relative_velocity),
+                propagate_velocities,
+                propagate_from_ground,
             )
+                .chain()
                 .in_set(PhysicsSet::Velocity),
         );
     }
@@ -326,9 +324,8 @@ mod test {
     fn total_velocity_is_propagated() {
         let mut app = App::new();
 
-        app.add_plugin(test::DefaultTestPlugin);
-
-        app.add_plugin(crate::physics::PhysicsPlugin);
+        app.add_plugins(test::DefaultTestPlugin);
+        app.add_plugins(crate::physics::PhysicsPlugin);
 
         // this should have RelVel == TotalVel with both being Vec3::X
         let no_parent = app
@@ -383,7 +380,8 @@ mod test {
             .set_parent(still_parent)
             .id();
 
-        app.setup();
+        // TODO: check this out
+        app.cleanup();
 
         let mut frames = 0;
         // run updates for 5 seconds

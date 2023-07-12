@@ -57,21 +57,24 @@ pub fn register_types(type_registry: Res<AppTypeRegistry>) {
 
 /// a 2d bounding box used to represent a cameras viewport
 struct BB2 {
-    min: Vec2,
-    max: Vec2,
+    top_left: Vec2,
+    bottom_right: Vec2,
 }
 impl BB2 {
     ///  inclusively check if point is inside self
     pub fn inside(&self, point: Vec3) -> bool {
         // self.min.z <= point.z
         //     && point.z <= self.max.z
-        self.min.x <= point.x
-            && point.x <= self.max.x
-            && self.min.y <= point.y
-            && point.y <= self.max.y
+        self.top_left.x <= point.x
+            && point.x <= self.bottom_right.x
+            && self.bottom_right.y <= point.y
+            && point.y <= self.top_left.y
     }
-    pub fn new(min: Vec2, max: Vec2) -> Self {
-        Self { min, max }
+    pub fn new(bottom_right: Vec2, top_left: Vec2) -> Self {
+        Self {
+            top_left,
+            bottom_right,
+        }
     }
 }
 
@@ -112,8 +115,10 @@ pub fn update_tile_sprites(
             let viewport = camera.logical_viewport_rect()?;
 
             // top left corner->bottom right corner of camera in world space.
-            let start = camera.viewport_to_world_2d(camera_transform, viewport.0)?;
-            let end = camera.viewport_to_world_2d(camera_transform, viewport.1)?;
+            let bottom_right = camera.viewport_to_world_2d(camera_transform, viewport.min)?;
+            let top_left = camera.viewport_to_world_2d(camera_transform, viewport.max)?;
+
+            debug!("{} -> {}", bottom_right, top_left);
 
             // this should put the point into the middle of the tilespace grid based on
             // tilestretch?
@@ -121,18 +126,18 @@ pub fn update_tile_sprites(
             // the tilespace grid functions such that each grid centers on a multiple of
             // tilestretch.{x,y} on the {x,y} axis, and is the same size.
             let round_to_tile_space = |to_round: Vec2| -> Vec2 {
-                let x = to_round.x + tile_stretch.0 as f32 - (to_round.x % tile_stretch.0 as f32);
-                let y = to_round.y + tile_stretch.1 as f32 - (to_round.y % tile_stretch.1 as f32);
+                let x = to_round.x + f32::from(tile_stretch.0) * to_round.x.signum();
+                let y = to_round.y + f32::from(tile_stretch.1) * to_round.y.signum();
 
                 Vec2::new(x, y)
             };
 
             // align start and end to a grid, so that it will align with entity origins
-            let start_gridded = round_to_tile_space(start);
-            let end_gridded = round_to_tile_space(end);
+            let bottom_right = round_to_tile_space(bottom_right);
+            let top_left = round_to_tile_space(top_left);
 
             Some((
-                BB2::new(start_gridded, end_gridded),
+                BB2::new(top_left, bottom_right),
                 camera_transform.translation().z,
             ))
         })
@@ -179,8 +184,8 @@ fn apply_entity_from_bounds(
                     trace!(
                         "checking if {} is inside {}-{}",
                         translation,
-                        bound.min,
-                        bound.max
+                        bound.top_left,
+                        bound.bottom_right
                     );
 
                     if bound.inside(translation) {
@@ -226,7 +231,7 @@ fn apply_entity_from_bounds(
 pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(register_types)
-            .add_system(update_tile_sprites.after(PhysicsSet::Collision));
+        app.add_systems(Startup, register_types)
+            .add_systems(Update, update_tile_sprites.in_set(PhysicsSet::Completed));
     }
 }

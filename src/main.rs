@@ -5,7 +5,7 @@
 #![allow(
     clippy::type_complexity,
     clippy::too_many_arguments,
-    // clippy::needless_pass_by_value // TODO: separate out system functions from non-system 
+    clippy::needless_pass_by_value // TODO: separate out system functions from non-system 
 )]
 #![allow(clippy::cast_possible_truncation)]
 
@@ -31,13 +31,13 @@ use tile_objects::TileCamera;
 pub use bevy_inspector_egui::bevy_egui;
 
 /// an unused gamestate system
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
-enum GameState {
-    MainMenu,
-    #[default]
-    RealTime,
-    PauseTime,
-}
+// #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+// enum GameState {
+//     MainMenu,
+//     #[default]
+//     RealTime,
+//     PauseTime,
+// }
 
 /// the bundel for spawning a player character
 #[derive(Bundle)]
@@ -51,34 +51,27 @@ struct PlayerBundle {
     player_controller_bundle: PlayerControllerBundle,
 }
 
-#[derive(SystemSet, Hash, Eq, PartialEq, Debug, Clone)]
-pub enum StartupSets {
-    Random,
-    Rendering,
-    // WorldSetUp,
-}
-
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(EguiPlugin)
-        .add_plugin(PhysicsPlugin)
-        .add_plugin(tile_objects::Plugin)
-        .add_plugin(WorldInspectorPlugin::new())
-        .add_plugin(controllers::Plugin)
-        .add_plugin(console::Plugin)
-        .insert_resource(ClearColor(Color::BLACK))
+    trace!("Adding plugins");
+    let mut app = App::new();
+    app.add_plugins(DefaultPlugins)
+        .add_plugins(EguiPlugin)
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins((
+            PhysicsPlugin,
+            tile_objects::Plugin,
+            controllers::Plugin,
+            console::Plugin,
+        ));
+    trace!("setting up resources, adding startup systems");
+    app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Off) // Pixel art doesn't need aa, so keep off for now
-        .add_state::<GameState>()
-        .add_startup_system(setup)
-        .add_startup_system(random::setup_generator)
-        .add_startup_system(tile_grid::register_types)
-        // .add_system(
-        //     controllers::player::camera_follow_player
-        //         .after(PhysicsSet::FinalMovement)
-        // )
-        // add system here
-        .run();
+        .add_systems(
+            Startup,
+            (setup, random::setup_generator, tile_grid::register_types),
+        );
+    trace!("Running app");
+    app.run();
 }
 
 /// behemoth setup system needs to be chunked way out

@@ -117,7 +117,7 @@ pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, ConsoleCommandObjec
 pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(self::basic_commands::setup_basic_commands)
+        app.add_systems(Startup, self::basic_commands::setup_basic_commands)
             .add_plugin(self::io::Plugin);
     }
 }
@@ -127,7 +127,7 @@ impl bevy::prelude::Plugin for Plugin {
 pub struct PrintStringCommand(pub String);
 
 impl bevy::ecs::system::Command for PrintStringCommand {
-    fn write(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         world.send_event(ConsoleOutput::String(self.0));
         world.send_event(ConsoleOutput::End);
     }

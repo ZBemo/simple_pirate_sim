@@ -15,7 +15,7 @@ const DIAG_SPEED: f32 = 1. / 1.5;
 #[derive(Component, Default, Reflect, Deref, DerefMut)]
 pub struct WalkSpeed(pub f32);
 
-#[derive(Component, Reflect, FromReflect, Debug, Clone, Default, Deref, DerefMut)]
+#[derive(Component, Reflect, Debug, Clone, Default, Deref, DerefMut)]
 /// (MovementGoal, Timeout)
 struct MovementGoals(Vec<(Vec3, f64, u8)>);
 
@@ -32,7 +32,7 @@ fn count_down_goals_timeout(mut components: Query<&mut MovementGoals>, timer: Re
 
 /// A system to timeout movement goals based on their timeout component.
 ///
-/// Should run after count_down_goals_timeout
+/// Should run after [count_down_goals_timeout]
 fn remove_timedout_goals(mut components: Query<&mut MovementGoals>) {
     components
         .par_iter_mut()
@@ -57,13 +57,20 @@ fn register_types(type_registry: Res<AppTypeRegistry>) {
 pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(register_types)
-            .add_system(count_down_goals_timeout.after(PhysicsSet::Velocity))
-            .add_system(remove_timedout_goals.after(count_down_goals_timeout))
+        app.add_systems(Startup, register_types)
             .add_systems(
+                Update,
+                (
+                    count_down_goals_timeout.after(PhysicsSet::Velocity),
+                    remove_timedout_goals,
+                )
+                    .chain(),
+            )
+            .add_systems(
+                Update,
                 (player::update_movement_goals, goals_to_goal)
                     .chain()
-                    .before(PhysicsSet::Velocity),
+                    .in_set(PhysicsSet::Input),
             );
     }
 }

@@ -6,7 +6,6 @@
 //! Currently, this file should only be for data definitions. Anything that requires a system
 //! should be put into its own module.
 
-use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::error::Error;
 
@@ -32,10 +31,11 @@ pub const GRAVITY: f32 = 9.8;
 /// systems making use of collision checking should run after [`PhysicsSet::Collision`], or
 /// collision data may be wildly inaccurate
 pub enum PhysicsSet {
-    // PhysicsInput,
+    Input,
     Velocity,
     Collision,
     Movement,
+    Completed,
 }
 
 /// Any component with a weight will have gravity applied to it on each physics update
@@ -112,7 +112,7 @@ struct RaycastCommand {
 }
 
 impl Command for RaycastCommand {
-    fn write(self, world: &mut World) {
+    fn apply(self, world: &mut World) {
         let mut entity_query = world.query::<(Entity, &GlobalTransform)>();
         let mut name_query = world.query::<&Name>();
         let tile_stretch = world
@@ -186,9 +186,12 @@ pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(velocity::Plugin)
-            .add_plugin(collider::Plugin)
-            .add_plugin(movement::Plugin)
-            .add_startup_system(startup);
+        app.configure_set(Update, PhysicsSet::Input.before(PhysicsSet::Velocity))
+            .configure_set(Update, PhysicsSet::Velocity.before(PhysicsSet::Collision))
+            .configure_set(Update, PhysicsSet::Collision.after(PhysicsSet::Velocity))
+            .configure_set(Update, PhysicsSet::Movement.after(PhysicsSet::Collision))
+            .configure_set(Update, PhysicsSet::Completed.after(PhysicsSet::Movement))
+            .add_plugins((velocity::Plugin, collider::Plugin, movement::Plugin))
+            .add_systems(Startup, startup);
     }
 }
