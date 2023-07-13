@@ -1,2 +1,3 @@
 /target
 /assets/tilesets/*.png
+./trace-*.json
