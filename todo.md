@@ -1,3 +1,7 @@
+# Performance
+ - [ ] look into using Query::for_each instead of `for _ in query`
+ - [ ] test on windows to check if wslg is source of significant frame loss
+
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
  - [x] split physics.rs into multiple modules
@@ -7,15 +11,16 @@
  - [x] change query function parameters to $NAME_q. will make code far more readable
  - [x] update`ConsoleCommand`s to pass in closures instead of trait-structs
  - [x] set up cargo clippy and lint 
- - [ ] Look at updating the string type for console parsing to pare down on clones, consider a COW
+ - [x] consider splitting long systems into piped systems where useful
+ - [x] Look at updating the string type for console parsing to pare down on clones, consider a COW - not necessary as we want ownership
+ - [ ]  use a macro that will either debug_assert!() or log an error/warn based on whether debug asserts are enabled
  - [ ] consider changing console::io::ConsoleOpen to an enum
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
  - [ ] Strongly type TileSpace
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
- - [ ] consider splitting long systems into piped systems where useful
  - [ ] start checking docs for correctness
- - [ ] slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features
+ - [ ] ~~slim down bevy's DefaultPlugins. this might already be taken care of by slimming down features~~
 
 # Current 
 Tests
@@ -36,6 +41,9 @@ Physics-collision and resolution
  - [ ] Figure out when to send collision events, and what to include
    - [x] Entity collision events
    - [ ] switch to tile collision event - should be more ergonomic
+   - [ ] mix of both tile & entity collision events - or entity collision events with Collision Resource?
+         CollisionMap resource would be Hasmap<IVec3, EntityCollision> or similar, allows lookup from Collider
+         or store collision information on collider, which would be more ecs friendly
 
 # Big features
  - [ ] "full" tile physics engine (roughly in order)
@@ -48,7 +56,7 @@ Physics-collision and resolution
    - [ ] finalize, and probably re-architect continuous velocity
    - [ ] fine tune gravity
  - [ ] Player Input
-   - [x] Allow multiple movement goals, add them all together to get final movement goal
+   - [ ] Allow multiple movement goals, add them all together to get final movement goal - this doesn't work completely right
    - [ ] Allow "freeze time" actions, which pause time while player aims etc along with "normal time" actions which should auto target
    - [ ] set up rebinding
  - [ ] Player and AI interaction 
