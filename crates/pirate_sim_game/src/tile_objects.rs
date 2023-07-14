@@ -5,10 +5,10 @@
 
 // still in heavy development
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use pirate_sim_core::bevy::{prelude::*, reflect::GetTypeRegistration};
 
-use crate::physics::PhysicsSet;
-use crate::tile_grid::TileStretch;
+use pirate_sim_core::tile_grid::TileStretch;
+use pirate_sim_physics::PhysicsSet;
 
 #[derive(Resource, Deref, DerefMut, Reflect)]
 pub struct SpriteSheetHandle(pub Handle<TextureAtlas>);
@@ -22,8 +22,8 @@ pub struct ConnectingWall();
 /// Marks that an entity should be managed as a rendered object, as well as
 /// providing information about how it should be rendered.
 ///
-/// {main_layer,one_up,two_up} will decide which sprite to use when the sprite is on camera.
-/// Otherwise it will be culled.
+/// `main_layer`,`one_up_index`, and `two_up_index` will decide which sprite to use when the sprite is on camera,
+/// based on how far up the camera is from them.
 #[derive(Component, Clone, Copy, Reflect, Debug)]
 pub struct TileObject {
     pub main_layer_index: usize,
@@ -40,10 +40,6 @@ impl TileObject {
             two_up_index: two_up,
         }
     }
-}
-
-pub fn setup_spritesheet(asset_server: Res<AssetServer>) {
-    todo!()
 }
 
 pub fn register_types(type_registry: Res<AppTypeRegistry>) {
@@ -106,7 +102,7 @@ pub fn update_tile_sprites(
     let bounds: Vec<(BB2, f32)> = tile_camera_q
         .iter()
         .filter_map(|camera_entity| {
-            // SAFETY: we filter camera_q on With<Camera>
+            // SAFETY: we filter camera_q on With<Camera>, then get e from that q
             let camera = unsafe { camera_q.get(camera_entity).unwrap_unchecked() };
             let camera_transform = transform_q
                 .get(camera_entity)

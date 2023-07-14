@@ -295,6 +295,13 @@ checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 [[package]]
 name = "bevy"
 version = "0.11.0"
+dependencies = [
+ "bevy 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "bevy"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04a90fe8e9c03fa2d30acf39a5178a48526df00c1ccea2fc43fa6d9ca4d8a168"
 dependencies = [
@@ -497,7 +504,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a73a93a8cf6b8c744281d1b88f5b0fa278d608e909af9bbf4eb491a7cb1ad2c"
 dependencies = [
  "arboard",
- "bevy",
+ "bevy 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "egui",
  "thread_local",
  "webbrowser",
@@ -786,16 +793,6 @@ dependencies = [
  "serde",
  "thiserror",
  "uuid",
-]
-
-[[package]]
-name = "bevy_simple_test"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy-inspector-egui",
- "bracket-random",
- "thiserror",
 ]
 
 [[package]]
@@ -2329,6 +2326,61 @@ name = "pin-project-lite"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c40d25201921e5ff0c862a505c6557ea88568a4e3ace775ab55e93f2f4f9d57"
+
+[[package]]
+name = "pirate_sim"
+version = "0.1.0-dev"
+dependencies = [
+ "bevy 0.11.0",
+ "pirate_sim_game",
+]
+
+[[package]]
+name = "pirate_sim_console"
+version = "0.1.0-dev"
+dependencies = [
+ "bevy 0.11.0",
+ "pirate_sim_core",
+ "thiserror",
+]
+
+[[package]]
+name = "pirate_sim_controllers"
+version = "0.1.0-dev"
+dependencies = [
+ "bevy 0.11.0",
+ "pirate_sim_core",
+]
+
+[[package]]
+name = "pirate_sim_core"
+version = "0.1.0-dev"
+dependencies = [
+ "bevy 0.11.0",
+ "bevy-inspector-egui",
+ "bracket-random",
+ "thiserror",
+]
+
+[[package]]
+name = "pirate_sim_game"
+version = "0.1.0-dev"
+dependencies = [
+ "bevy 0.11.0",
+ "pirate_sim_console",
+ "pirate_sim_controllers",
+ "pirate_sim_core",
+ "pirate_sim_physics",
+]
+
+[[package]]
+name = "pirate_sim_physics"
+version = "0.1.0-dev"
+dependencies = [
+ "bevy 0.11.0",
+ "pirate_sim_console",
+ "pirate_sim_core",
+]
 
 [[package]]
 name = "pkg-config"

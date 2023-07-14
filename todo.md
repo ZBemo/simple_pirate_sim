@@ -1,6 +1,9 @@
 # Performance
  - [ ] look into using Query::for_each instead of `for _ in query`
  - [ ] test on windows to check if wslg is source of significant frame loss
+ - [ ] Put change detection back into total velocity propagation
+ - [ ] Use trace!() less often
+ - [ ] split out into multiple crates?
 
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)

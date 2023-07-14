@@ -1,0 +1,10 @@
+[package]
+name = "pirate_sim_controllers"
+version = "0.1.0-dev"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pirate_sim_core = {path = "../pirate_sim_core", version = "0.1.0-dev"}
+bevy = {path = "../bevy"}

@@ -5,7 +5,8 @@
 
 use bevy::{prelude::*, reflect::GetTypeRegistration};
 
-use crate::physics::{MovementGoal, PhysicsSet};
+use pirate_sim_core::goals::MovementGoal;
+use pirate_sim_core::PhysicsSet;
 
 pub mod player;
 
@@ -17,26 +18,18 @@ pub struct WalkSpeed(pub f32);
 
 #[derive(Component, Reflect, Debug, Clone, Default, Deref, DerefMut)]
 /// (MovementGoal, Timeout)
-struct MovementGoals(Vec<(Vec3, f64, u8)>);
+struct MovementGoals(Vec<(Vec3, f32, u8)>);
 
 /// A system to timeout movement goals based on their timeout component.
 ///
 /// Should run after physics updates
 fn count_down_goals_timeout(mut components: Query<&mut MovementGoals>, timer: Res<Time>) {
-    let delta_time = timer.delta_seconds_f64();
+    let delta_time = timer.delta_seconds();
 
-    components
-        .par_iter_mut()
-        .for_each_mut(|mut goal_vec| goal_vec.iter_mut().for_each(|goal| goal.1 -= delta_time));
-}
-
-/// A system to timeout movement goals based on their timeout component.
-///
-/// Should run after [count_down_goals_timeout]
-fn remove_timedout_goals(mut components: Query<&mut MovementGoals>) {
-    components
-        .par_iter_mut()
-        .for_each_mut(|mut goal_vec| goal_vec.retain(|&(_, timeout, _)| timeout > 0.));
+    components.par_iter_mut().for_each_mut(|mut goal_vec| {
+        goal_vec.iter_mut().for_each(|goal| goal.1 -= delta_time);
+        goal_vec.retain(|(_, timeout, _)| *timeout >= 0.);
+    });
 }
 
 /// take a list of movement goals and coalesce them into a single movement goal for the physics
@@ -58,14 +51,7 @@ pub struct Plugin;
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, register_types)
-            .add_systems(
-                Update,
-                (
-                    count_down_goals_timeout.after(PhysicsSet::Velocity),
-                    remove_timedout_goals,
-                )
-                    .chain(),
-            )
+            .add_systems(Update, count_down_goals_timeout.after(PhysicsSet::Velocity))
             .add_systems(
                 Update,
                 (player::update_movement_goals, goals_to_goal)

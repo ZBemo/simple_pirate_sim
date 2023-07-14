@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::tile_grid::TileStretch;
+use pirate_sim_core::tile_grid::TileStretch;
 
 use super::PhysicsSet;
 

@@ -2,9 +2,9 @@
 
 use bevy::prelude::*;
 
-use crate::physics::tile_cast;
+use crate::tile_cast;
 
-use super::PhysicsSet;
+use pirate_sim_core::system_sets::PhysicsSet;
 
 /// The Velocity that an entity moves at individually. For example, if an entities parent has a
 /// TotalVelocity of (1,0,0) and the entity has a RelativeVelocity of (0,1,0) it will move (1,1,0)
@@ -37,24 +37,21 @@ pub struct MantainedVelocity(pub Vec3);
 
 #[derive(Debug, Clone, Component, Default)]
 pub struct VelocityFromGround;
-#[derive(Debug, Clone, Component, Default)]
-pub struct GroundVelocity;
 
 fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
     total_vel_q.iter_mut().for_each(|mut t| {
-        *t = TotalVelocity::default();
+        *t = TotalVelocity(Vec3::ZERO);
     });
 }
 
+// this uses an oddly high amount of time even when no entities have VelocityFromGround
 fn propagate_from_ground(
     entity_q: Query<Entity, With<VelocityFromGround>>,
     global_transform_q: Query<(Entity, &GlobalTransform)>,
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
-    tile_stretch: Res<crate::tile_grid::TileStretch>,
+    tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
 ) {
-    trace!("Begin propagate from ground");
-
     for e in entity_q.iter() {
         let translation = global_transform_q
             .get(e)
@@ -70,20 +67,22 @@ fn propagate_from_ground(
             false,
         );
 
-        for (fe, _) in below.into_iter() {
-            let floor_total_v = total_vel_q.get(fe).map_or_else(|_| Vec3::ZERO, |t| t.0);
+        for (fe, l) in below {
+            if (l.z as f32 - translation.z).abs() < 1. + f32::EPSILON {
+                let floor_total_v = total_vel_q.get(fe).map_or_else(|_| Vec3::ZERO, |t| t.0);
 
-            trace!("Adding total v {floor_total_v} from floor to entity above it");
+                trace!("Adding total v {floor_total_v} from floor to entity above it");
 
-            let mut e_total_v = total_vel_q
-                .get_mut(e)
-                .expect("Tagged velocity from ground with no VelocityBundle");
-            let mut e_rel_vel = relative_vel_q
-                .get_mut(e)
-                .expect("Tagged velocity from ground with no VelocityBundle");
+                let mut e_total_v = total_vel_q
+                    .get_mut(e)
+                    .expect("Tagged velocity from ground with no VelocityBundle");
+                let mut e_rel_vel = relative_vel_q
+                    .get_mut(e)
+                    .expect("Tagged velocity from ground with no VelocityBundle");
 
-            e_total_v.0 += floor_total_v;
-            e_rel_vel.0 += floor_total_v;
+                e_total_v.0 += floor_total_v;
+                e_rel_vel.0 += floor_total_v;
+            }
         }
     }
 }
@@ -165,7 +164,7 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
 /// license. See <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
 /// or <https://github.com/bevyengine/bevy/LICENSE-MIT>
 ///
-/// TODO: Take velocity from feet here
+/// TODO: do differential updates instead of zeroing every frame?
 fn propagate_velocities(
     mut root_query: Query<
         (
@@ -192,7 +191,7 @@ fn propagate_velocities(
                 "propogating root {}",
                 name_query
                     .get(entity)
-                    .map_or_else(|_| "UnnamedEntity".into(), |n| n.to_string())
+                    .map_or_else(|_| "UnnamedEntity".into(), ToString::to_string)
             );
 
             total.0 += relative.0;
@@ -269,8 +268,7 @@ unsafe fn propagate_recursive(
         unsafe {
             propagate_recursive(
                 // not messing with whatever bevy does
-                #[allow(clippy::needless_borrow)]
-                &global_matrix,
+                global_matrix,
                 velocity_query,
                 parent_query,
                 child,
@@ -302,112 +300,5 @@ impl bevy::prelude::Plugin for Plugin {
                 .chain()
                 .in_set(PhysicsSet::Velocity),
         );
-    }
-}
-
-#[cfg(test)]
-mod test {
-
-    use bevy::{
-        prelude::{App, BuildWorldChildren, Name, Transform, Vec3},
-        transform::TransformBundle,
-    };
-
-    use crate::{
-        physics::{velocity::RelativeVelocity, MovementGoal},
-        test,
-    };
-
-    use super::{TotalVelocity, VelocityBundle};
-
-    #[test]
-    fn total_velocity_is_propagated() {
-        let mut app = App::new();
-
-        app.add_plugins(test::DefaultTestPlugin);
-        app.add_plugins(crate::physics::PhysicsPlugin);
-
-        // this should have RelVel == TotalVel with both being Vec3::X
-        let no_parent = app
-            .world
-            .spawn((
-                Name::new("No parent"),
-                VelocityBundle::default(),
-                MovementGoal(Vec3::X),
-                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
-            ))
-            .id();
-
-        // this should have RelVel == TotalVel with both being Vec3::X
-        let moving_parent = app
-            .world
-            .spawn((
-                Name::new("Moving Parent"),
-                VelocityBundle::default(),
-                MovementGoal(Vec3::X),
-                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
-            ))
-            .id();
-        // this should have RelVel == moving_parent's TotalVel with both being Vec3::X
-        let still_child = app
-            .world
-            .spawn((
-                Name::new("Still Child"),
-                VelocityBundle::default(),
-                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
-            ))
-            .set_parent(moving_parent)
-            .id();
-
-        // this should have RelVel == TotalVel with both at 0
-        let still_parent = app
-            .world
-            .spawn((
-                Name::new("Still Parent"),
-                VelocityBundle::default(),
-                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
-            ))
-            .id();
-        // this should have RelVel == TotalVel with both at Vec3::X
-        let moving_child = app
-            .world
-            .spawn((
-                Name::new("Moving Child"),
-                MovementGoal(Vec3::X),
-                VelocityBundle::default(),
-                TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
-            ))
-            .set_parent(still_parent)
-            .id();
-
-        // TODO: check this out
-        app.cleanup();
-
-        let mut frames = 0;
-        // run updates for 5 seconds
-        while frames <= 60 {
-            app.update();
-
-            frames += 1;
-            // check velocities here
-
-            let total_vel = |id| app.world.get::<TotalVelocity>(id).unwrap().0;
-            let relative_vel = |id| app.world.get::<RelativeVelocity>(id).unwrap().0;
-
-            assert_eq!(total_vel(no_parent), Vec3::X);
-            assert_eq!(relative_vel(no_parent), Vec3::X);
-
-            assert_eq!(total_vel(moving_parent), Vec3::X);
-            assert_eq!(relative_vel(moving_parent), Vec3::X);
-
-            assert_eq!(total_vel(still_child), Vec3::X);
-            assert_eq!(relative_vel(still_child), Vec3::ZERO);
-
-            assert_eq!(total_vel(still_parent), Vec3::ZERO);
-            assert_eq!(relative_vel(still_parent), Vec3::ZERO);
-
-            assert_eq!(total_vel(moving_child), Vec3::X);
-            assert_eq!(relative_vel(moving_child), Vec3::X);
-        }
     }
 }

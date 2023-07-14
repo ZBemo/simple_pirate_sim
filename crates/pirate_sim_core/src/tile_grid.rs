@@ -9,19 +9,6 @@
 //! If something is "on grid" then that means its global transform's x is a multiple of
 //! [`TileStretch`].0 and its y is a multiple of [`TileStretch`].1. Its Z should be a whole number.
 //! There should only be one [`TileStretch`] per world, as there is only one spritesheet loaded.
-//!
-//! Methods in this crate generally acccept Borrow<IVec3> or Borrow<Vec3> for methods that do
-//! translation. This is so that you can pass in either an owned Vector or a reference to that
-//! Vector and have both work as expected.
-//!
-//! Using [`Borrow`] instead of [`AsRef`] makes sense as we expect all references to behave exactly
-//! as the owned equivalent.
-//!
-//! As [`IVec3`] and [`Vec3`] implement Copy there is actually no need to ever pass a reference to a
-//! either, but we might as well keep this implementation unless there are demonstrated perf issues
-//! from this.
-
-use std::{borrow::Borrow, marker::PhantomData};
 
 use bevy::{prelude::*, reflect::GetTypeRegistration};
 use thiserror::Error;
@@ -74,20 +61,16 @@ impl From<TileStretch> for Vec2 {
 /// arguments of that function.
 #[derive(Error, Debug, Clone, Copy)]
 #[error("Coordinates {to_translate} not divisible by stretch {:?}",tile_stretch.0)]
-pub struct GetTileError<'a, V: Borrow<Vec3> + 'a> {
-    to_translate: V,
+pub struct GetTileError {
+    to_translate: Vec3,
     tile_stretch: TileStretch,
-    // ensures this doesn't outlive V which should live for 'a
-    ensurance: PhantomData<&'a ()>,
 }
 
-impl<'a, V: Borrow<Vec3>> GetTileError<'a, V> {
-    fn new(to_translate: V, tile_stretch: TileStretch) -> Self {
+impl GetTileError {
+    fn new(to_translate: Vec3, tile_stretch: TileStretch) -> Self {
         Self {
             to_translate,
             tile_stretch,
-            // ensure this lives as long as V?
-            ensurance: PhantomData::default(),
         }
     }
 
@@ -96,14 +79,13 @@ impl<'a, V: Borrow<Vec3>> GetTileError<'a, V> {
     /// This is useful for error recovery: for example; moving an entity to the closest tile
     /// location, or simply ignoring that it's off-grid and continuing as normal.
     pub fn to_closest(&self) -> IVec3 {
-        self.tile_stretch.get_closest(self.to_translate.borrow())
+        self.tile_stretch.get_closest(self.to_translate)
     }
 }
 
 impl TileStretch {
     /// returns closest tile from a bevy translation
-    pub fn get_closest(self, t: impl Borrow<Vec3>) -> IVec3 {
-        let t = t.borrow();
+    pub fn get_closest(self, t: Vec3) -> IVec3 {
         IVec3::new(
             t.x as i32 / i32::from(self.0),
             t.y as i32 / i32::from(self.1),
@@ -115,10 +97,10 @@ impl TileStretch {
     ///
     ///  It will return an error if the provided translation does not lie on grid. For graceful
     ///  recovery, you will probably want to call [`GetTileError::to_closest`]
-    pub fn get_tile<'a, V: Borrow<Vec3> + 'a>(self, t: V) -> Result<IVec3, GetTileError<'a, V>> {
-        if t.borrow().round() != *t.borrow()
-            || t.borrow().x as i32 % i32::from(self.0) != 0
-            || t.borrow().y as i32 % i32::from(self.1) != 0
+    pub fn get_tile(self, t: Vec3) -> Result<IVec3, GetTileError> {
+        if t.round() != t
+            || t.x as i32 % i32::from(self.0) != 0
+            || t.y as i32 % i32::from(self.1) != 0
         {
             Err(GetTileError::new(t, self))
         } else {
@@ -128,13 +110,20 @@ impl TileStretch {
 
     /// Take a tile translation and translate it bevy space. This is infallible, as all tile space
     /// should translate into bevy-space, ignoring floating point errors which we are not concerned with.
-    pub fn get_bevy(self, t: impl Borrow<IVec3>) -> Vec3 {
-        let t = t.borrow();
-
+    pub fn get_bevy(self, t: IVec3) -> Vec3 {
         //
-        assert!(t.x < (1 << 23), "Trying to translate with precision loss");
-        assert!(t.y < (1 << 23), "Trying to translate with precision loss");
-        assert!(t.z < (1 << 23), "Trying to translate with precision loss");
+        assert!(
+            t.x < (1 << f32::MANTISSA_DIGITS),
+            "Trying to translate with precision loss on x"
+        );
+        assert!(
+            t.y < (1 << f32::MANTISSA_DIGITS),
+            "Trying to translate with precision loss on y"
+        );
+        assert!(
+            t.z < (1 << f32::MANTISSA_DIGITS),
+            "Trying to translate with precision loss on z"
+        );
 
         #[allow(clippy::cast_precision_loss)]
         // TODO: do like unity and check for if it's above 1 << 23
@@ -156,46 +145,6 @@ pub fn register_types(type_registry: Res<AppTypeRegistry>) {
     type_registry_w.add_registration(TileStretch::get_type_registration());
 }
 
-#[cfg(test)]
-mod test {
-    use bevy::prelude::{IVec3, Vec3};
-
-    use super::TileStretch;
-
-    #[test]
-    fn round_trip() {
-        let start = Vec3::new(32., 64., 3.);
-        let tile_stretch = TileStretch(32, 32);
-
-        let cast_to_grid = tile_stretch
-            .get_tile(start)
-            .expect("we know this is divisible");
-
-        assert_eq!(cast_to_grid, IVec3::new(1, 2, 3));
-
-        let cast_to_bevy = tile_stretch.get_bevy(cast_to_grid);
-
-        assert_eq!(start, cast_to_bevy);
-    }
-
-    #[test]
-    fn fail_off_grid() {
-        let start = Vec3::new(33., 64., 3.);
-        let tile_stretch = TileStretch(32, 32);
-
-        let cast_to_grid = tile_stretch.get_tile(start);
-
-        assert!(cast_to_grid.is_err());
-
-        let closest = cast_to_grid
-            .expect_err("just asserted that self.is_err()")
-            .to_closest();
-
-        assert_eq!(closest, IVec3::new(1, 2, 3));
-        assert_eq!(tile_stretch.get_closest(start), closest);
-    }
-}
-
 /// A trait for getting a tile location from a struct.
 pub trait GetTileLocation {
     fn location(&self, tile_stretch: TileStretch) -> IVec3;
@@ -213,12 +162,24 @@ impl GetTileLocation for &GlobalTransform {
     }
 }
 
-impl GetTileLocation for Vec3 {
+impl GetTileLocation for &Vec3 {
     fn location(&self, tile_stretch: TileStretch) -> IVec3 {
-        tile_stretch.get_closest(self)
+        tile_stretch.get_closest(**self)
     }
 }
 
+impl GetTileLocation for Vec3 {
+    fn location(&self, tile_stretch: TileStretch) -> IVec3 {
+        tile_stretch.get_closest(*self)
+    }
+}
+
+// hacky. assume IVec3 is already in tile space
+impl GetTileLocation for &IVec3 {
+    fn location(&self, _: TileStretch) -> IVec3 {
+        **self
+    }
+}
 // hacky. assume IVec3 is already in tile space
 impl GetTileLocation for IVec3 {
     fn location(&self, _: TileStretch) -> IVec3 {

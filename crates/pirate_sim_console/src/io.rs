@@ -1,5 +1,5 @@
-use crate::bevy_egui::{egui, EguiContexts};
 use bevy::{prelude::*, reflect::GetTypeRegistration};
+use pirate_sim_core::bevy_egui::{egui, EguiContexts};
 
 use super::parse;
 

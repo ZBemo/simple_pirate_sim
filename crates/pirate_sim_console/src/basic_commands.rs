@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, str::FromStr};
 
-use crate::tile_grid::TileStretch;
+use pirate_sim_core::tile_grid::TileStretch;
 
 use super::{registration::RegisterConsoleCommand, Output, PrintStringCommand, Token};
 use bevy::{app::AppExit, prelude::*};

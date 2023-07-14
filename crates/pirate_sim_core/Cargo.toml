@@ -1,0 +1,14 @@
+[package]
+name = "pirate_sim_core"
+version = "0.1.0-dev"
+edition = "2021"
+
+[features]
+default = ["developer-tools"]
+developer-tools = ["dep:bevy-inspector-egui"]
+
+[dependencies]
+bevy-inspector-egui = {version = "0.19", optional = true}
+thiserror = "1.0"
+bracket-random = "0.8"
+bevy = {path = "../bevy", version = "0.11"}

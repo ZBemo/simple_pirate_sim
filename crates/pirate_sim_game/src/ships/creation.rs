@@ -15,6 +15,11 @@ use bevy::{
 
 use super::SeaLevel;
 
+// TODO: multiply these by the ship size or something
+const FIRST_SHIP_RANGE: i32 = 200;
+const SECOND_SHIP_OFFSET_MAX: i32 = 20;
+const SECOND_SHIP_OFFSET_MIN: i32 = 10;
+
 // setup ships through an exclusive system/Command
 fn setup_ships(world: &mut World) {
     let mut system = SystemState::<(
@@ -24,10 +29,6 @@ fn setup_ships(world: &mut World) {
         Res<SeaLevel>,
         Commands,
     )>::new(world);
-    // TODO: multiply these by the ship size or something
-    const FIRST_SHIP_RANGE: i32 = 200;
-    const SECOND_SHIP_OFFSET_MAX: i32 = 20;
-    const SECOND_SHIP_OFFSET_MIN: i32 = 10;
 
     let (generator, tile_stretch, spritesheet_handle, sea_level, mut commands) =
         system.get_mut(world);
@@ -76,7 +77,7 @@ fn spawn_ship_from_blueprint(
 ) {
     let ship = commands
         .spawn((
-            Transform::from_translation(tile_stretch.get_bevy(start_translation)),
+            Transform::from_translation(tile_stretch.get_bevy(*start_translation)),
             physics::PhysicsComponentBase::default(),
         ))
         .id();
