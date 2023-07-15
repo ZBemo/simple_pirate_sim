@@ -1,32 +1,29 @@
-use std::borrow::Borrow;
-
 use bevy::prelude::*;
 
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
 /// Raycast out from start_translation in the direction of ray_vel.
 ///
-/// Takes an iterator over any tuple (impl Copy, impl GetTileLocation), and returns any pair that
+/// Takes an iterator over any tuple (A, impl GetTileLocation), and returns any pair that
 /// would be in the path of the ray.
 ///
-/// If include_origin is true, then it will return any T in the
-/// same grid as start_translation, and it is your responsibility to filter out unwanted entities,
+/// If `include_origin` is true, then it will return any T in the
+/// same grid as `start_translation`, and it is your responsibility to filter out unwanted entities,
 /// ie if you're casting out from a specific entity.
-///
-/// Usually T will be entity, but it will accept any T impl clone, in order to make the api more ergonomic
 #[inline]
 #[allow(clippy::cast_precision_loss)]
-pub fn tile_cast<Data: Clone, Location: GetTileLocation, BT: Borrow<(Data, Location)>>(
+pub fn tile_cast<Data, Location>(
     start_translation: IVec3,
     ray_vel: Vec3,
     tile_stretch: TileStretch,
-    entities_iter: impl Iterator<Item = BT>,
+    entities_iter: impl Iterator<Item = (Data, Location)>,
     include_origin: bool,
-) -> Vec<(Data, IVec3)> {
+) -> Vec<(Data, IVec3)>
+where
+    Location: GetTileLocation,
+{
     entities_iter
-        .filter_map(|bt| {
-            let (data, transform) = bt.borrow();
-
+        .filter_map(|(data, transform)| {
             // cast to grid
             let original_closest = transform.location(tile_stretch);
             // translate so that start_translation is origin
@@ -68,7 +65,7 @@ pub fn tile_cast<Data: Clone, Location: GetTileLocation, BT: Borrow<(Data, Locat
                         && ray_will_hit_y
                         && ray_will_hit_z
                 ))
-                .then(|| (data.clone(), original_closest))
+                .then_some((data, original_closest))
         })
         .collect()
 }

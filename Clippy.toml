@@ -1,1 +1,13 @@
 disallowed-types = ["std::collections::HashMap", "std::collections::HashSet"]
+allow = [
+  "type_complexity", 
+  "too_many_arguments",
+  "needles_pass_by_value",
+  "cast_possible_truncation"
+]
+warn = [
+  "unwrap_used",
+  "perf",
+  "disallowed_types",
+  "pedantic"
+]

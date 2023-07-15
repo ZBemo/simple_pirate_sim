@@ -30,7 +30,7 @@ pub struct CollisionEntity {
     pub violated: BVec3,
 }
 
-#[derive(Resource, Deref, Debug)]
+#[derive(Resource, Deref, Debug, Default)]
 pub struct CollisionMap(HashMap<IVec3, (Entity, Constraints)>);
 
 /// A collision Event. If an entity is in the collision on a specific location,  
@@ -236,14 +236,18 @@ pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app //.add_systems(Update, tile_cast_collision.in_set(PhysicsSet::Collision))
-            .add_systems(Update, log_collisions.after(PhysicsSet::Collision))
-            .add_event::<EntityCollision>();
+        app.add_systems(
+            Update,
+            (build_collision_map, tile_cast_collision)
+                .chain()
+                .in_set(PhysicsSet::Collision),
+        )
+        .add_event::<EntityCollision>()
+        .init_resource::<CollisionMap>();
     }
 }
 
 fn tile_cast_collision(
-    collider_q: Query<(Entity, &Collider)>,
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
     ticker_q: Query<&Ticker>,
@@ -278,7 +282,17 @@ fn tile_cast_collision(
                 match acc {
                     None => Some(vec![elem]),
                     Some(mut acc) => {
-                        // vec should always have len > 0
+                        // since we know they're all in the same direction we shouldn't need to use
+                        // distance here
+                        //
+                        // maybe something like translate so that current location is [0,0,0],
+                        // then call abs and check from that?
+                        //
+                        // should be some way to cast onto a line as we know that the velocity is
+                        // in a straight line
+                        //
+                        // Translate to origin then divide by velocity should work to get it as a
+                        // line. Then we can just compare numbers?
                         let acc_t = acc[0].1.as_vec3().distance(translation.as_vec3());
                         let elem_t = elem.1.as_vec3().distance(translation.as_vec3());
 

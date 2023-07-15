@@ -3,6 +3,17 @@
 //! The final output of controllers will be "requests" to actually change physical world, like
 //! how MovementGoals are a request to change entities location trough velocity.
 
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::perf, clippy::disallowed_types)] // performance warns
+#![warn(clippy::pedantic)]
+// most bevy systems violate these. Nothing I can do about it at the moment.
+#![allow(
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    clippy::needless_pass_by_value // TODO: separate out system functions from non-system 
+)]
+#![allow(clippy::cast_possible_truncation)]
+
 use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 use pirate_sim_core::goals::MovementGoal;

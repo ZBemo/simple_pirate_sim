@@ -2,7 +2,18 @@
 //!
 //! See [`PhysicsPlugin`], and its build function to get started with the source code, or you ca
 
-use bevy::{ prelude::*, reflect::GetTypeRegistration};
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::perf, clippy::disallowed_types)] // performance warns
+#![warn(clippy::pedantic)]
+// most bevy systems violate these. Nothing I can do about it at the moment.
+#![allow(
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    clippy::needless_pass_by_value // TODO: separate out system functions from non-system 
+)]
+#![allow(clippy::cast_possible_truncation)]
+
+use bevy::{prelude::*, reflect::GetTypeRegistration};
 pub use pirate_sim_core::PhysicsSet;
 
 pub use collider::Collider;

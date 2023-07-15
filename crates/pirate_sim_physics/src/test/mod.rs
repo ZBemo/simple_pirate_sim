@@ -1,22 +1,40 @@
 #![allow(clippy::unwrap_used)]
 
 use bevy::{
-    prelude::{App, BuildWorldChildren, Events, GlobalTransform, Name, Transform, Vec3},
+    prelude::{App, BuildWorldChildren, Events, GlobalTransform, IVec3, Name, Transform, Vec3},
     time::Time,
     transform::TransformBundle,
 };
 
-use crate::{
-    physics::{movement::MovementBundle, MovementGoal},
-    test,
-};
+use crate::{movement::MovementBundle, tile_cast::tile_cast, MovementGoal};
+use pirate_sim_core::{test, tile_grid::TileStretch};
 
 use super::collider::{Collider, Constraints};
 use super::velocity::{RelativeVelocity, TotalVelocity, VelocityBundle};
 
 #[test]
 fn tile_cast_works() {
-    todo!();
+    let entities: Vec<(usize, IVec3)> = [
+        IVec3::new(0, 1, 1),
+        IVec3::new(0, 2, 2),
+        IVec3::new(1, 1, 2),
+        IVec3::new(0, 3, 6),
+    ]
+    .into_iter()
+    .enumerate()
+    .collect();
+
+    let casted_entities = tile_cast(
+        IVec3::new(0, 1, 1),
+        Vec3::new(0., 1., 0.5),
+        TileStretch(1, 1),
+        entities.into_iter(),
+        false,
+    );
+
+    assert_eq!(casted_entities.len(), 2);
+    assert!(casted_entities[0].0 == 1);
+    assert!(casted_entities[1].0 == 3);
 }
 
 #[test]
@@ -25,7 +43,7 @@ fn collision_works_basic() {
     let mut app = App::new();
 
     app.add_plugins(test::DefaultTestPlugin);
-    app.add_plugins(crate::physics::PhysicsPlugin);
+    app.add_plugins(crate::PhysicsPlugin);
 
     let move_id = app
         .world
@@ -88,7 +106,7 @@ fn collision_works_skips() {
 
     app.add_plugins(test::DefaultTestPlugin);
 
-    app.add_plugins(crate::physics::PhysicsPlugin);
+    app.add_plugins(crate::PhysicsPlugin);
 
     let move_id = app
         .world
@@ -152,7 +170,7 @@ fn total_velocity_is_propagated() {
     let mut app = App::new();
 
     app.add_plugins(test::DefaultTestPlugin);
-    app.add_plugins(crate::physics::PhysicsPlugin);
+    app.add_plugins(crate::PhysicsPlugin);
 
     // this should have RelVel == TotalVel with both being Vec3::X
     let no_parent = app
