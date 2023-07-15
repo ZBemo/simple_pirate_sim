@@ -2,7 +2,23 @@ use bevy::prelude::*;
 
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
-/// Raycast out from start_translation in the direction of ray_vel.
+pub struct RaycastHit {
+    /// The offset of the raycast from the original transform
+    pub offset: IVec3,
+}
+
+impl RaycastHit {
+    #[must_use]
+    pub fn distance(&self, vel: Vec3) -> f32 {
+        (self.offset.as_vec3() / vel).length()
+    }
+    #[must_use]
+    pub fn location(&self, origin: IVec3) -> IVec3 {
+        origin + self.offset
+    }
+}
+
+/// Raycast from `start_translation` with velocity of `ray_vel`
 ///
 /// Takes an iterator over any tuple (A, impl GetTileLocation), and returns any pair that
 /// would be in the path of the ray.
@@ -10,6 +26,8 @@ use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 /// If `include_origin` is true, then it will return any T in the
 /// same grid as `start_translation`, and it is your responsibility to filter out unwanted entities,
 /// ie if you're casting out from a specific entity.
+///
+/// TODO: Return more information on each entity
 #[inline]
 #[allow(clippy::cast_precision_loss)]
 pub fn tile_cast<Data, Location>(
@@ -18,7 +36,7 @@ pub fn tile_cast<Data, Location>(
     tile_stretch: TileStretch,
     entities_iter: impl Iterator<Item = (Data, Location)>,
     include_origin: bool,
-) -> Vec<(Data, IVec3)>
+) -> Vec<(Data, RaycastHit)>
 where
     Location: GetTileLocation,
 {
@@ -65,7 +83,12 @@ where
                         && ray_will_hit_y
                         && ray_will_hit_z
                 ))
-                .then_some((data, original_closest))
+                .then_some((
+                    data,
+                    RaycastHit {
+                        offset: translated_closest,
+                    },
+                ))
         })
         .collect()
 }

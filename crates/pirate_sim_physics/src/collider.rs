@@ -247,10 +247,10 @@ impl bevy::prelude::Plugin for Plugin {
     }
 }
 
+// TODO: We don't account for ticker when tile casting
 fn tile_cast_collision(
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
-    ticker_q: Query<&Ticker>,
     transform_q: Query<&GlobalTransform>,
     tile_stretch: Res<TileStretch>,
     predicted_map: Res<CollisionMap>,
@@ -260,7 +260,10 @@ fn tile_cast_collision(
 
     for (&predicted_translation, &(entity, constraints)) in predicted_map {
         // send out event here
-        if let Ok(mut vel) = total_vel_q.get_mut(entity) {
+        if let Some((mut vel, mut r_vel)) = Option::zip(
+            total_vel_q.get_mut(entity).ok(),
+            relative_vel_q.get_mut(entity).ok(),
+        ) {
             let translation = transform_q
                 .get(entity)
                 .expect("Entity with collider but no transform")
@@ -274,34 +277,20 @@ fn tile_cast_collision(
                 false,
             );
 
-            // for sorting; we know that an entity will either be on the same tile, or not the same
-            // tile.
-
-            let total_vel_signs = (predicted_translation - translation).signum();
+            // This fold should work because there's only one shortest distance so once we get the
+            // vector of entities with that shortest distance it'll never get replaced
             let closest_entities = hit_entities.iter().fold(None, |acc, elem| {
                 match acc {
                     None => Some(vec![elem]),
                     Some(mut acc) => {
-                        // since we know they're all in the same direction we shouldn't need to use
-                        // distance here
-                        //
-                        // maybe something like translate so that current location is [0,0,0],
-                        // then call abs and check from that?
-                        //
-                        // should be some way to cast onto a line as we know that the velocity is
-                        // in a straight line
-                        //
-                        // Translate to origin then divide by velocity should work to get it as a
-                        // line. Then we can just compare numbers?
-                        let acc_t = acc[0].1.as_vec3().distance(translation.as_vec3());
-                        let elem_t = elem.1.as_vec3().distance(translation.as_vec3());
+                        let acc_d = acc[0].1.distance(vel.0);
+                        let elem_d = elem.1.distance(vel.0);
 
-                        // FIXME: does this skip elements?
                         // check against epilson just in case. Silences clippy lint
-                        if (elem_t - acc_t).abs() <= f32::EPSILON {
+                        if (elem_d - acc_d).abs() <= f32::EPSILON {
                             acc.push(elem);
                             Some(acc)
-                        } else if elem_t < acc_t {
+                        } else if elem_d < acc_d {
                             Some(vec![elem])
                         } else {
                             Some(acc)
@@ -322,6 +311,8 @@ fn tile_cast_collision(
                     )
                 },
             );
+
+            let total_vel_signs = vel.0.signum().as_ivec3();
 
             let vel_change_x = if total_vel_signs.x == 1 && all_solid_axes.0.x {
                 // remove velocity here

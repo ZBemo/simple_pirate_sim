@@ -68,7 +68,7 @@ fn propagate_from_ground(
         );
 
         for (fe, l) in below {
-            if (l.z as f32 - translation.z).abs() < 1. + f32::EPSILON {
+            if (l.offset.z as f32 - translation.z).abs() < 1. + f32::EPSILON {
                 let floor_total_v = total_vel_q.get(fe).map_or_else(|_| Vec3::ZERO, |t| t.0);
 
                 trace!("Adding total v {floor_total_v} from floor to entity above it");
