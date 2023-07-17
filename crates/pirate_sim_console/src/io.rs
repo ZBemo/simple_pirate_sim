@@ -22,7 +22,7 @@ pub enum Output {
 
 const MAX_HISTORY_SIZE: usize = 500;
 
-/// a system to open the console when '\`' is pressed
+/// a system to open the console when backtick is pressed
 fn check_open_console(keys: Res<Input<KeyCode>>, mut showing_console: ResMut<IsOpen>) {
     if keys.just_pressed(KeyCode::Grave) {
         trace!("showing console = true");
@@ -105,8 +105,7 @@ fn do_io(
 
                                 match command_obj {
                                     Some(command_obj) => {
-                                        command_obj
-                                            .start_command(tokens_iter.collect(), &mut commands);
+                                        command_obj(tokens_iter.collect(), &mut commands);
                                         *waiting_for_command = true;
                                     }
                                     None => write_output("Command not found"),

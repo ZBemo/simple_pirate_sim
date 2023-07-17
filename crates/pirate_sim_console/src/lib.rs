@@ -102,24 +102,8 @@ fn parse(to_parse: &str) -> Result<VecDeque<Token>, ParseError> {
     Ok(tokens)
 }
 
-/// Objects that implement this trait & are type-object safe can be registered as a console command
-///
-/// You should also be able to register closures/functions with the function signature
-/// (Vec<Token>,&mut Commands) -> (). Due to a blanket impl
-pub trait Command {
-    /// Start the command. Must add a command to commands that eventually sends a
-    /// [`ConsoleOutput::End`] event
-    fn start_command(&self, input: VecDeque<Token>, commands: &mut Commands);
-}
-
-impl<T: Fn(VecDeque<Token>, &mut Commands)> Command for T {
-    fn start_command(&self, input: VecDeque<Token>, commands: &mut Commands) {
-        self(input, commands);
-    }
-}
-
 /// A console command type-object for registration
-pub type CommandObject = Box<dyn Command + Send + Sync>;
+pub type CommandObject = fn(VecDeque<Token>, &mut Commands);
 
 /// A resource to store all registered Console commands
 #[derive(Deref, DerefMut, Resource)]
