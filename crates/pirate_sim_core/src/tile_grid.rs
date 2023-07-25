@@ -78,6 +78,7 @@ impl GetTileError {
     ///
     /// This is useful for error recovery: for example; moving an entity to the closest tile
     /// location, or simply ignoring that it's off-grid and continuing as normal.
+    #[must_use]
     pub fn to_closest(&self) -> IVec3 {
         self.tile_stretch.get_closest(self.to_translate)
     }
@@ -85,6 +86,7 @@ impl GetTileError {
 
 impl TileStretch {
     /// returns closest tile from a bevy translation
+    #[must_use]
     pub fn get_closest(self, t: Vec3) -> IVec3 {
         IVec3::new(
             t.x as i32 / i32::from(self.0),
@@ -97,6 +99,10 @@ impl TileStretch {
     ///
     ///  It will return an error if the provided translation does not lie on grid. For graceful
     ///  recovery, you will probably want to call [`GetTileError::to_closest`]
+    ///
+    /// # Errors
+    /// This function fails if `t` is not on-grid. If you don't care about t being on grid, use
+    /// [`get_closest`]
     pub fn get_tile(self, t: Vec3) -> Result<IVec3, GetTileError> {
         if t.round() != t
             || t.x as i32 % i32::from(self.0) != 0
@@ -110,6 +116,11 @@ impl TileStretch {
 
     /// Take a tile translation and translate it bevy space. This is infallible, as all tile space
     /// should translate into bevy-space, ignoring floating point errors which we are not concerned with.
+    ///
+    /// # Panics
+    /// Panics if f32 conversion to i32 might fail. This shouldn't happen to any location
+    /// originally converted from bevy worldspace.
+    #[must_use]
     pub fn get_bevy(self, t: IVec3) -> Vec3 {
         //
         assert!(
@@ -134,6 +145,7 @@ impl TileStretch {
         )
     }
 
+    #[must_use]
     pub fn new(x: u8, y: u8) -> Self {
         Self(x, y)
     }
@@ -184,5 +196,13 @@ impl GetTileLocation for &IVec3 {
 impl GetTileLocation for IVec3 {
     fn location(&self, _: TileStretch) -> IVec3 {
         *self
+    }
+}
+
+impl std::ops::Mul<Vec3> for TileStretch {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        Vec3::new(rhs.x * self.0 as f32, rhs.y * self.1 as f32, rhs.z)
     }
 }

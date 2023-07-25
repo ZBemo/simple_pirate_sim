@@ -57,7 +57,7 @@ fn startup(type_registry: Res<AppTypeRegistry>, mut commands: Commands) {
     commands.add(
         pirate_sim_console::registration::RegisterConsoleCommand::new(
             "raycast".into(),
-            Box::new(tile_cast::console::raycast_console),
+            tile_cast::console::raycast_console,
         ),
     );
 

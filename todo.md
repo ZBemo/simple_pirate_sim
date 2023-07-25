@@ -1,9 +1,12 @@
+# Refactor
+ - [ ] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
 # Performance
  - [ ] look into using Query::for_each instead of `for _ in query`
  - [ ] test on windows to check if wslg is source of significant frame loss
  - [ ] Put change detection back into total velocity propagation
  - [ ] Use trace!() less often
  - [ ] split out into multiple crates?
+ - [ ] put tracing spans in perf critical systems
 
 # General code cleanliness
  - [x] use IVec3 in places where it makes sense (like everywhere)
@@ -19,7 +22,7 @@
  - [ ]  use a macro that will either debug_assert!() or log an error/warn based on whether debug asserts are enabled
  - [ ] consider changing console::io::ConsoleOpen to an enum
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
- - [ ] Strongly type TileSpace
+ - [ ] Strongly type TileSpace coordinates
  - [ ] chunk out startup systems, probably using game states, 
  allowing doing startups after necessary resources are set up more easily
  - [ ] start checking docs for correctness

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::tile_cast;
+use crate::{tile_cast, Collider};
 
 use pirate_sim_core::system_sets::PhysicsSet;
 
@@ -47,7 +47,8 @@ fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
 // this uses an oddly high amount of time even when no entities have VelocityFromGround
 fn propagate_from_ground(
     entity_q: Query<Entity, With<VelocityFromGround>>,
-    global_transform_q: Query<(Entity, &GlobalTransform)>,
+    global_transform_q: Query<(Entity, &GlobalTransform), With<Collider>>,
+    collider_q: Query<&Collider>,
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
     tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
@@ -60,25 +61,34 @@ fn propagate_from_ground(
             .translation();
 
         let below = tile_cast::tile_cast(
-            tile_stretch.get_closest(translation),
+            tile_cast::Origin {
+                tile: tile_stretch.get_closest(translation),
+                ticker: Vec3::ZERO,
+            },
             Vec3::NEG_Z,
             *tile_stretch,
             global_transform_q.iter(),
-            false,
+            true,
         );
 
-        for (fe, l) in below {
-            if (l.offset.z as f32 - translation.z).abs() < 1. + f32::EPSILON {
-                let floor_total_v = total_vel_q.get(fe).map_or_else(|_| Vec3::ZERO, |t| t.0);
+        for e in below {
+            let constraints = unsafe { collider_q.get(e.data).unwrap_unchecked() }.constraints;
+
+            // TODO: use epilson
+            // since we tile_cast straight down then distance will only be along z plane
+            if e.distance == 0. && constraints.neg_solid_planes.z
+                || e.distance == 1. && constraints.pos_solid_planes.z
+            {
+                let floor_total_v = total_vel_q.get(e.data).map_or_else(|_| Vec3::ZERO, |t| t.0);
 
                 trace!("Adding total v {floor_total_v} from floor to entity above it");
 
                 let mut e_total_v = total_vel_q
-                    .get_mut(e)
-                    .expect("Tagged velocity from ground with no VelocityBundle");
+                    .get_mut(e.data)
+                    .expect("Entity tagged velocity from ground should have VelocityBundle");
                 let mut e_rel_vel = relative_vel_q
-                    .get_mut(e)
-                    .expect("Tagged velocity from ground with no VelocityBundle");
+                    .get_mut(e.data)
+                    .expect("Entity tagged velocity from ground should have VelocityBundle");
 
                 e_total_v.0 += floor_total_v;
                 e_rel_vel.0 += floor_total_v;
@@ -293,12 +303,15 @@ impl bevy::prelude::Plugin for Plugin {
         app.add_systems(
             Update,
             (
-                (zero_total_vel, calculate_relative_velocity),
+                calculate_relative_velocity,
                 propagate_velocities,
                 propagate_from_ground,
             )
                 .chain()
                 .in_set(PhysicsSet::Velocity),
-        );
+        )
+        .add_systems(Update, zero_total_vel.before(calculate_relative_velocity));
+        // don't put in
+        // Velocity as it can actually run during input
     }
 }

@@ -1,5 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
+use std::default;
+
 use bevy::{
     prelude::{App, BuildWorldChildren, Events, GlobalTransform, IVec3, Name, Transform, Vec3},
     time::Time,
@@ -18,23 +20,32 @@ fn tile_cast_works() {
         IVec3::new(0, 1, 1),
         IVec3::new(0, 2, 2),
         IVec3::new(1, 1, 2),
-        IVec3::new(0, 3, 6),
+        IVec3::new(0, 3, 5),
+        IVec3::new(0, 3, 3),
     ]
     .into_iter()
     .enumerate()
     .collect();
 
     let casted_entities = tile_cast(
-        IVec3::new(0, 1, 1),
-        Vec3::new(0., 1., 0.5),
+        crate::tile_cast::Origin {
+            tile: IVec3::new(0, 1, 1),
+            ..Default::default()
+        },
+        Vec3::new(0., 1., 1.),
         TileStretch(1, 1),
         entities.into_iter(),
         false,
-    );
+    )
+    .collect::<Vec<_>>();
+
+    for e in &casted_entities {
+        println!("{} : {}", e.data, e.translation);
+    }
 
     assert_eq!(casted_entities.len(), 2);
-    assert!(casted_entities[0].0 == 1);
-    assert!(casted_entities[1].0 == 3);
+    assert!(casted_entities[0].data == 1);
+    assert!(casted_entities[1].data == 4);
 }
 
 #[test]

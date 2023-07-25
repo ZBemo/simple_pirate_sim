@@ -16,6 +16,8 @@ use std::fmt::Display;
 use bevy::{prelude::*, utils::HashMap};
 use pirate_sim_core::PhysicsSet;
 
+use crate::tile_cast;
+
 use super::{
     movement::Ticker,
     tile_cast::tile_cast,
@@ -252,82 +254,111 @@ fn tile_cast_collision(
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
     transform_q: Query<&GlobalTransform>,
+    ticker_q: Query<&Ticker>,
+    name_q: Query<&Name>,
     tile_stretch: Res<TileStretch>,
     predicted_map: Res<CollisionMap>,
+    time: Res<Time>,
 ) {
     let predicted_map = &**predicted_map;
     // we need a vec (Vec3,)
 
     for (&predicted_translation, &(entity, constraints)) in predicted_map {
         // send out event here
-        if let Some((mut vel, mut r_vel)) = Option::zip(
+
+        let name = name_q
+            .get(entity)
+            .map_or("Unnamed".to_owned(), |m| m.into());
+
+        let Some((mut vel, mut r_vel)) = Option::zip(
             total_vel_q.get_mut(entity).ok(),
             relative_vel_q.get_mut(entity).ok(),
-        ) {
-            let translation = transform_q
-                .get(entity)
-                .expect("Entity with collider but no transform")
-                .location(*tile_stretch);
+        ) else {break;};
 
-            let hit_entities = tile_cast(
-                translation,
-                **vel,
-                *tile_stretch,
-                predicted_map.iter().map(|(l, (c, e))| ((c, e), l)),
-                false,
-            );
+        if vel.0 == Vec3::ZERO {
+            // won't be moving so no need to check collisions
+            break;
+        }
 
-            // This fold should work because there's only one shortest distance so once we get the
-            // vector of entities with that shortest distance it'll never get replaced
-            let closest_entities = hit_entities.iter().fold(None, |acc, elem| {
-                match acc {
-                    None => Some(vec![elem]),
-                    Some(mut acc) => {
-                        let acc_d = acc[0].1.distance(vel.0);
-                        let elem_d = elem.1.distance(vel.0);
+        trace!("Checking for conflict with entity {}", name);
+        trace!("Entity not skipped");
 
-                        // check against epilson just in case. Silences clippy lint
-                        if (elem_d - acc_d).abs() <= f32::EPSILON {
-                            acc.push(elem);
-                            Some(acc)
-                        } else if elem_d < acc_d {
-                            Some(vec![elem])
-                        } else {
-                            Some(acc)
-                        }
+        let translation = transform_q
+            .get(entity)
+            .expect("Entity with collider but no transform")
+            .location(*tile_stretch);
+
+        let hit_entities = tile_cast(
+            tile_cast::Origin {
+                tile: translation,
+                ticker: todo!(),
+            },
+            **vel,
+            *tile_stretch,
+            predicted_map.iter().map(|(l, (c, e))| ((c, e), l)),
+            false,
+        );
+
+        // This fold should work because there's only one shortest distance so once we get the
+        // vector of entities with that shortest distance it'll never get replaced
+        let closest_entities = hit_entities.fold(None, |acc, elem| {
+            match acc {
+                None => Some(vec![elem]),
+                Some(mut acc) => {
+                    let acc_d = acc[0].distance;
+                    let elem_d = elem.distance;
+
+                    // check against epilson just in case. Silences clippy lint
+                    if (elem_d - acc_d).abs() <= f32::EPSILON {
+                        acc.push(elem);
+                        Some(acc)
+                    } else if elem_d < acc_d {
+                        Some(vec![elem])
+                    } else {
+                        Some(acc)
                     }
                 }
-            });
+            }
+        });
 
-            // .0 is negative plane, .1 is positive
-            let all_solid_axes = closest_entities.into_iter().flatten().fold(
-                (BVec3::FALSE, BVec3::FALSE),
-                |acc, elem| {
-                    let constraints = elem.0 .1;
+        let Some(closest_entities) = closest_entities else  {
+            trace!("No possible conflict; bailing");
+            break;};
+        if closest_entities[0].distance.abs() > (vel.0 * time.delta_seconds()).length().abs() {
+            trace!("No possible conflict close enough; bailing");
+            break;
+        };
+
+        // .0 is negative plane, .1 is positive
+        let all_solid_axes =
+            closest_entities
+                .iter()
+                .fold((BVec3::FALSE, BVec3::FALSE), |acc, elem| {
+                    let constraints = elem.data.1;
 
                     (
                         acc.0 | constraints.neg_solid_planes,
                         acc.0 | constraints.pos_solid_planes,
                     )
-                },
-            );
+                });
 
-            let total_vel_signs = vel.0.signum().as_ivec3();
+        let total_vel_signs = vel.0.signum().as_ivec3();
 
-            let vel_change_x = if total_vel_signs.x == 1 && all_solid_axes.0.x {
-                // remove velocity here
-                todo!()
-            } else if total_vel_signs.x == -1 && all_solid_axes.1.x {
-                todo!()
-            } else {
-                0
-            };
+        let vel_change_x = total_vel_signs.x == 1 && all_solid_axes.0.x
+            || total_vel_signs.x == -1 && all_solid_axes.1.x;
+        let vel_change_y = total_vel_signs.y == 1 && all_solid_axes.0.y
+            || total_vel_signs.y == -1 && all_solid_axes.1.y;
+        let vel_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
+            || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
-            // solve from all_solid_axes
-
-            todo!("Find closest entity that it will hit, and only have a collision if that entity is going to be moved into next frame");
-
-            // raycast out with predicted_map
+        if vel_change_x {
+            todo!()
+        }
+        if vel_change_y {
+            todo!()
+        }
+        if vel_change_z {
+            todo!()
         }
     }
 }
@@ -357,25 +388,11 @@ fn calc_movement(
         .floor()
         * projected_movement_raw.signum();
 
-    trace!(
-        "total velocity {}, ticked velocity {}",
-        total_velocity,
-        ticked_velocity
-    );
-    trace!(
-        "projected raw, rounded {}, {}",
-        projected_movement_raw,
-        projected_movement_rounded
-    );
-
     // the projected movement is already in tilespace & rounded, so just cast
     projected_movement_rounded.as_ivec3()
 }
 
-/// return a hashmap of (predicted location)->(Entity,Constraints)
-/// TODO: return a Btreemap?
-///
-/// TODO: change to `build_collision_map` system
+/// PERF: we could consider updating in-place
 fn build_collision_map(
     collider_q: Query<(Entity, &Collider)>,
     total_vel_q: Query<&mut TotalVelocity>,

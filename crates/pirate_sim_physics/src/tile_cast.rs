@@ -2,20 +2,20 @@ use bevy::prelude::*;
 
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
-pub struct RaycastHit {
-    /// The offset of the raycast from the original transform
-    pub offset: IVec3,
+#[derive(Debug)]
+pub struct Hit<Data> {
+    /// The data passed in from the original iterator
+    pub data: Data,
+    // convert to Tile grid?
+    pub translation: Vec3,
+    pub distance: f32,
 }
 
-impl RaycastHit {
-    #[must_use]
-    pub fn distance(&self, vel: Vec3) -> f32 {
-        (self.offset.as_vec3() / vel).length()
-    }
-    #[must_use]
-    pub fn location(&self, origin: IVec3) -> IVec3 {
-        origin + self.offset
-    }
+/// The origin of a tile-cast
+#[derive(Debug, Default)]
+pub struct Origin {
+    pub tile: IVec3,
+    pub ticker: Vec3,
 }
 
 /// Raycast from `start_translation` with velocity of `ray_vel`
@@ -29,68 +29,52 @@ impl RaycastHit {
 ///
 /// TODO: Return more information on each entity
 #[inline]
-#[allow(clippy::cast_precision_loss)]
+#[must_use = "Tile casting is a relatively expensive operation that shouldn't change state. You should not use it if you don't need the result."]
 pub fn tile_cast<Data, Location>(
-    start_translation: IVec3,
+    start_translation: Origin,
     ray_vel: Vec3,
     tile_stretch: TileStretch,
-    entities_iter: impl Iterator<Item = (Data, Location)>,
+    entity_pool: impl Iterator<Item = (Data, Location)>,
     include_origin: bool,
-) -> Vec<(Data, RaycastHit)>
+) -> impl Iterator<Item = Hit<Data>>
 where
     Location: GetTileLocation,
 {
-    entities_iter
-        .filter_map(|(data, transform)| {
-            // cast to grid
-            let original_closest = transform.location(tile_stretch);
-            // translate so that start_translation is origin
-            let translated_closest = original_closest - start_translation;
+    let ticker_offset_bevy = tile_stretch * start_translation.ticker;
 
-            #[cfg(debug_assertions)]
-            if translated_closest.x > 1 << f32::MANTISSA_DIGITS {
-                error!("tile_space's X is too large in tile cast");
-                return None;
-            }
-            #[cfg(debug_assertions)]
-            if translated_closest.y > 1 << f32::MANTISSA_DIGITS {
-                error!("tile_space's Y is too large in tile cast");
-                return None;
-            }
-            #[cfg(debug_assertions)]
-            if translated_closest.z > 1 << f32::MANTISSA_DIGITS {
-                error!("tile_space's Z is too large in tile cast");
-                return None;
-            }
+    let origin_bevy = tile_stretch.get_bevy(start_translation.tile) + ticker_offset_bevy;
 
-            // if ray doesn't move on {x,y,z} axis, and entity is on 0 of that axis, then ray will
-            // hit on that axis. Otherwise, if it is in the same direction that the ray is moving
-            // then it will hit
-            let ray_will_hit_x = (translated_closest.x == 0 && ray_vel.x == 0.)
-                || translated_closest.x as f32 % ray_vel.x == 0.;
-            let ray_will_hit_y = (translated_closest.y == 0 && ray_vel.y == 0.)
-                || translated_closest.y as f32 % ray_vel.y == 0.;
-            let ray_will_hit_z = (translated_closest.z == 0 && ray_vel.z == 0.)
-                || translated_closest.z as f32 % ray_vel.z == 0.;
+    let ray = bevy::math::Ray {
+        origin: origin_bevy,
+        direction: (tile_stretch * ray_vel).normalize(),
+    };
 
-            // if we do  include origin then if it's ivec3::zero it should be picked up
-            (include_origin && (translated_closest == IVec3::ZERO)
-                || (
-                    // if we don't include origin we have to make sure that it's not on the origin
-                    // and then check if it'll hit on x y and z
-                    (translated_closest != IVec3::ZERO && !include_origin)
-                        && ray_will_hit_x
-                        && ray_will_hit_y
-                        && ray_will_hit_z
-                ))
-                .then_some((
-                    data,
-                    RaycastHit {
-                        offset: translated_closest,
-                    },
-                ))
+    entity_pool.filter_map(move |(data, transform)| {
+        // cast to grid
+        let tile_translation = transform.location(tile_stretch);
+
+        let bevy_translation = tile_stretch.get_bevy(tile_translation);
+
+        if tile_translation == start_translation.tile {
+            return (include_origin).then_some(Hit {
+                distance: 0.,
+                translation: bevy_translation,
+                data,
+            });
+        };
+
+        let expected_distance = bevy::math::Vec3::distance(ray.origin, bevy_translation);
+
+        let casted_to_distance = ray.origin + ray.direction * expected_distance;
+
+        let has_hit = casted_to_distance == bevy_translation;
+
+        has_hit.then_some(Hit {
+            data,
+            translation: bevy_translation,
+            distance: expected_distance,
         })
-        .collect()
+    })
 }
 
 #[cfg(feature = "developer-tools")]
@@ -145,6 +129,7 @@ pub(super) mod console {
     impl Command for RaycastCommand {
         fn apply(self, world: &mut World) {
             let mut entity_query = world.query::<(Entity, &GlobalTransform)>();
+            let mut ticker_query = world.query::<&crate::movement::Ticker>();
             let mut name_query = world.query::<&Name>();
             let tile_stretch = world
                 .get_resource::<TileStretch>()
@@ -152,21 +137,24 @@ pub(super) mod console {
             let mut output = String::new();
 
             let entities = super::tile_cast(
-                self.start,
+                super::Origin {
+                    tile: self.start,
+                    ticker: Vec3::ZERO,
+                },
                 self.direction,
                 *tile_stretch,
                 entity_query.iter(world),
                 true,
             );
 
-            for entity in entities {
+            for entity in entities.collect::<Box<[_]>>().iter() {
                 // log name or whatever
                 let name = name_query
-                    .get(world, entity.0)
+                    .get(world, entity.data)
                     .map_or_else(|_| "UnNamed Entity", |n| n.as_str());
 
                 let translation = entity_query
-                    .get(world, entity.0)
+                    .get(world, entity.data)
                     .expect("Entity found in raycast but has no translation. This is not possible")
                     .1
                     .translation();
