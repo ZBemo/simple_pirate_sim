@@ -2,28 +2,30 @@
 
 use bevy::prelude::*;
 
-use crate::{tile_cast, Collider};
+use crate::{movement::Ticker, tile_cast, Collider};
 
 use pirate_sim_core::system_sets::PhysicsSet;
 
 /// The Velocity that an entity moves at individually. For example, if an entities parent has a
-/// TotalVelocity of (1,0,0) and the entity has a RelativeVelocity of (0,1,0) it will move (1,1,0)
+/// [TotalVelocity] of (1,0,0) and the entity has a [RelativeVelocity] of (0,1,0) it will move (1,1,0)
 /// grids per second in total
 ///
-/// RelativeVelocity is multiplied by delta_time before being applied, & acts on the tile_grid. eg
-/// a TotalVelocity of (1,1,0) should move up one grid and one grid to the right each second.
+/// [RelativeVelocity] is multiplied by delta time before being applied, & acts on the tile grid. eg
+/// a [TotalVelocity] of (1,1,0) should move up one grid and one grid to the right each second.
+///
+/// This might not be true due to implementation error/timescale weirdness
 ///
 /// If you want an object to "have" velocity, but only move with its parent, give it a Velocity
 /// Bundle but no ticker
 #[derive(Debug, Component, Clone, Default, Deref, DerefMut, Reflect)]
 pub(super) struct RelativeVelocity(pub Vec3);
 
-/// RelativeVelocity + parent's TotalVelocity
+/// [RelativeVelocity] + parent's [TotalVelocity]
 ///
-/// TotalVelocity will = RelativeVelocity when an entity has no parents
+/// [TotalVelocity] will = [RelativeVelocity] when an entity has no parents
 ///
-/// RelativeVelocity is multiplied by delta_time before being applied, & acts on the tile_grid. eg
-/// a TotalVelocity of (1,1,0) should move up one grid and one grid to the right each second.
+/// [RelativeVelocity] is multiplied by delta time before being applied, & acts on the tile grid. eg
+/// a [TotalVelocity] of (1,1,0) should move up one grid and one grid to the right each second.
 ///
 /// This is currently only guaranteed to be accurate between [`PhysicsSet::Velocity`] and
 /// [`PhysicsSet::Collision`]
@@ -74,7 +76,7 @@ fn propagate_from_ground(
         for e in below {
             let constraints = unsafe { collider_q.get(e.data).unwrap_unchecked() }.constraints;
 
-            // TODO: use epilson
+            // FIXME: use epilson
             // since we tile_cast straight down then distance will only be along z plane
             if e.distance == 0. && constraints.neg_solid_planes.z
                 || e.distance == 1. && constraints.pos_solid_planes.z

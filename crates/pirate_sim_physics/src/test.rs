@@ -1,7 +1,5 @@
 #![allow(clippy::unwrap_used)]
 
-use std::default;
-
 use bevy::{
     prelude::{App, BuildWorldChildren, Events, GlobalTransform, IVec3, Name, Transform, Vec3},
     time::Time,
@@ -11,9 +9,44 @@ use bevy::{
 use crate::{movement::MovementBundle, tile_cast::tile_cast, MovementGoal};
 use pirate_sim_core::{test, tile_grid::TileStretch};
 
-use super::collider::{Collider, Constraints};
+use super::collision::{Collider, Constraints};
 use super::velocity::{RelativeVelocity, TotalVelocity, VelocityBundle};
 
+#[test]
+fn complex_tile_cast_works() {
+    let entities: Vec<(usize, IVec3)> = [
+        IVec3::new(0, 0, 0),
+        IVec3::new(0, 2, 5),
+        IVec3::new(0, 3, 7),
+        IVec3::new(0, 4, 10),
+        IVec3::new(0, 4, 8),
+    ]
+    .into_iter()
+    .enumerate()
+    .collect();
+
+    let casted_entities = tile_cast(
+        crate::tile_cast::Origin {
+            tile: IVec3::new(0, 0, 0),
+            ..Default::default()
+        },
+        Vec3::new(0., 1., 2.5),
+        TileStretch(32, 32),
+        entities.into_iter(),
+        true,
+    )
+    .collect::<Vec<_>>();
+
+    for e in &casted_entities {
+        println!("{} : {}", e.data, e.translation,);
+    }
+
+    assert_eq!(casted_entities.len(), 3);
+    // should only include 0,1,3
+    assert!(casted_entities
+        .iter()
+        .all(|a| [0, 1, 3].iter().any(|n| a.data == *n)));
+}
 #[test]
 fn tile_cast_works() {
     let entities: Vec<(usize, IVec3)> = [
@@ -40,7 +73,7 @@ fn tile_cast_works() {
     .collect::<Vec<_>>();
 
     for e in &casted_entities {
-        println!("{} : {}", e.data, e.translation);
+        println!("{} : {}", e.data, e.translation,);
     }
 
     assert_eq!(casted_entities.len(), 2);
@@ -82,7 +115,7 @@ fn collision_works_basic() {
     // run long enough for Move to move x + 2, y +2
     while app
         .world
-        .resource::<Events<super::collider::EntityCollision>>()
+        .resource::<Events<super::collision::EntityCollision>>()
         .is_empty()
     {
         app.update();
@@ -95,7 +128,7 @@ fn collision_works_basic() {
 
     let collisions = app
         .world
-        .resource::<Events<super::collider::EntityCollision>>();
+        .resource::<Events<super::collision::EntityCollision>>();
     let mut reader = collisions.get_reader();
 
     assert!(!reader.is_empty(collisions));
@@ -149,7 +182,7 @@ fn collision_works_skips() {
     // run long enough for Move to move x + 2, y +2
     while app
         .world
-        .resource::<Events<super::collider::EntityCollision>>()
+        .resource::<Events<super::collision::EntityCollision>>()
         .is_empty()
     {
         app.update();
@@ -162,7 +195,7 @@ fn collision_works_skips() {
 
     let collisions = app
         .world
-        .resource::<Events<super::collider::EntityCollision>>();
+        .resource::<Events<super::collision::EntityCollision>>();
     let mut reader = collisions.get_reader();
 
     assert!(!reader.is_empty(collisions));

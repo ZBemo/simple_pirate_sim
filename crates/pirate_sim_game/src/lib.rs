@@ -9,7 +9,7 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use bevy::{app::AppExit, diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
 use pirate_sim_controllers::{player::PlayerControllerBundle, WalkSpeed};
 use pirate_sim_core::{
     bevy_egui::EguiPlugin, bevy_inspector_egui::quick::WorldInspectorPlugin, tile_grid::TileStretch,
@@ -29,6 +29,12 @@ struct PlayerBundle {
     collider: pirate_sim_physics::Collider,
     name: Name,
     player_controller_bundle: PlayerControllerBundle,
+}
+
+fn quit_on_eq(mut exit: EventWriter<AppExit>, keys: Res<Input<KeyCode>>) {
+    if keys.pressed(KeyCode::Equals) {
+        exit.send_default();
+    }
 }
 
 pub fn run_game() {
@@ -67,6 +73,9 @@ pub fn run_game() {
                 pirate_sim_core::tile_grid::register_types,
             ),
         );
+
+    #[cfg(feature = "developer-tools")]
+    app.add_systems(Update, quit_on_eq);
 
     trace!("Running app");
     app.run();
@@ -118,7 +127,7 @@ fn setup(
         },
         tile_objects::TileObject::new(5, 6, 7),
         Name::new("Random Wall"),
-        Collider::new(pirate_sim_physics::collider::Constraints::WALL),
+        Collider::new(pirate_sim_physics::collision::Constraints::WALL),
     ));
 
     // moving wall
@@ -131,7 +140,7 @@ fn setup(
         },
         tile_objects::TileObject::new(5, 6, 7),
         Name::new("Random Wall"),
-        Collider::new(pirate_sim_physics::collider::Constraints::WALL),
+        Collider::new(pirate_sim_physics::collision::Constraints::WALL),
     ));
 
     // player
@@ -147,7 +156,7 @@ fn setup(
         weight: Weight(0.),
         //TODO: figure out if 1. speed is really 1 grid per second
         walkspeed: WalkSpeed(5.),
-        collider: Collider::new(pirate_sim_physics::collider::Constraints::ENTITY),
+        collider: Collider::new(pirate_sim_physics::collision::Constraints::ENTITY),
         name: Name::new("Player"),
     },));
 

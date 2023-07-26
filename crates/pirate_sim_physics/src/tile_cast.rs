@@ -4,11 +4,22 @@ use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
 #[derive(Debug)]
 pub struct Hit<Data> {
+    /// The position of the hit on the tilegrid
+    pub translation: IVec3,
+    /// the distance from Origin + Ticker
+    pub distance: f32,
     /// The data passed in from the original iterator
     pub data: Data,
-    // convert to Tile grid?
-    pub translation: Vec3,
-    pub distance: f32,
+}
+
+impl<Data: std::fmt::Display> std::fmt::Display for Hit<Data> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Hit: translation: {}, distance: {}, data: {}",
+            self.translation, self.distance, self.data
+        )
+    }
 }
 
 /// The origin of a tile-cast
@@ -20,8 +31,8 @@ pub struct Origin {
 
 /// Raycast from `start_translation` with velocity of `ray_vel`
 ///
-/// Takes an iterator over any tuple (A, impl GetTileLocation), and returns any pair that
-/// would be in the path of the ray.
+/// Takes an iterator over any tuple `(A, impl [GetTileLocation])` and returns a hit containing the
+/// arbitrary data A, and other useful information
 ///
 /// If `include_origin` is true, then it will return any T in the
 /// same grid as `start_translation`, and it is your responsibility to filter out unwanted entities,
@@ -31,7 +42,7 @@ pub struct Origin {
 #[inline]
 #[must_use = "Tile casting is a relatively expensive operation that shouldn't change state. You should not use it if you don't need the result."]
 pub fn tile_cast<Data, Location>(
-    start_translation: Origin,
+    origin: Origin,
     ray_vel: Vec3,
     tile_stretch: TileStretch,
     entity_pool: impl Iterator<Item = (Data, Location)>,
@@ -40,38 +51,49 @@ pub fn tile_cast<Data, Location>(
 where
     Location: GetTileLocation,
 {
-    let ticker_offset_bevy = tile_stretch * start_translation.ticker;
+    trace!(
+        "starting cast at origin {}:{} with vel {}",
+        origin.tile,
+        origin.ticker,
+        ray_vel
+    );
 
-    let origin_bevy = tile_stretch.get_bevy(start_translation.tile) + ticker_offset_bevy;
 
     let ray = bevy::math::Ray {
-        origin: origin_bevy,
-        direction: (tile_stretch * ray_vel).normalize(),
+        origin: origin.tile.as_vec3(),
+        direction: ray_vel.normalize(),
     };
 
     entity_pool.filter_map(move |(data, transform)| {
         // cast to grid
         let tile_translation = transform.location(tile_stretch);
+        let tile_translation_vec3 = tile_translation.as_vec3();
 
-        let bevy_translation = tile_stretch.get_bevy(tile_translation);
-
-        if tile_translation == start_translation.tile {
+        if tile_translation == origin.tile {
             return (include_origin).then_some(Hit {
                 distance: 0.,
-                translation: bevy_translation,
+                translation: tile_translation,
                 data,
             });
         };
 
-        let expected_distance = bevy::math::Vec3::distance(ray.origin, bevy_translation);
+        // TODO: see if there's some way to get better perf here. Could do like bevy_translation.x /
+        // ray.vel.x after translating so ray.origin is [0,0,0], Then use that as distance/scale
+        // factor?
 
-        let casted_to_distance = ray.origin + ray.direction * expected_distance;
+        let expected_distance = bevy::math::Vec3::distance(origin.tile.as_vec3(), tile_translation_vec3);
+        
 
-        let has_hit = casted_to_distance == bevy_translation;
+        // ticker shouldn't influence the tile
+        let casted_to_distance = origin.tile.as_vec3() + ray.direction * expected_distance;
+
+        let has_hit = casted_to_distance == tile_translation_vec3;
+        trace!("checking {tile_translation_vec3}; expected_distance: {expected_distance}; casted: {casted_to_distance}");
+        trace!("{has_hit}");
 
         has_hit.then_some(Hit {
             data,
-            translation: bevy_translation,
+            translation: tile_translation,
             distance: expected_distance,
         })
     })
@@ -129,7 +151,6 @@ pub(super) mod console {
     impl Command for RaycastCommand {
         fn apply(self, world: &mut World) {
             let mut entity_query = world.query::<(Entity, &GlobalTransform)>();
-            let mut ticker_query = world.query::<&crate::movement::Ticker>();
             let mut name_query = world.query::<&Name>();
             let tile_stretch = world
                 .get_resource::<TileStretch>()

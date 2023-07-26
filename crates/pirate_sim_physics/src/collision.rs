@@ -11,10 +11,10 @@
 //!
 //! This module is probably rife with opportunities for performance improvements.
 
-use std::fmt::Display;
+use std::{borrow::BorrowMut, fmt::Display};
 
 use bevy::{prelude::*, utils::HashMap};
-use pirate_sim_core::PhysicsSet;
+use pirate_sim_core::{utils::get_or_empty, PhysicsSet};
 
 use crate::tile_cast;
 
@@ -23,7 +23,9 @@ use super::{
     tile_cast::tile_cast,
     velocity::{RelativeVelocity, TotalVelocity},
 };
+
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
+use pirate_sim_core::utils;
 
 #[derive(Debug, Clone)]
 pub struct CollisionEntity {
@@ -32,8 +34,8 @@ pub struct CollisionEntity {
     pub violated: BVec3,
 }
 
-#[derive(Resource, Deref, Debug, Default)]
-pub struct CollisionMap(HashMap<IVec3, (Entity, Constraints)>);
+#[derive(Resource, Deref, Debug, Default, Reflect)]
+pub struct CollisionMap(HashMap<IVec3, Vec<(Entity, Constraints)>>);
 
 /// A collision Event. If an entity is in the collision on a specific location,  
 /// it will be in the hashmap, mapping to any impulse applied for conflict resolution.
@@ -67,21 +69,9 @@ impl Display for EntityCollision {
 }
 
 impl EntityCollision {
+    #[must_use]
     pub fn was_in_conflict(&self) -> bool {
         self.conflict_along.any()
-    }
-
-    fn new(resolution: &ConflictInfo, colliders: &[Entity]) -> Self {
-        EntityCollision {
-            entity: resolution.entity,
-            tile: resolution.position,
-            conflict_along: resolution.to_block,
-            colliding_with: colliders
-                .iter()
-                .filter(|e| **e != resolution.entity)
-                .copied()
-                .collect(),
-        }
     }
 }
 
@@ -139,94 +129,20 @@ pub struct Collider {
 }
 
 impl Collider {
+    #[must_use]
     pub fn new(constraints: Constraints) -> Self {
         Self { constraints }
     }
-}
-
-/// Predict the location of an entity  based on its current velocities. This will only be accurate
-/// in between [`PhysicsSet::Velocity`] and [`PhysicsSet::Movement`]
-///
-/// TODO: switch this to predict_velocity, which is a more useful result, as it can just be added
-/// to transform.translation() to get predicted location, which seems to be used less often than
-/// predicted velocity, leading to more calculations of predicted - translation than there would be
-/// for translation + predicted
-fn predict_location(
-    total_vel: Option<&TotalVelocity>,
-    ticked_vel: Option<&Ticker>,
-    current_location: Vec3,
-    time_delta: f32,
-    tile_stretch: TileStretch,
-    name: &str,
-) -> IVec3 {
-    // if either of these are not present assume they will contribute to moving the entity
-    // If they are, just copy them
-    let total_velocity = total_vel.map_or_else(|| Vec3::ZERO, |c| **c);
-    let ticked_velocity = ticked_vel.map_or_else(|| Vec3::ZERO, |c| **c);
-
-    // its projected movement will just be however much the ticker is already filled, along
-    // with its total velocity times the time delta to get how much it will move this frame
-    //
-
-    let projected_movement_raw = total_velocity * time_delta + ticked_velocity;
-
-    // multiplying Signum before flooring makes sure it will floor towards zero, then we just
-    // reverse it
-    let projected_movement_rounded = (projected_movement_raw * projected_movement_raw.signum())
-        .floor()
-        * projected_movement_raw.signum();
-
-    trace!("predicting {}", name);
-    trace!(
-        "total velocity {}, ticked velocity {}",
-        total_velocity,
-        ticked_velocity
-    );
-    trace!(
-        "projected raw, rounded {}, {}",
-        projected_movement_raw,
-        projected_movement_rounded
-    );
-
-    // the projected movement is already in tilespace, so just convert the current location, then
-    // add
-
-    let current_tile = match tile_stretch.get_tile(current_location) {
-        Ok(t) => t,
-        Err(t) => {
-            error!("transform not on grid: {}", t);
-            t.to_closest()
-        }
-    };
-
-    current_tile + projected_movement_rounded.as_ivec3()
-}
-
-#[derive(Debug, Clone)]
-struct InhabitingTile {
-    entity: Entity,
-    constraints: Constraints,
-    predicted_movement: IVec3,
-}
-
-// an amount to subtract from the entities velocity
-struct ConflictInfo {
-    entity: Entity,
-    // if true subtract 1 * total_vel.signum() from total_vel
-    to_block: BVec3,
-    // for bookkeeping
-    position: IVec3,
-    constraints: Constraints,
 }
 
 fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>) {
     for event in events.iter() {
         trace!(
             "Entity: {} collided at {}, with {} other entities, collision axes: {}",
-            name_q
-                .get(event.entity)
-                .ok()
-                .map_or_else(|| "Unnamed entity".to_string(), |v| v.to_string()),
+            name_q.get(event.entity).ok().map_or_else(
+                || "Unnamed entity".to_string(),
+                std::string::ToString::to_string
+            ),
             event.tile,
             event.colliding_with.len(),
             event.conflict_along
@@ -250,6 +166,7 @@ impl bevy::prelude::Plugin for Plugin {
 }
 
 // TODO: We don't account for ticker when tile casting
+#[allow(clippy::too_many_lines)]
 fn tile_cast_collision(
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
@@ -260,27 +177,46 @@ fn tile_cast_collision(
     predicted_map: Res<CollisionMap>,
     time: Res<Time>,
 ) {
-    let predicted_map = &**predicted_map;
+    fn bvec_to_vec(vec: BVec3) -> Vec3 {
+        let x = if vec.x { 1. } else { 0. };
+        let y = if vec.y { 1. } else { 0. };
+        let z = if vec.z { 1. } else { 0. };
+
+        Vec3::new(x, y, z)
+    }
+
+    let mut flattened_predicted_map = Vec::new();
+
+    for (tile, datas) in &**predicted_map {
+        for data in datas {
+            flattened_predicted_map.push((*tile, *data));
+        }
+    }
+
     // we need a vec (Vec3,)
 
-    for (&predicted_translation, &(entity, constraints)) in predicted_map {
+    for &(_, (entity, _constraints)) in &flattened_predicted_map {
         // send out event here
 
         let name = name_q
             .get(entity)
-            .map_or("Unnamed".to_owned(), |m| m.into());
+            .map_or("Unnamed".to_owned(), std::convert::Into::into);
 
-        let Some((mut vel, mut r_vel)) = Option::zip(
-            total_vel_q.get_mut(entity).ok(),
-            relative_vel_q.get_mut(entity).ok(),
-        ) else {break;};
+        trace!("checking collision of {name}");
+
+        let Some((vel, _)) = Option::zip(
+            total_vel_q.get(entity).ok(),
+            relative_vel_q.get(entity).ok(),
+        ) else {
+            trace!("entity has no velocity bundle; skipping");
+            continue;};
 
         if vel.0 == Vec3::ZERO {
-            // won't be moving so no need to check collisions
-            break;
+            trace!("Entity not moving; skipping");
+            continue;
         }
 
-        trace!("Checking for conflict with entity {}", name);
+        trace!("Checking for conflicts for entity {}", name);
         trace!("Entity not skipped");
 
         let translation = transform_q
@@ -291,42 +227,60 @@ fn tile_cast_collision(
         let hit_entities = tile_cast(
             tile_cast::Origin {
                 tile: translation,
-                ticker: todo!(),
+                ticker: utils::get_or_empty(&ticker_q, entity),
             },
             **vel,
             *tile_stretch,
-            predicted_map.iter().map(|(l, (c, e))| ((c, e), l)),
-            false,
+            flattened_predicted_map
+                .iter()
+                .filter(|(_, (e, _))| *e != entity)
+                .map(|(l, (a, b))| ((a, b), l)),
+            true,
         );
 
         // This fold should work because there's only one shortest distance so once we get the
         // vector of entities with that shortest distance it'll never get replaced
-        let closest_entities = hit_entities.fold(None, |acc, elem| {
-            match acc {
-                None => Some(vec![elem]),
-                Some(mut acc) => {
-                    let acc_d = acc[0].distance;
-                    let elem_d = elem.distance;
+        let closest_entities = hit_entities.fold(vec![], |mut acc, elem| {
+            if acc.is_empty() {
+                vec![elem]
+            } else {
+                let acc_d = acc[0].distance;
+                let elem_d = elem.distance;
 
-                    // check against epilson just in case. Silences clippy lint
-                    if (elem_d - acc_d).abs() <= f32::EPSILON {
-                        acc.push(elem);
-                        Some(acc)
-                    } else if elem_d < acc_d {
-                        Some(vec![elem])
-                    } else {
-                        Some(acc)
-                    }
+                // check against epilson just in case. Silences clippy lint
+                if (elem_d - acc_d).abs() <= f32::EPSILON {
+                    acc.push(elem);
+                    acc
+                } else if elem_d < acc_d {
+                    vec![elem]
+                } else {
+                    acc
                 }
             }
         });
 
-        let Some(closest_entities) = closest_entities else  {
-            trace!("No possible conflict; bailing");
-            break;};
-        if closest_entities[0].distance.abs() > (vel.0 * time.delta_seconds()).length().abs() {
-            trace!("No possible conflict close enough; bailing");
-            break;
+        if closest_entities.is_empty() {
+            trace!("No entities along way; continuing");
+            continue;
+        }
+
+        // this could probably be quicker. Check if it will move far enough in this frame to hit
+        // the entity
+        //
+        // TODO: perhaps more performant to do distance^2 > (vel).dot().abs() as it avoids a sqrt,
+        // instead using a square
+        if (closest_entities[0].distance - get_or_empty(&ticker_q, entity).distance(Vec3::ZERO))
+            .abs()
+            > (vel.0 * time.delta_seconds()).length().abs()
+        {
+            trace!("No possible conflict close enough");
+            trace!(
+                "found that {} < {}",
+                closest_entities[0].distance.abs(),
+                ((vel.0 * time.delta_seconds()).length()
+                    + get_or_empty(&ticker_q, entity).length())
+            );
+            continue;
         };
 
         // .0 is negative plane, .1 is positive
@@ -344,22 +298,26 @@ fn tile_cast_collision(
 
         let total_vel_signs = vel.0.signum().as_ivec3();
 
-        let vel_change_x = total_vel_signs.x == 1 && all_solid_axes.0.x
+        let needs_change_x = total_vel_signs.x == 1 && all_solid_axes.0.x
             || total_vel_signs.x == -1 && all_solid_axes.1.x;
-        let vel_change_y = total_vel_signs.y == 1 && all_solid_axes.0.y
+        let needs_change_y = total_vel_signs.y == 1 && all_solid_axes.0.y
             || total_vel_signs.y == -1 && all_solid_axes.1.y;
-        let vel_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
+        let needs_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
             || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
-        if vel_change_x {
-            todo!()
-        }
-        if vel_change_y {
-            todo!()
-        }
-        if vel_change_z {
-            todo!()
-        }
+        let total_change = (closest_entities[0].translation - translation).as_vec3()
+            * bvec_to_vec(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
+            * vel.0
+            * Vec3::NEG_ONE;
+
+        trace!("applying vel change {total_change}");
+
+        // SAFETY: we should have already returned if these queries are invalid
+        let mut vel = unsafe { total_vel_q.get_mut(entity).unwrap_unchecked() };
+        let mut r_vel = unsafe { relative_vel_q.get_mut(entity).unwrap_unchecked() };
+
+        vel.0 += total_change;
+        r_vel.0 += total_change;
     }
 }
 
@@ -393,28 +351,33 @@ fn calc_movement(
 }
 
 /// PERF: we could consider updating in-place
+///
+/// FIXME: This breaks due to change detection??
 fn build_collision_map(
     collider_q: Query<(Entity, &Collider)>,
-    total_vel_q: Query<&mut TotalVelocity>,
+    total_vel_q: Query<&TotalVelocity>,
     ticker_q: Query<&Ticker>,
     transform_q: Query<&GlobalTransform>,
     time: Res<Time>,
     tile_stretch: Res<TileStretch>,
     mut collision_map: ResMut<CollisionMap>,
 ) {
-    collision_map.0 = collider_q
-        .into_iter()
-        .map(|(entity, c)| {
-            let predicted_location = calc_movement(
-                total_vel_q.get(entity).ok(),
-                ticker_q.get(entity).ok(),
-                time.delta_seconds(),
-            ) + transform_q
-                .get(entity)
-                .expect("Collider on entity with no transform")
-                .location(*tile_stretch);
+    let inner_cm = &mut collision_map.0;
+    *inner_cm = HashMap::new();
 
-            (predicted_location, (entity, c.constraints))
-        })
-        .collect();
+    collider_q.for_each(|(entity, c)| {
+        let predicted_location = calc_movement(
+            total_vel_q.get(entity).ok(),
+            ticker_q.get(entity).ok(),
+            time.delta_seconds(),
+        ) + transform_q
+            .get(entity)
+            .expect("Collider on entity with no transform")
+            .location(*tile_stretch);
+
+        inner_cm
+            .entry(predicted_location)
+            .or_default()
+            .push((entity, c.constraints));
+    });
 }

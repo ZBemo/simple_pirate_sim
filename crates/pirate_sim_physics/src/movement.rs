@@ -37,10 +37,11 @@ fn finalize_movement(
     let delta_time = time.delta_seconds();
 
     for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
+        debug!("Last frame's ticker {}", ticker.0);
         // update ticker, only apply velocity * delta to keep time consistent
         ticker.0 += **total_velocity * delta_time;
 
-        debug!("updating with ticker {}", ticker.0);
+        debug!("Updated ticker {}", ticker.0);
 
         let z_sign = ticker.z.signum();
         let y_sign = ticker.y.signum();
@@ -49,14 +50,17 @@ fn finalize_movement(
         while ticker.z.abs() >= 1. {
             transform.translation.z += z_sign;
             ticker.0.z -= 1. * z_sign;
+            debug!("Moved on Z");
         }
         while ticker.y.abs() >= 1. {
             transform.translation.y += tile_stretch.0 as f32 * y_sign;
             ticker.0.y -= 1. * y_sign;
+            debug!("Moved on y");
         }
         while ticker.0.x.abs() >= 1. {
             transform.translation.x += tile_stretch.1 as f32 * x_sign;
             ticker.0.x -= 1. * x_sign;
+            debug!("Moved on X");
         }
 
         // this might break things in the future!
@@ -79,6 +83,11 @@ pub(super) struct Plugin;
 
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Update, finalize_movement.in_set(PhysicsSet::Movement));
+        app.add_systems(
+            Update,
+            finalize_movement
+                .in_set(PhysicsSet::Movement)
+                .after(PhysicsSet::Collision),
+        );
     }
 }

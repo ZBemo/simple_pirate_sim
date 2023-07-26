@@ -28,6 +28,7 @@ pub mod random;
 pub mod system_sets;
 pub mod test;
 pub mod tile_grid;
+pub mod utils;
 
 pub use system_sets::PhysicsSet;
 

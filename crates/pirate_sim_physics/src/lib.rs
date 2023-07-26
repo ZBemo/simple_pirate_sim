@@ -16,9 +16,9 @@
 use bevy::{prelude::*, reflect::GetTypeRegistration};
 pub use pirate_sim_core::PhysicsSet;
 
-pub use collider::Collider;
+pub use collision::Collider;
 
-pub mod collider;
+pub mod collision;
 pub mod movement;
 pub mod tile_cast;
 pub mod velocity;
@@ -67,8 +67,9 @@ fn startup(type_registry: Res<AppTypeRegistry>, mut commands: Commands) {
     type_registry_w.add_registration(velocity::RelativeVelocity::get_type_registration());
     type_registry_w.add_registration(velocity::MantainedVelocity::get_type_registration());
     type_registry_w.add_registration(velocity::TotalVelocity::get_type_registration());
-    type_registry_w.add_registration(collider::Constraints::get_type_registration());
-    type_registry_w.add_registration(collider::Collider::get_type_registration());
+    type_registry_w.add_registration(collision::Constraints::get_type_registration());
+    type_registry_w.add_registration(collision::Collider::get_type_registration());
+    type_registry_w.add_registration(collision::CollisionMap::get_type_registration());
     type_registry_w.add_registration(MovementGoal::get_type_registration());
     type_registry_w.add_registration(Weight::get_type_registration());
 }
@@ -89,7 +90,7 @@ impl Plugin for PhysicsPlugin {
             .configure_set(Update, PhysicsSet::Collision.after(PhysicsSet::Velocity))
             .configure_set(Update, PhysicsSet::Movement.after(PhysicsSet::Collision))
             .configure_set(Update, PhysicsSet::Completed.after(PhysicsSet::Movement))
-            .add_plugins((velocity::Plugin, collider::Plugin, movement::Plugin))
+            .add_plugins((velocity::Plugin, collision::Plugin, movement::Plugin))
             .add_systems(Startup, startup);
     }
 }
