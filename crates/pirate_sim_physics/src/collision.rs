@@ -177,6 +177,7 @@ fn tile_cast_collision(
     predicted_map: Res<CollisionMap>,
     time: Res<Time>,
 ) {
+    /// Turn a bvec into a vec where rhs * bvec_to_vec(vec) will "mask" away any falses
     fn bvec_to_vec(vec: BVec3) -> Vec3 {
         let x = if vec.x { 1. } else { 0. };
         let y = if vec.y { 1. } else { 0. };
@@ -269,8 +270,7 @@ fn tile_cast_collision(
         //
         // TODO: perhaps more performant to do distance^2 > (vel).dot().abs() as it avoids a sqrt,
         // instead using a square
-        if (closest_entities[0].distance - get_or_empty(&ticker_q, entity).distance(Vec3::ZERO))
-            .abs()
+        if (closest_entities[0].distance - get_or_empty(&ticker_q, entity).length()).abs()
             > (vel.0 * time.delta_seconds()).length().abs()
         {
             trace!("No possible conflict close enough");
@@ -308,7 +308,8 @@ fn tile_cast_collision(
         let total_change = (closest_entities[0].translation - translation).as_vec3()
             * bvec_to_vec(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * vel.0
-            * Vec3::NEG_ONE;
+            * vel.0.signum()
+            * -1.;
 
         trace!("applying vel change {total_change}");
 
@@ -318,6 +319,8 @@ fn tile_cast_collision(
 
         vel.0 += total_change;
         r_vel.0 += total_change;
+
+        trace!("new vel r: {} t: {}", r_vel.0, vel.0);
     }
 }
 

@@ -87,7 +87,9 @@ where
         // ticker shouldn't influence the tile
         let casted_to_distance = origin.tile.as_vec3() + ray.direction * expected_distance;
 
-        let has_hit = casted_to_distance == tile_translation_vec3;
+        // account for epsilon to be safe
+        let has_hit = Vec3::cmple((casted_to_distance - tile_translation_vec3).abs(), Vec3::splat(f32::EPSILON)).all();
+
         trace!("checking {tile_translation_vec3}; expected_distance: {expected_distance}; casted: {casted_to_distance}");
         trace!("{has_hit}");
 
