@@ -4,8 +4,9 @@ version = "0.1.0-dev"
 edition = "2021"
 
 [features]
-default = ["developer-tools"]
+default = ["developer-tools", "fps-diagnostics"]
 developer-tools = ["pirate_sim_game/developer-tools"]
+fps-diagnostics = ["pirate_sim_game/fps-diagnostics"]
 
 [workspace]
 resolver = "2"

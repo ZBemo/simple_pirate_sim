@@ -1,5 +1,6 @@
 # Bugs 
  - [ ] when to right of collider pressing `daaz` in sequence will step onto that collider when it shouldn't - tilecasting error?
+ - [ ] disabling default features doesn't disable bevy inspector egui
 
 # Refactor
  - [x] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
