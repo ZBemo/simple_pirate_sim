@@ -165,7 +165,7 @@ fn tile_cast_collision(
     time: Res<Time>,
 ) {
     /// Turn a bvec into a vec where rhs * bvec_to_vec(vec) will "mask" away any falses
-    fn bvec_to_vec(vec: BVec3) -> Vec3 {
+    fn bvec_to_mask(vec: BVec3) -> Vec3 {
         let x = if vec.x { 1. } else { 0. };
         let y = if vec.y { 1. } else { 0. };
         let z = if vec.z { 1. } else { 0. };
@@ -175,7 +175,7 @@ fn tile_cast_collision(
 
     // we need a vec (Vec3,)
 
-    for &(_, entity, _constraints) in &**predicted_map {
+    for &(_, entity, constraints) in &**predicted_map {
         // send out event here
 
         let name = name_q
@@ -286,20 +286,18 @@ fn tile_cast_collision(
 
         // TODO: the way we calculate impulse is incorrect; can cause rubber-banding, probably due
         // to not taking delta_time into account?
-        let total_change = (closest_entities[0].translation - translation).as_vec3()
-            * bvec_to_vec(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
-            * vel.0
-            * vel.0.signum()
-            * -1.;
+        let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
+            * bvec_to_mask(constraints.move_along)
+            * vel.0;
 
-        trace!("applying vel change {total_change}");
+        trace!("applying vel change {impulse}");
 
         // SAFETY: we should have already returned if these queries are invalid
         let mut vel = unsafe { total_vel_q.get_mut(entity).unwrap_unchecked() };
         let mut r_vel = unsafe { relative_vel_q.get_mut(entity).unwrap_unchecked() };
 
-        vel.0 += total_change;
-        r_vel.0 += total_change;
+        vel.0 -= impulse;
+        r_vel.0 -= impulse;
 
         trace!("new vel r: {} t: {}", r_vel.0, vel.0);
     }

@@ -101,7 +101,7 @@ fn collision_works_basic() {
         .spawn((
             Name::new("Move"),
             MovementBundle::default(),
-            Collider::new(Constraints::WALL),
+            Collider::new(Constraints::ENTITY),
             TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             MovementGoal(Vec3::new(1., 1., 0.)),
         ))
