@@ -1,13 +1,17 @@
+# Bugs 
+ - [ ] when to right of collider pressing `daaz` in sequence will step onto that collider when it shouldn't - tilecasting error?
+
 # Refactor
- - [ ] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
+ - [x] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
       This should end up being less annoying overall as each crate will only need to enable features it uses, 
       and we won't need to wait for every bevy crate to compile before compiling our crates, leading to significant comptime speedups
+
 # Performance
  - [ ] look into using Query::for_each instead of `for _ in query`
  - [ ] test on windows to check if wslg is source of significant frame loss
  - [ ] Put change detection back into total velocity propagation
  - [ ] Use trace!() less often
- - [ ] split out into multiple crates?
+ - [x] split out into multiple crates?
  - [ ] put tracing spans in perf critical systems
 
 # General code cleanliness
@@ -38,16 +42,14 @@ Tests
  - [ ] Velocity (kind of tested by collisions)
 Physics-collision and resolution 
  - [x] Chunk up into functions
- - [ ] change to tile cast for predicting collison for better accuracy
+ - [x] change to tile cast for predicting collison for better accuracy
  - [ ] figure out all different modes of resolution
     - [x] clamp velocity - the preferred mode of resolution, essentially remove velocity from the object to stop it from moving into colliders
     - [ ] apply velocity - a second choice, "push" the collider out of the collision zone
        - Make sure this pushes in a reasonable direction. No clipping under floors, flight hacks, etc
        - figure out how to implement this.  
- - [ ] loop until all collisions for single frame resolved. Currently, with only clamping velocity, this should not be an issue.
- - [ ] conflict resolution should probably run on collision events, for better encapsulation 
  - [ ] Figure out when to send collision events, and what to include
-   - [x] Entity collision events
+   - [ ] Entity collision events
    - [ ] switch to tile collision event - should be more ergonomic
    - [ ] mix of both tile & entity collision events - or entity collision events with Collision Resource?
          CollisionMap resource would be Hasmap<IVec3, EntityCollision> or similar, allows lookup from Collider
@@ -59,8 +61,8 @@ Physics-collision and resolution
    - [x] Collision checking
    - [x] figure out what to do on collision. possible have option on how to handle it in collider, or based on other components
    - [x] Collision resolution
+   - [x] "take" velocity from floor
    - [ ] Collision event system
-   - [ ] "take" velocity from floor
    - [ ] finalize, and probably re-architect continuous velocity
    - [ ] fine tune gravity
  - [ ] Player Input
