@@ -13,4 +13,34 @@ pirate_sim_console = {path = "../pirate_sim_console", version = "0.1.0-dev",opti
 pirate_sim_core = {path = "../pirate_sim_core", version = "0.1.0-dev"}
 pirate_sim_physics = {path = "../pirate_sim_physics", version = "0.1.0-dev"}
 pirate_sim_controllers = {path = "../pirate_sim_controllers", version = "0.1.0-dev"}
-bevy = {path = "../bevy"}
+
+[dependencies.bevy]
+version = "0.11"
+default-features = false
+features = [
+  # if you add dynamic linking, remember not to commit
+
+  # instead of dynamic linking, if working on linux, on a fairly recent computer I recommend using 
+  # mold linker. I have found that recompiling debug with mold and rust 1.69 
+  # has nearly negligible speed differences from recompiling debug with dynamic_lib
+  # (likely because of newly enabled incremental builds)  
+
+  # bevy features we (probably) make use of 
+  "bevy_asset",
+  "bevy_core_pipeline",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_text",
+  "bevy_winit",
+  "bevy_ui",
+  # "bevy_gizmos",
+  "subpixel_glyph_atlas",
+
+  "multi-threaded",
+
+  "png", 
+
+  # support both to be safe. If you're building for yourself you probably know which one to remove
+  "x11",
+  "wayland"
+]

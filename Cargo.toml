@@ -15,17 +15,15 @@ members = [
 
 # speed improvements for dev builds. opt-level assumes we won't be debugging dependencies,
 # and rustflags assumes we won't be building in dev mode for distribution.
-[profile.dev.package.bevy]
-opt-level = 3
 [profile.dev.package."*"]
 opt-level = 3
+
 # rustflags = ["-C","target-cpu=+sse3"] # we can assume everybody has sse3
 
 [profile.release]
-lto = "thin"
+lto = true
 
 [dependencies]
 # the actual code for setting up and running the game will live here
 pirate_sim_game = {path = "crates/pirate_sim_game", version = "0.1.0-dev"}
 
-bevy = {path = "crates/bevy"}

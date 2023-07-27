@@ -17,6 +17,7 @@ use pirate_sim_core::{
 use pirate_sim_physics::{Collider, PhysicsPlugin, Weight};
 use tile_objects::TileCamera;
 
+mod basic_commands;
 mod tile_objects;
 
 /// the bundle for spawning a player character
@@ -71,6 +72,7 @@ pub fn run_game() {
                 setup,
                 pirate_sim_core::random::setup_generator,
                 pirate_sim_core::tile_grid::register_types,
+                basic_commands::setup_basic_commands,
             ),
         );
 

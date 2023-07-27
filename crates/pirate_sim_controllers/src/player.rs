@@ -1,8 +1,14 @@
+use bevy_ecs::prelude::*;
+use bevy_input::prelude::*;
+use bevy_log::prelude::*;
+use bevy_math::prelude::*;
+use bevy_render::prelude::*;
+use bevy_transform::prelude::*;
+
 use super::MovementGoals;
 #[cfg(feature = "developer-tools")]
 use crate::console;
 use crate::DIAG_SPEED;
-use bevy::prelude::*;
 use pirate_sim_core::goals::MovementGoal;
 
 /// A marker for an entity controlled as a player
@@ -32,7 +38,7 @@ pub(super) fn camera_follow_player(
 
 /// Handle player inputs to do with movement goals.
 pub(super) fn update_movement_goals(
-    mut char_input_events: EventReader<ReceivedCharacter>,
+    char_input_events: Res<Input<KeyCode>>,
     mut player: Query<(&mut MovementGoals, &super::WalkSpeed), With<Controller>>,
     #[cfg(feature = "developer-tools")] console_open: Res<console::IsOpen>,
 ) {
@@ -46,28 +52,28 @@ pub(super) fn update_movement_goals(
     // should never have to grow
     let mut new_goals = Vec::with_capacity(7);
 
-    for event in char_input_events.iter() {
-        match event.char {
-            'w' => {
+    for event in char_input_events.get_pressed() {
+        match event {
+            KeyCode::W => {
                 new_goals.push((Vec3::Y * walk_speed.0, 1. / walk_speed.0, 0));
             }
-            'a' => {
+            KeyCode::A => {
                 new_goals.push((Vec3::X * walk_speed.0 * -1., 1. / walk_speed.0, 0));
             }
-            'x' => {
+            KeyCode::X => {
                 new_goals.push((Vec3::Y * walk_speed.0 * -1., 1. / walk_speed.0, 0));
             }
-            'd' => {
+            KeyCode::D => {
                 new_goals.push((Vec3::X * walk_speed.0, 1. / walk_speed.0, 0));
             }
-            'e' => {
+            KeyCode::E => {
                 new_goals.push((
                     (Vec3::Y + Vec3::X) * walk_speed.0 * DIAG_SPEED,
                     1. / (walk_speed.0 * DIAG_SPEED),
                     0,
                 ));
             }
-            'q' => {
+            KeyCode::Q => {
                 new_goals.push((
                     (Vec3::Y + Vec3::X * -1.) * walk_speed.0 * DIAG_SPEED,
                     // should go one tile
@@ -75,14 +81,14 @@ pub(super) fn update_movement_goals(
                     0,
                 ));
             }
-            'z' => {
+            KeyCode::Z => {
                 new_goals.push((
                     (Vec3::Y + Vec3::X) * -1. * walk_speed.0 * DIAG_SPEED,
                     1. / (walk_speed.0 * DIAG_SPEED),
                     0,
                 ));
             }
-            'c' => {
+            KeyCode::C => {
                 new_goals.push((
                     (Vec3::Y * -1. + Vec3::X) * walk_speed.0 * DIAG_SPEED,
                     1. / (walk_speed.0 * DIAG_SPEED),
@@ -90,7 +96,7 @@ pub(super) fn update_movement_goals(
                 ));
             }
             c => {
-                debug!("Ignoring unregistered char '{}'", c);
+                debug!("Ignoring unregistered char '{:?}'", c);
             }
         }
     }

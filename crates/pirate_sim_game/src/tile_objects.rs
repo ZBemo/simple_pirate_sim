@@ -5,7 +5,7 @@
 
 // still in heavy development
 
-use pirate_sim_core::bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy::{prelude::*, reflect::GetTypeRegistration};
 
 use pirate_sim_core::tile_grid::TileStretch;
 use pirate_sim_physics::PhysicsSet;

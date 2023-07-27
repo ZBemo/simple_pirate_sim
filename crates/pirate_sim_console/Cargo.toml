@@ -8,4 +8,12 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0"
 pirate_sim_core = { path = "../pirate_sim_core", version = "0.1.0-dev"}
-bevy = {path = "../bevy", version = "0.11"}
+
+bevy_utils = "0.11"
+bevy_ecs = "0.11"
+bevy_log = "0.11"
+bevy_derive = "0.11"
+bevy_app = "0.11"
+bevy_reflect = "0.11"
+bevy_input = "0.11"
+bevy_math = "0.11"

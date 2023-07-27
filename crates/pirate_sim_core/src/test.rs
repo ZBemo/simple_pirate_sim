@@ -1,35 +1,13 @@
 //! Tests for core and a testing plugin for bevy
 
-use bevy::prelude::*;
+use bevy_app::prelude::*;
+use bevy_core::Name;
+use bevy_ecs::prelude::*;
+use bevy_log::prelude::*;
+use bevy_math::{IVec3, Vec3};
+use bevy_transform::prelude::*;
 
 use crate::tile_grid::TileStretch;
-
-/// A plugin that sets up things that nearly every system expects to exist, for quick test setup
-pub struct DefaultTestPlugin;
-
-impl Plugin for DefaultTestPlugin {
-    fn build(&self, app: &mut App) {
-        // 1<->1 conversion for simplicity
-        app.insert_resource(TileStretch::new(1, 1));
-
-        // system to log location of every named entity when it moves
-        app.add_systems(
-            Last,
-            |q: Query<
-                (&GlobalTransform, &Name),
-                Or<(Changed<GlobalTransform>, Added<GlobalTransform>)>,
-            >| {
-                q.iter()
-                    .for_each(|e| debug!("`{}` moved to {}", e.1.to_string(), e.0.translation()));
-            },
-        );
-
-        // almost every system assumes these plugins are present
-        app.add_plugins(bevy::log::LogPlugin::default())
-            .add_plugins(bevy::time::TimePlugin)
-            .add_plugins(bevy::transform::TransformPlugin);
-    }
-}
 
 #[test]
 fn tile_stretch_round_trip() {

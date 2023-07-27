@@ -18,13 +18,15 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-mod basic_commands;
 mod io;
 pub mod registration;
 
 use std::collections::VecDeque;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::prelude::*;
+use bevy_log::prelude::*;
+use bevy_utils::HashMap;
 use thiserror::Error;
 
 pub use io::IsOpen;
@@ -110,18 +112,17 @@ pub type CommandObject = fn(VecDeque<Token>, &mut Commands);
 pub(self) struct RegisteredConsoleCommands(HashMap<Box<str>, CommandObject>);
 
 pub struct Plugin;
-impl bevy::prelude::Plugin for Plugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Startup, self::basic_commands::setup_basic_commands)
-            .add_plugins(self::io::Plugin);
+impl bevy_app::Plugin for Plugin {
+    fn build(&self, app: &mut bevy_app::App) {
+        app.add_plugins(self::io::Plugin);
     }
 }
 
-/// Just print self.0 to the console
+/// A command to print self.0 to the console
 #[derive(Deref, DerefMut)]
 pub struct PrintStringCommand(pub String);
 
-impl bevy::ecs::system::Command for PrintStringCommand {
+impl bevy_ecs::system::Command for PrintStringCommand {
     fn apply(self, world: &mut World) {
         world.send_event(Output::String(self.0));
         world.send_event(Output::End);

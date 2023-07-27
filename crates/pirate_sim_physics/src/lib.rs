@@ -13,7 +13,11 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy_app::prelude::*;
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::prelude::*;
+use bevy_reflect::{prelude::*, GetTypeRegistration};
+
 pub use pirate_sim_core::PhysicsSet;
 
 pub use collision::Collider;
@@ -26,7 +30,7 @@ pub mod velocity;
 pub use pirate_sim_core::goals::MovementGoal;
 
 #[cfg(test)]
-pub mod test;
+mod test;
 
 /// The gravity constant used for weight velocity gain
 pub const GRAVITY: f32 = 9.8;

@@ -10,7 +10,10 @@
 //! [`TileStretch`].0 and its y is a multiple of [`TileStretch`].1. Its Z should be a whole number.
 //! There should only be one [`TileStretch`] per world, as there is only one spritesheet loaded.
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy_ecs::prelude::*;
+use bevy_math::prelude::*;
+use bevy_reflect::{GetTypeRegistration, Reflect};
+use bevy_transform::prelude::GlobalTransform;
 use thiserror::Error;
 
 /// A resource storing the area of each sprite in the spritesheet. Nearly any conversion between

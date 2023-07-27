@@ -11,4 +11,14 @@ developer-tools = ["dep:pirate_sim_console"]
 [dependencies]
 pirate_sim_core = {path = "../pirate_sim_core", version = "0.1.0-dev"}
 pirate_sim_console = {path = "../pirate_sim_console", version = "0.1.0-dev",optional=true}
-bevy = {path = "../bevy"}
+
+bevy_ecs =  "0.11"
+bevy_derive = "0.11"
+bevy_math = "0.11"
+bevy_transform = "0.11"
+bevy_reflect = "0.11"
+bevy_hierarchy = "0.11"
+bevy_app = "0.11"
+bevy_log = "0.11"
+bevy_core = "0.11"
+bevy_time = "0.11"

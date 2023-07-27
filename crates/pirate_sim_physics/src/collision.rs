@@ -11,7 +11,16 @@
 //!
 //! This module is probably rife with opportunities for performance improvements.
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy_app::prelude::*;
+use bevy_core::Name;
+use bevy_derive::Deref;
+use bevy_ecs::prelude::*;
+use bevy_log::prelude::*;
+use bevy_math::prelude::*;
+use bevy_reflect::prelude::*;
+use bevy_time::Time;
+use bevy_transform::prelude::GlobalTransform;
+
 use pirate_sim_core::{utils::get_or_empty, PhysicsSet};
 
 use crate::tile_cast;
@@ -358,7 +367,7 @@ fn build_collision_map(
 
 pub(super) struct Plugin;
 
-impl bevy::prelude::Plugin for Plugin {
+impl bevy_app::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,

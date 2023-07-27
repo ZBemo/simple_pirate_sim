@@ -1,4 +1,10 @@
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::prelude::*;
+use bevy_input::prelude::*;
+use bevy_log::prelude::*;
+use bevy_reflect::GetTypeRegistration;
+use bevy_reflect::Reflect;
+
 use pirate_sim_core::bevy_egui::{egui, EguiContexts};
 
 use super::parse;
@@ -137,10 +143,10 @@ fn startup(mut commands: Commands, type_registry: Res<AppTypeRegistry>) {
 }
 
 pub(super) struct Plugin;
-impl bevy::prelude::Plugin for Plugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, (check_open_console, do_io).chain())
-            .add_systems(Startup, startup)
+impl bevy_app::Plugin for Plugin {
+    fn build(&self, app: &mut bevy_app::App) {
+        app.add_systems(bevy_app::Update, (check_open_console, do_io).chain())
+            .add_systems(bevy_app::Startup, startup)
             .add_event::<Output>();
     }
 }

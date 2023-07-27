@@ -11,4 +11,13 @@ developer-tools = ["dep:bevy-inspector-egui"]
 bevy-inspector-egui = {version = "0.19", optional = true, default-features = false}
 thiserror = "1.0"
 bracket-random = "0.8"
-bevy = {path = "../bevy", version = "0.11"}
+
+bevy_derive = "0.11"
+bevy_ecs = "0.11"
+bevy_math = "0.11"
+bevy_reflect = "0.11"
+bevy_transform = "0.11"
+bevy_log = "0.11"
+bevy_app = "0.11"
+bevy_core = "0.11"
+bevy_time = "0.11"

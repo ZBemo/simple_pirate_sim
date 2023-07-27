@@ -14,7 +14,12 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-use bevy::{prelude::*, reflect::GetTypeRegistration};
+use bevy_app::{App, Startup, Update};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::prelude::*;
+use bevy_math::prelude::*;
+use bevy_reflect::{prelude::*, GetTypeRegistration};
+use bevy_time::Time;
 
 use pirate_sim_core::goals::MovementGoal;
 use pirate_sim_core::PhysicsSet;
@@ -59,7 +64,7 @@ fn register_types(type_registry: Res<AppTypeRegistry>) {
 }
 
 pub struct Plugin;
-impl bevy::prelude::Plugin for Plugin {
+impl bevy_app::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, register_types)
             .add_systems(Update, count_down_goals_timeout.after(PhysicsSet::Velocity))

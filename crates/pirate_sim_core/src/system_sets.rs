@@ -1,6 +1,6 @@
 //! System sets use externally between crates
 
-use bevy::prelude::SystemSet;
+use bevy_ecs::prelude::SystemSet;
 
 #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
 /// We recommend running any system that plans to input into the Physics system before

@@ -1,4 +1,11 @@
-use bevy::prelude::*;
+use bevy_app::prelude::*;
+use bevy_derive::Deref;
+use bevy_ecs::prelude::*;
+use bevy_log::prelude::*;
+use bevy_math::prelude::*;
+use bevy_reflect::prelude::*;
+use bevy_time::Time;
+use bevy_transform::prelude::*;
 
 use pirate_sim_core::tile_grid::TileStretch;
 
@@ -81,8 +88,8 @@ pub struct MovementBundle {
 
 pub(super) struct Plugin;
 
-impl bevy::prelude::Plugin for Plugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
+impl bevy_app::Plugin for Plugin {
+    fn build(&self, app: &mut bevy_app::App) {
         app.add_systems(
             Update,
             finalize_movement

@@ -1,13 +1,20 @@
 #![allow(clippy::unwrap_used)]
 
-use bevy::{
-    prelude::{App, BuildWorldChildren, Events, GlobalTransform, IVec3, Name, Transform, Vec3},
-    time::Time,
-    transform::TransformBundle,
-};
+use bevy_app::prelude::*;
+use bevy_core::Name;
+use bevy_ecs::system::Query;
+use bevy_hierarchy::BuildWorldChildren;
+use bevy_math::prelude::*;
+use bevy_time::Time;
+use bevy_transform::prelude::*;
 
-use crate::{movement::MovementBundle, tile_cast::tile_cast, MovementGoal};
-use pirate_sim_core::{test, tile_grid::TileStretch};
+use crate::MovementGoal;
+use crate::{movement::MovementBundle, tile_cast::tile_cast};
+
+#[cfg(test)]
+use pirate_sim_core::test_utils::DefaultTestPlugin;
+
+use pirate_sim_core::tile_grid::TileStretch;
 
 use super::collision::{Collider, Constraints};
 use super::velocity::{RelativeVelocity, TotalVelocity, VelocityBundle};
@@ -86,7 +93,7 @@ fn tile_cast_works() {
 fn collision_works_basic() {
     let mut app = App::new();
 
-    app.add_plugins(test::DefaultTestPlugin);
+    app.add_plugins(DefaultTestPlugin);
     app.add_plugins(crate::PhysicsPlugin);
 
     let move_id = app
@@ -95,7 +102,7 @@ fn collision_works_basic() {
             Name::new("Move"),
             MovementBundle::default(),
             Collider::new(Constraints::WALL),
-            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
+            TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             MovementGoal(Vec3::new(1., 1., 0.)),
         ))
         .id();
@@ -105,19 +112,16 @@ fn collision_works_basic() {
         .spawn((
             Name::new("Wall"),
             Collider::new(Constraints::WALL),
-            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(2., 2., 0.)),
+            TransformBundle::from_transform(Transform::from_xyz(2., 2., 0.)),
         ))
         .id();
 
-    app.add_systems(
-        bevy::prelude::PostUpdate,
-        move |transform_q: bevy::prelude::Query<&GlobalTransform>| {
-            let wall_location = transform_q.get(wall_id).unwrap().translation();
-            let move_location = transform_q.get(move_id).unwrap().translation();
+    app.add_systems(PostUpdate, move |transform_q: Query<&GlobalTransform>| {
+        let wall_location = transform_q.get(wall_id).unwrap().translation();
+        let move_location = transform_q.get(move_id).unwrap().translation();
 
-            assert_ne!(wall_location, move_location);
-        },
-    );
+        assert_ne!(wall_location, move_location);
+    });
 
     // TODO: is this necessary?
     app.cleanup();
@@ -133,7 +137,7 @@ fn collision_works_basic() {
 fn collision_works_skips() {
     let mut app = App::new();
 
-    app.add_plugins(test::DefaultTestPlugin);
+    app.add_plugins(DefaultTestPlugin);
 
     app.add_plugins(crate::PhysicsPlugin);
 
@@ -143,7 +147,7 @@ fn collision_works_skips() {
             Name::new("Move"),
             MovementBundle::default(),
             Collider::new(Constraints::WALL),
-            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(0., 0., 0.)),
+            TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             MovementGoal(Vec3::new(1., 1., 0.)),
         ))
         .id();
@@ -153,19 +157,16 @@ fn collision_works_skips() {
         .spawn((
             Name::new("Wall"),
             Collider::new(Constraints::WALL),
-            TransformBundle::from_transform(bevy::prelude::Transform::from_xyz(2., 2., 0.)),
+            TransformBundle::from_transform(Transform::from_xyz(2., 2., 0.)),
         ))
         .id();
 
-    app.add_systems(
-        bevy::prelude::PostUpdate,
-        move |transform_q: bevy::prelude::Query<&GlobalTransform>| {
-            let wall_location = transform_q.get(wall_id).unwrap().translation();
-            let move_location = transform_q.get(move_id).unwrap().translation();
+    app.add_systems(PostUpdate, move |transform_q: Query<&GlobalTransform>| {
+        let wall_location = transform_q.get(wall_id).unwrap().translation();
+        let move_location = transform_q.get(move_id).unwrap().translation();
 
-            assert_ne!(wall_location, move_location);
-        },
-    );
+        assert_ne!(wall_location, move_location);
+    });
 
     // TODO: is this necessary?
     app.cleanup();
@@ -184,7 +185,7 @@ fn collision_works_skips() {
 fn total_velocity_is_propagated() {
     let mut app = App::new();
 
-    app.add_plugins(test::DefaultTestPlugin);
+    app.add_plugins(DefaultTestPlugin);
     app.add_plugins(crate::PhysicsPlugin);
 
     // this should have RelVel == TotalVel with both being Vec3::X

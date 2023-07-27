@@ -1,4 +1,5 @@
-use bevy::prelude::*;
+use bevy_math::prelude::*;
+use bevy_log::trace;
 
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
@@ -59,7 +60,7 @@ where
     );
 
 
-    let ray = bevy::math::Ray {
+    let ray = bevy_math::Ray {
         origin: origin.tile.as_vec3(),
         direction: ray_vel.normalize(),
     };
@@ -81,7 +82,7 @@ where
         // ray.vel.x after translating so ray.origin is [0,0,0], Then use that as distance/scale
         // factor?
 
-        let expected_distance = bevy::math::Vec3::distance(origin.tile.as_vec3(), tile_translation_vec3);
+        let expected_distance = Vec3::distance(origin.tile.as_vec3(), tile_translation_vec3);
         
 
         // ticker shouldn't influence the tile
@@ -103,7 +104,10 @@ where
 
 #[cfg(feature = "developer-tools")]
 pub(super) mod console {
-    use bevy::{ecs::system::Command, prelude::*};
+    use bevy_ecs::{prelude::*,system::Command};
+    use bevy_transform::prelude::*;
+    use bevy_math::prelude::*;
+    use bevy_core::Name;
     use pirate_sim_console::{self as console, Output, PrintStringCommand};
     use pirate_sim_core::tile_grid::TileStretch;
     use std::{collections::VecDeque, error::Error};

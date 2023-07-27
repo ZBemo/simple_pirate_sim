@@ -1,6 +1,14 @@
 //! Velocity calculations
 
-use bevy::prelude::*;
+use bevy_app::{App, Update};
+use bevy_core::Name;
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::prelude::*;
+use bevy_hierarchy::{Children, Parent};
+use bevy_log::trace;
+use bevy_math::prelude::*;
+use bevy_reflect::prelude::*;
+use bevy_transform::prelude::*;
 
 use crate::{movement::Ticker, tile_cast, Collider};
 
@@ -300,7 +308,7 @@ pub struct VelocityBundle {
 
 pub struct Plugin;
 
-impl bevy::prelude::Plugin for Plugin {
+impl bevy_app::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,

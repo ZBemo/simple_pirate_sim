@@ -2,8 +2,9 @@ use std::{collections::VecDeque, str::FromStr};
 
 use pirate_sim_core::tile_grid::TileStretch;
 
-use super::{registration::RegisterConsoleCommand, Output, PrintStringCommand, Token};
-use bevy::{app::AppExit, prelude::*};
+use bevy::app::AppExit;
+use bevy::prelude::*;
+use pirate_sim_console::{registration::RegisterConsoleCommand, Output, PrintStringCommand, Token};
 
 fn echo_command(input: VecDeque<Token>, commands: &mut Commands) {
     commands.add(PrintStringCommand(
