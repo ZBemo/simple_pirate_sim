@@ -9,13 +9,16 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-use bevy::{app::AppExit, diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use bevy::{app::AppExit, prelude::*};
 use pirate_sim_controllers::{player::PlayerControllerBundle, WalkSpeed};
 use pirate_sim_core::{
     bevy_egui::EguiPlugin, bevy_inspector_egui::quick::WorldInspectorPlugin, tile_grid::TileStretch,
 };
 use pirate_sim_physics::{Collider, PhysicsPlugin, Weight};
 use tile_objects::TileCamera;
+
+#[cfg(feature = "fps-diagnostics")]
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 
 mod basic_commands;
 mod tile_objects;
@@ -44,7 +47,8 @@ pub fn run_game() {
     // bevy plugins
     app.add_plugins((
         DefaultPlugins.set(ImagePlugin::default_nearest()),
-        FrameTimeDiagnosticsPlugin,
+        #[cfg(feature = "fps-diagnostics")]
+        (FrameTimeDiagnosticsPlugin, fps_diagnostics::Plugin),
     ));
 
     // world inspector & egui plugins
@@ -81,6 +85,65 @@ pub fn run_game() {
 
     trace!("Running app");
     app.run();
+}
+
+#[cfg(feature = "fps-diagnostics")]
+mod fps_diagnostics {
+    use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
+    use bevy::prelude::*;
+
+    #[derive(Component, Default)]
+    struct FpsDisplay;
+
+    fn setup_fps_display(mut commands: Commands, asset_server: Res<AssetServer>) {
+        const DEFAULT_FONT: &str = "fonts/FiraCode/FiraCodeNerdFont-Regular.ttf";
+
+        let font_handle = asset_server.load(DEFAULT_FONT);
+
+        let text_section = |text: &str| {
+            TextSection::new(
+                text,
+                TextStyle {
+                    font: font_handle.clone(),
+                    font_size: 16.,
+                    color: Color::WHITE,
+                },
+            )
+        };
+
+        commands.spawn((
+            TextBundle::from_sections([text_section("Avg FPS: "), text_section("")]).with_style(
+                Style {
+                    position_type: PositionType::Absolute,
+                    top: Val::Percent(10.),
+                    left: Val::Percent(10.),
+                    ..default()
+                }
+            ),
+            FpsDisplay,
+        ));
+    }
+    fn update_fps_display(
+        fps: Res<DiagnosticsStore>,
+        mut text: Query<&mut Text, With<FpsDisplay>>,
+    ) {
+        let mut text = text
+            .get_single_mut()
+            .expect("Should only be a single entity marked FpsDisplay");
+
+        let Some(fps) = fps.get(FrameTimeDiagnosticsPlugin::FPS) else {return;};
+        let Some(avg) = fps.average() else {return};
+
+        text.sections[1].value = format!("{avg}");
+    }
+
+    pub struct Plugin;
+    impl bevy::app::Plugin for Plugin {
+        fn build(&self, app: &mut App) {
+            app.add_systems(Startup, setup_fps_display)
+                .add_systems(Update, update_fps_display);
+        }
+    }
 }
 
 /// behemoth setup system needs to be chunked way out

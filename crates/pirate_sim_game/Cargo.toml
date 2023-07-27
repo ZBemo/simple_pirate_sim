@@ -5,8 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["developer-tools"]
-developer-tools = ["dep:pirate_sim_console", "pirate_sim_physics/developer-tools"]
+default = ["developer-tools", "fps-diagnostics"]
+developer-tools = ["dep:pirate_sim_console", "pirate_sim_physics/developer-tools", "bevy/glam_assert"]
+fps-diagnostics = []
 
 [dependencies]
 pirate_sim_console = {path = "../pirate_sim_console", version = "0.1.0-dev",optional = true}
@@ -33,6 +34,7 @@ features = [
   "bevy_text",
   "bevy_winit",
   "bevy_ui",
+
   # "bevy_gizmos",
   "subpixel_glyph_atlas",
 
