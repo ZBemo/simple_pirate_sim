@@ -121,6 +121,10 @@ fn collision_works_basic() {
         let move_location = transform_q.get(move_id).unwrap().translation();
 
         assert_ne!(wall_location, move_location);
+        assert_ne!(
+            wall_location.cmpge(wall_location),
+            BVec3::new(true, true, false)
+        );
     });
 
     // TODO: is this necessary?
@@ -146,7 +150,7 @@ fn collision_works_skips() {
         .spawn((
             Name::new("Move"),
             MovementBundle::default(),
-            Collider::new(Constraints::WALL),
+            Collider::new(Constraints::ENTITY),
             TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
             MovementGoal(Vec3::new(1., 1., 0.)),
         ))
@@ -166,6 +170,10 @@ fn collision_works_skips() {
         let move_location = transform_q.get(move_id).unwrap().translation();
 
         assert_ne!(wall_location, move_location);
+        assert_ne!(
+            wall_location.cmpge(wall_location),
+            BVec3::new(true, true, false)
+        )
     });
 
     // TODO: is this necessary?
