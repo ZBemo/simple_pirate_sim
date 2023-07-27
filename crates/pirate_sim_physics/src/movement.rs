@@ -69,14 +69,28 @@ fn finalize_movement(
             ticker.0.x -= 1. * x_sign;
             debug!("Moved on X");
         }
-
-        // this might break things in the future!
-        // if total_velocity is 0 reset ticker to 0
-        // this probably does not belong in this system. maybe in its own system?
-        if **total_velocity == Vec3::ZERO {
-            ticker.0 = Vec3::ZERO;
-        }
     }
+}
+
+/// clear tickers when velocity is changed
+///
+/// TODO: check against last velocity; this will introduce a tiny cost of tracking
+/// lastTotalVelocity and lastRelativeVelocity, but probably make it a lot less buggier
+fn clear_tickers(
+    mut ticker_q: Query<
+        (
+            &mut Ticker,
+            &crate::velocity::RelativeVelocity,
+            &crate::velocity::LastRelative,
+        ),
+        Changed<crate::velocity::RelativeVelocity>,
+    >,
+) {
+    ticker_q.for_each_mut(|(mut t, rv, lrv)| {
+        if **rv != **lrv {
+            t.0 = Vec3::ZERO;
+        }
+    });
 }
 
 /// A bundle allowing an entity to be moved by the physics system
@@ -92,9 +106,12 @@ impl bevy_app::Plugin for Plugin {
     fn build(&self, app: &mut bevy_app::App) {
         app.add_systems(
             Update,
-            finalize_movement
-                .in_set(PhysicsSet::Movement)
-                .after(PhysicsSet::Collision),
+            (
+                finalize_movement
+                    .in_set(PhysicsSet::Movement)
+                    .after(PhysicsSet::Collision),
+                clear_tickers.after(PhysicsSet::Velocity),
+            ),
         );
     }
 }

@@ -71,6 +71,8 @@ fn startup(type_registry: Res<AppTypeRegistry>, mut commands: Commands) {
     type_registry_w.add_registration(velocity::RelativeVelocity::get_type_registration());
     type_registry_w.add_registration(velocity::MantainedVelocity::get_type_registration());
     type_registry_w.add_registration(velocity::TotalVelocity::get_type_registration());
+    type_registry_w.add_registration(velocity::LastTotal::get_type_registration());
+    type_registry_w.add_registration(velocity::LastRelative::get_type_registration());
     type_registry_w.add_registration(collision::Constraints::get_type_registration());
     type_registry_w.add_registration(collision::Collider::get_type_registration());
     type_registry_w.add_registration(collision::CollisionMap::get_type_registration());

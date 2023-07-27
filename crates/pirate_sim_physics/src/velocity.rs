@@ -1,6 +1,6 @@
 //! Velocity calculations
 
-use bevy_app::{App, Update};
+use bevy_app::{App, PostUpdate, Update};
 use bevy_core::Name;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::prelude::*;
@@ -40,6 +40,22 @@ pub(super) struct RelativeVelocity(pub Vec3);
 #[derive(Debug, Component, Clone, Default, Deref, DerefMut, Reflect)]
 pub(super) struct TotalVelocity(pub Vec3);
 
+#[derive(Debug, Component, Clone, Default, Deref, Reflect)]
+pub struct LastRelative(Vec3);
+#[derive(Debug, Component, Clone, Default, Deref, Reflect)]
+pub struct LastTotal(Vec3);
+
+impl From<Vec3> for LastRelative {
+    fn from(value: Vec3) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Vec3> for LastTotal {
+    fn from(value: Vec3) -> Self {
+        Self(value)
+    }
+}
 /// A maintained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
@@ -52,6 +68,19 @@ fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
     total_vel_q.iter_mut().for_each(|mut t| {
         *t = TotalVelocity(Vec3::ZERO);
     });
+}
+
+/// replace T with the value of F
+fn update_last<F, T>(mut from_query: Query<(Ref<F>, &mut T)>)
+where
+    F: std::ops::Deref<Target = Vec3> + Component,
+    T: From<Vec3> + Component,
+{
+    for (from, mut to) in from_query.iter_mut() {
+        if from.is_changed() {
+            *to = (**from).into();
+        }
+    }
 }
 
 // this uses an oddly high amount of time even when no entities have VelocityFromGround
@@ -304,23 +333,32 @@ unsafe fn propagate_recursive(
 pub struct VelocityBundle {
     total: RelativeVelocity,
     relative_total: TotalVelocity,
+    last_total: LastTotal,
+    last_relative: LastRelative,
 }
 
 pub struct Plugin;
 
 impl bevy_app::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                calculate_relative_velocity,
-                propagate_velocities,
-                propagate_from_ground,
+        app.add_systems(Update, zero_total_vel.before(calculate_relative_velocity))
+            .add_systems(
+                Update,
+                (
+                    calculate_relative_velocity,
+                    propagate_velocities,
+                    propagate_from_ground,
+                )
+                    .chain()
+                    .in_set(PhysicsSet::Velocity),
             )
-                .chain()
-                .in_set(PhysicsSet::Velocity),
-        )
-        .add_systems(Update, zero_total_vel.before(calculate_relative_velocity));
+            .add_systems(
+                PostUpdate,
+                (
+                    update_last::<TotalVelocity, LastTotal>,
+                    update_last::<RelativeVelocity, LastRelative>,
+                ),
+            );
         // don't put in
         // Velocity as it can actually run during input
     }
