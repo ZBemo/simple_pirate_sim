@@ -34,25 +34,8 @@ use super::{
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 use pirate_sim_core::utils;
 
-#[derive(Debug, Clone)]
-pub struct CollisionEntity {
-    pub constraints: Constraints,
-    pub entity: Entity,
-    pub violated: BVec3,
-}
-
 #[derive(Resource, Deref, Debug, Default, Reflect)]
 pub struct CollisionMap(Vec<(IVec3, Entity, Constraints)>);
-
-/// A collision Event. If an entity is in the collision on a specific location,  
-/// it will be in the hashmap, mapping to any impulse applied for conflict resolution.
-#[derive(Debug, Clone, Event)]
-pub struct TileCollision {
-    /// which tile
-    pub tile: IVec3,
-    /// which entities were involved
-    pub entities: Vec<CollisionEntity>,
-}
 
 /// An event where there was an entity collision
 ///
@@ -132,6 +115,7 @@ pub struct Collider {
 
 impl Collider {
     #[must_use]
+    #[inline]
     pub fn new(constraints: Constraints) -> Self {
         Self { constraints }
     }
@@ -164,20 +148,9 @@ fn tile_cast_collision(
     predicted_map: Res<CollisionMap>,
     time: Res<Time>,
 ) {
-    /// Turn a bvec into a vec where rhs * bvec_to_vec(vec) will "mask" away any falses
-    fn bvec_to_mask(vec: BVec3) -> Vec3 {
-        let x = if vec.x { 1. } else { 0. };
-        let y = if vec.y { 1. } else { 0. };
-        let z = if vec.z { 1. } else { 0. };
-
-        Vec3::new(x, y, z)
-    }
-
-    // we need a vec (Vec3,)
+    use pirate_sim_core::utils::bvec_to_mask;
 
     for &(_, entity, constraints) in &**predicted_map {
-        // send out event here
-
         let name = name_q
             .get(entity)
             .map_or("Unnamed".to_owned(), std::convert::Into::into);
@@ -284,8 +257,7 @@ fn tile_cast_collision(
         let needs_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
             || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
-        // TODO: the way we calculate impulse is incorrect; can cause rubber-banding, probably due
-        // to not taking delta_time into account?
+        // FIXME: this probably isn't truly the time to take constraints.move_along into account
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * bvec_to_mask(constraints.move_along)
             * vel.0;

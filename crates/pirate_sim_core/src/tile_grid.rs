@@ -27,6 +27,7 @@ use thiserror::Error;
 pub struct TileStretch(pub u8, pub u8);
 
 impl From<IVec2> for TileStretch {
+    #[inline]
     fn from(value: IVec2) -> Self {
         debug_assert!(value.signum().cmpge(IVec2::ZERO) == BVec2::TRUE);
         #[allow(clippy::cast_sign_loss)]
@@ -35,24 +36,28 @@ impl From<IVec2> for TileStretch {
 }
 
 impl From<UVec2> for TileStretch {
+    #[inline]
     fn from(value: UVec2) -> Self {
         Self::new(value.x as u8, value.y as u8)
     }
 }
 
 impl From<TileStretch> for IVec2 {
+    #[inline]
     fn from(value: TileStretch) -> Self {
         Self::new(i32::from(value.0), i32::from(value.1))
     }
 }
 
 impl From<TileStretch> for UVec2 {
+    #[inline]
     fn from(value: TileStretch) -> Self {
         Self::new(u32::from(value.0), u32::from(value.1))
     }
 }
 
 impl From<TileStretch> for Vec2 {
+    #[inline]
     fn from(value: TileStretch) -> Self {
         Self::new(f32::from(value.0), f32::from(value.1))
     }
@@ -70,6 +75,7 @@ pub struct GetTileError {
 }
 
 impl GetTileError {
+    #[inline]
     fn new(to_translate: Vec3, tile_stretch: TileStretch) -> Self {
         Self {
             to_translate,
@@ -82,6 +88,7 @@ impl GetTileError {
     /// This is useful for error recovery: for example; moving an entity to the closest tile
     /// location, or simply ignoring that it's off-grid and continuing as normal.
     #[must_use]
+    #[inline]
     pub fn to_closest(&self) -> IVec3 {
         self.tile_stretch.get_closest(self.to_translate)
     }
@@ -90,6 +97,7 @@ impl GetTileError {
 impl TileStretch {
     /// returns closest tile from a bevy translation
     #[must_use]
+    #[inline]
     pub fn get_closest(self, t: Vec3) -> IVec3 {
         IVec3::new(
             t.x as i32 / i32::from(self.0),
@@ -106,6 +114,7 @@ impl TileStretch {
     /// # Errors
     /// This function fails if `t` is not on-grid. If you don't care about t being on grid, use
     /// [`get_closest`]
+    #[inline]
     pub fn get_tile(self, t: Vec3) -> Result<IVec3, GetTileError> {
         if t.round() != t
             || t.x as i32 % i32::from(self.0) != 0
@@ -124,6 +133,7 @@ impl TileStretch {
     /// Panics if f32 conversion to i32 might fail. This shouldn't happen to any location
     /// originally converted from bevy worldspace.
     #[must_use]
+    #[inline]
     pub fn get_bevy(self, t: IVec3) -> Vec3 {
         //
         assert!(
@@ -149,6 +159,7 @@ impl TileStretch {
     }
 
     #[must_use]
+    #[inline]
     pub fn new(x: u8, y: u8) -> Self {
         Self(x, y)
     }
@@ -166,24 +177,28 @@ pub trait GetTileLocation {
 }
 
 impl GetTileLocation for GlobalTransform {
+    #[inline]
     fn location(&self, tile_stretch: TileStretch) -> IVec3 {
         tile_stretch.get_closest(self.translation())
     }
 }
 
 impl GetTileLocation for &GlobalTransform {
+    #[inline]
     fn location(&self, tile_stretch: TileStretch) -> IVec3 {
         tile_stretch.get_closest(self.translation())
     }
 }
 
 impl GetTileLocation for &Vec3 {
+    #[inline]
     fn location(&self, tile_stretch: TileStretch) -> IVec3 {
         tile_stretch.get_closest(**self)
     }
 }
 
 impl GetTileLocation for Vec3 {
+    #[inline]
     fn location(&self, tile_stretch: TileStretch) -> IVec3 {
         tile_stretch.get_closest(*self)
     }
@@ -191,12 +206,14 @@ impl GetTileLocation for Vec3 {
 
 // hacky. assume IVec3 is already in tile space
 impl GetTileLocation for &IVec3 {
+    #[inline]
     fn location(&self, _: TileStretch) -> IVec3 {
         **self
     }
 }
 // hacky. assume IVec3 is already in tile space
 impl GetTileLocation for IVec3 {
+    #[inline]
     fn location(&self, _: TileStretch) -> IVec3 {
         *self
     }
@@ -205,6 +222,7 @@ impl GetTileLocation for IVec3 {
 impl std::ops::Mul<Vec3> for TileStretch {
     type Output = Vec3;
 
+    #[inline]
     fn mul(self, rhs: Vec3) -> Self::Output {
         Vec3::new(rhs.x * self.0 as f32, rhs.y * self.1 as f32, rhs.z)
     }
