@@ -176,7 +176,7 @@ fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
 /// license. See <https://github.com/bevyengine/bevy/LICENSE-APACHE> or <./../credits/> for more details.
 /// or <https://github.com/bevyengine/bevy/LICENSE-MIT>
 ///
-/// TODO: do differential updates instead of zeroing every frame?
+/// TODO: Reintroduce change detection checking
 fn propagate_velocities(
     mut root_query: Query<
         (

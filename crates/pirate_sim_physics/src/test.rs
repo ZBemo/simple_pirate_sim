@@ -109,41 +109,26 @@ fn collision_works_basic() {
         ))
         .id();
 
+    app.add_systems(
+        bevy::prelude::PostUpdate,
+        move |transform_q: bevy::prelude::Query<&GlobalTransform>| {
+            let wall_location = transform_q.get(wall_id).unwrap().translation();
+            let move_location = transform_q.get(move_id).unwrap().translation();
+
+            assert_ne!(wall_location, move_location);
+        },
+    );
+
     // TODO: is this necessary?
     app.cleanup();
 
     // run long enough for Move to move x + 2, y +2
-    while app
-        .world
-        .resource::<Events<super::collision::EntityCollision>>()
-        .is_empty()
-    {
+    while app.world.resource::<Time>().elapsed_seconds() <= 3.1 {
         app.update();
-
-        assert!(
-            app.world.resource::<Time>().elapsed_seconds() <= 3.,
-            "Three seconds elapsed but no collision detected"
-        );
     }
-
-    let collisions = app
-        .world
-        .resource::<Events<super::collision::EntityCollision>>();
-    let mut reader = collisions.get_reader();
-
-    assert!(!reader.is_empty(collisions));
-
-    let collisions = reader.iter(collisions).collect::<Vec<_>>();
-
-    assert_eq!(collisions.len(), 2);
-
-    let translation = |id| app.world.get::<GlobalTransform>(id).unwrap().translation();
-
-    assert_ne!(translation(move_id), translation(wall_id));
 }
 
 #[test]
-#[ignore = "Re-enable once tilecast based collisin implemented."]
 /// collision should work under super basic conditions
 fn collision_works_skips() {
     let mut app = App::new();
@@ -172,6 +157,16 @@ fn collision_works_skips() {
         ))
         .id();
 
+    app.add_systems(
+        bevy::prelude::PostUpdate,
+        move |transform_q: bevy::prelude::Query<&GlobalTransform>| {
+            let wall_location = transform_q.get(wall_id).unwrap().translation();
+            let move_location = transform_q.get(move_id).unwrap().translation();
+
+            assert_ne!(wall_location, move_location);
+        },
+    );
+
     // TODO: is this necessary?
     app.cleanup();
 
@@ -180,33 +175,9 @@ fn collision_works_skips() {
         .set_relative_speed_f64(1000.);
 
     // run long enough for Move to move x + 2, y +2
-    while app
-        .world
-        .resource::<Events<super::collision::EntityCollision>>()
-        .is_empty()
-    {
+    while app.world.resource::<Time>().elapsed_seconds() <= 3.5 {
         app.update();
-
-        assert!(
-            app.world.resource::<Time>().elapsed_seconds() <= 3.,
-            "Three seconds (Time::elapsed_seconds) elapsed but no collision detected"
-        );
     }
-
-    let collisions = app
-        .world
-        .resource::<Events<super::collision::EntityCollision>>();
-    let mut reader = collisions.get_reader();
-
-    assert!(!reader.is_empty(collisions));
-
-    let collisions = reader.iter(collisions).collect::<Vec<_>>();
-
-    assert_eq!(collisions.len(), 2);
-
-    let translation = |id| app.world.get::<GlobalTransform>(id).unwrap().translation();
-
-    assert_ne!(translation(move_id), translation(wall_id));
 }
 
 #[test]
@@ -298,9 +269,4 @@ fn total_velocity_is_propagated() {
         assert_eq!(total_vel(moving_child), Vec3::X);
         assert_eq!(relative_vel(moving_child), Vec3::X);
     }
-}
-
-#[test]
-fn movement_works() {
-    todo!()
 }

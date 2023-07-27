@@ -11,8 +11,6 @@
 //!
 //! This module is probably rife with opportunities for performance improvements.
 
-use std::{borrow::BorrowMut, fmt::Display};
-
 use bevy::{prelude::*, utils::HashMap};
 use pirate_sim_core::{utils::get_or_empty, PhysicsSet};
 
@@ -35,7 +33,7 @@ pub struct CollisionEntity {
 }
 
 #[derive(Resource, Deref, Debug, Default, Reflect)]
-pub struct CollisionMap(HashMap<IVec3, Vec<(Entity, Constraints)>>);
+pub struct CollisionMap(Vec<(IVec3, Entity, Constraints)>);
 
 /// A collision Event. If an entity is in the collision on a specific location,  
 /// it will be in the hashmap, mapping to any impulse applied for conflict resolution.
@@ -58,21 +56,16 @@ pub struct EntityCollision {
     pub colliding_with: Vec<Entity>,
 }
 
-impl Display for EntityCollision {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Entity: {:?}, Tile: {}, conflict_along: {}, Colliding: {:?}",
-            self.entity, self.tile, self.conflict_along, self.colliding_with
-        )
-    }
-}
-
 impl EntityCollision {
     #[must_use]
     pub fn was_in_conflict(&self) -> bool {
         self.conflict_along.any()
     }
+}
+
+// send out collision events
+fn send_collission_events(collision_map: Res<CollisionMap>, transform_q: Query<&GlobalTransform>) {
+    todo!()
 }
 
 /// constraints put onto a collider and its collisions
@@ -150,21 +143,6 @@ fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>
     }
 }
 
-pub(super) struct Plugin;
-
-impl bevy::prelude::Plugin for Plugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (build_collision_map, tile_cast_collision)
-                .chain()
-                .in_set(PhysicsSet::Collision),
-        )
-        .add_event::<EntityCollision>()
-        .init_resource::<CollisionMap>();
-    }
-}
-
 // TODO: We don't account for ticker when tile casting
 #[allow(clippy::too_many_lines)]
 fn tile_cast_collision(
@@ -186,17 +164,9 @@ fn tile_cast_collision(
         Vec3::new(x, y, z)
     }
 
-    let mut flattened_predicted_map = Vec::new();
-
-    for (tile, datas) in &**predicted_map {
-        for data in datas {
-            flattened_predicted_map.push((*tile, *data));
-        }
-    }
-
     // we need a vec (Vec3,)
 
-    for &(_, (entity, _constraints)) in &flattened_predicted_map {
+    for &(_, entity, _constraints) in &**predicted_map {
         // send out event here
 
         let name = name_q
@@ -232,10 +202,10 @@ fn tile_cast_collision(
             },
             **vel,
             *tile_stretch,
-            flattened_predicted_map
+            predicted_map
                 .iter()
-                .filter(|(_, (e, _))| *e != entity)
-                .map(|(l, (a, b))| ((a, b), l)),
+                .filter(|(_, e, _)| *e != entity)
+                .map(|(l, a, b)| ((a, b), l)), // put it so that constraint & entity id are in data tuple
             true,
         );
 
@@ -305,6 +275,8 @@ fn tile_cast_collision(
         let needs_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
             || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
+        // TODO: the way we calculate impulse is incorrect; can cause rubber-banding, probably due
+        // to not taking delta_time into account?
         let total_change = (closest_entities[0].translation - translation).as_vec3()
             * bvec_to_vec(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * vel.0
@@ -355,7 +327,7 @@ fn calc_movement(
 
 /// PERF: we could consider updating in-place
 ///
-/// FIXME: This breaks due to change detection??
+/// TODO: I think it probably makes more sense to flatten it out to Vec<(IVec3,...)> for perf, etc
 fn build_collision_map(
     collider_q: Query<(Entity, &Collider)>,
     total_vel_q: Query<&TotalVelocity>,
@@ -365,22 +337,36 @@ fn build_collision_map(
     tile_stretch: Res<TileStretch>,
     mut collision_map: ResMut<CollisionMap>,
 ) {
-    let inner_cm = &mut collision_map.0;
-    *inner_cm = HashMap::new();
+    collision_map.0 = collider_q
+        .into_iter()
+        .map(|(entity, c)| {
+            (
+                calc_movement(
+                    total_vel_q.get(entity).ok(),
+                    ticker_q.get(entity).ok(),
+                    time.delta_seconds(),
+                ) + transform_q
+                    .get(entity)
+                    .expect("Collider on entity with no transform")
+                    .location(*tile_stretch),
+                entity,
+                c.constraints,
+            )
+        })
+        .collect();
+}
 
-    collider_q.for_each(|(entity, c)| {
-        let predicted_location = calc_movement(
-            total_vel_q.get(entity).ok(),
-            ticker_q.get(entity).ok(),
-            time.delta_seconds(),
-        ) + transform_q
-            .get(entity)
-            .expect("Collider on entity with no transform")
-            .location(*tile_stretch);
+pub(super) struct Plugin;
 
-        inner_cm
-            .entry(predicted_location)
-            .or_default()
-            .push((entity, c.constraints));
-    });
+impl bevy::prelude::Plugin for Plugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (build_collision_map, tile_cast_collision)
+                .chain()
+                .in_set(PhysicsSet::Collision),
+        )
+        .add_event::<EntityCollision>()
+        .init_resource::<CollisionMap>();
+    }
 }

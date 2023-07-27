@@ -1,5 +1,7 @@
 # Refactor
  - [ ] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
+      This should end up being less annoying overall as each crate will only need to enable features it uses, 
+      and we won't need to wait for every bevy crate to compile before compiling our crates, leading to significant comptime speedups
 # Performance
  - [ ] look into using Query::for_each instead of `for _ in query`
  - [ ] test on windows to check if wslg is source of significant frame loss
