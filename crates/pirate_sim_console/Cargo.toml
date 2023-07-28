@@ -9,6 +9,8 @@ edition = "2021"
 thiserror = "1.0"
 pirate_sim_core = { path = "../pirate_sim_core", version = "0.1.0-dev"}
 
+bevy-inspector-egui = {version = "0.19", default-features = false}
+
 bevy_utils = "0.11"
 bevy_ecs = "0.11"
 bevy_log = "0.11"

@@ -2300,13 +2300,19 @@ checksum = "4c40d25201921e5ff0c862a505c6557ea88568a4e3ace775ab55e93f2f4f9d57"
 name = "pirate_sim"
 version = "0.1.0-dev"
 dependencies = [
- "pirate_sim_game",
+ "bevy",
+ "bevy-inspector-egui",
+ "pirate_sim_console",
+ "pirate_sim_controllers",
+ "pirate_sim_core",
+ "pirate_sim_physics",
 ]
 
 [[package]]
 name = "pirate_sim_console"
 version = "0.1.0-dev"
 dependencies = [
+ "bevy-inspector-egui",
  "bevy_app",
  "bevy_derive",
  "bevy_ecs",
@@ -2333,6 +2339,7 @@ dependencies = [
  "bevy_render",
  "bevy_time",
  "bevy_transform",
+ "pirate_sim_console",
  "pirate_sim_core",
 ]
 
@@ -2340,7 +2347,6 @@ dependencies = [
 name = "pirate_sim_core"
 version = "0.1.0-dev"
 dependencies = [
- "bevy-inspector-egui",
  "bevy_app",
  "bevy_core",
  "bevy_derive",
@@ -2352,17 +2358,6 @@ dependencies = [
  "bevy_transform",
  "bracket-random",
  "thiserror",
-]
-
-[[package]]
-name = "pirate_sim_game"
-version = "0.1.0-dev"
-dependencies = [
- "bevy",
- "pirate_sim_console",
- "pirate_sim_controllers",
- "pirate_sim_core",
- "pirate_sim_physics",
 ]
 
 [[package]]

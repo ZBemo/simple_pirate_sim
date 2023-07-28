@@ -5,7 +5,7 @@ use bevy_log::prelude::*;
 use bevy_reflect::GetTypeRegistration;
 use bevy_reflect::Reflect;
 
-use pirate_sim_core::bevy_egui::{egui, EguiContexts};
+use bevy_inspector_egui::bevy_egui::{egui, EguiContexts};
 
 use super::parse;
 

@@ -6,9 +6,9 @@ use bevy_render::prelude::*;
 use bevy_transform::prelude::*;
 
 use super::MovementGoals;
-#[cfg(feature = "developer-tools")]
-use crate::console;
 use crate::DIAG_SPEED;
+#[cfg(feature = "developer-tools")]
+use pirate_sim_console as console;
 use pirate_sim_core::goals::MovementGoal;
 
 /// A marker for an entity controlled as a player

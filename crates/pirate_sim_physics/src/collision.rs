@@ -274,7 +274,7 @@ fn tile_cast_collision(
             * vel.0;
         // / closest_entities[0].distance; // we need to account for ticker or delta time?
 
-        trace!("applying impulse -{impulse}");
+        trace!("subtracting impulse {impulse}");
 
         // SAFETY: we should have already returned if these queries are invalid
         let mut vel = unsafe { total_vel_q.get_mut(entity).unwrap_unchecked() };

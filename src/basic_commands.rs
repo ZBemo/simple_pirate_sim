@@ -74,7 +74,7 @@ fn move_command(mut input: VecDeque<Token>, commands: &mut Commands) {
 }
 
 pub(super) fn setup_basic_commands(mut commands: Commands) {
-    // run each command in this array
+    // register each command in this array
     for to_register in [
         RegisterConsoleCommand::new("echo".into(), echo_command),
         RegisterConsoleCommand::new("exit".into(), exit_command),

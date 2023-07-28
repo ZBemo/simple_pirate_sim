@@ -5,8 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+developer-tools =["dep:pirate_sim_console"]
+
 [dependencies]
 pirate_sim_core = {path = "../pirate_sim_core", version = "0.1.0-dev"}
+pirate_sim_console = {path = "../pirate_sim_console", version = "0.1.0-dev", optional=true}
+
 bevy_ecs =   "0.11" 
 bevy_transform = "0.11"
 bevy_math =  "0.11"

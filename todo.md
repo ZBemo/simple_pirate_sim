@@ -9,11 +9,12 @@
  - [ ] Move pirate_sim_game out to the outermost crate - no reason to just have a pass-through
 
 # Performance
+ - [x] split out into multiple crates?
+ - [ ] mark public functions that should be inlined #[inline]
  - [ ] look into using Query::for_each instead of `for _ in query`
  - [ ] test on windows to check if wslg is source of significant frame loss
  - [ ] Put change detection back into total velocity propagation
  - [ ] Use trace!() less often
- - [x] split out into multiple crates?
  - [ ] put tracing spans in perf critical systems
 
 # General code cleanliness

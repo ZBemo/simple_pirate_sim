@@ -15,11 +15,6 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-#[cfg(feature = "developer-tools")]
-pub use bevy_inspector_egui;
-#[cfg(feature = "developer-tools")]
-pub use bevy_inspector_egui::bevy_egui;
-
 pub use thiserror;
 
 pub mod goals;
