@@ -44,11 +44,8 @@ fn finalize_movement(
     let delta_time = time.delta_seconds();
 
     for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
-        debug!("Last frame's ticker {}", ticker.0);
         // update ticker, only apply velocity * delta to keep time consistent
         ticker.0 += **total_velocity * delta_time;
-
-        debug!("Updated ticker {}", ticker.0);
 
         let z_sign = ticker.z.signum();
         let y_sign = ticker.y.signum();

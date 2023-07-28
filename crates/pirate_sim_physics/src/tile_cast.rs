@@ -39,7 +39,8 @@ pub struct Origin {
 /// same grid as `start_translation`, and it is your responsibility to filter out unwanted entities,
 /// ie if you're casting out from a specific entity.
 ///
-/// TODO: Return more information on each entity
+/// It currently rounds the ray onto the grid, which while being accurate in a tile-based physics
+/// context, may lead to surprising results
 #[inline]
 #[must_use = "Tile casting is a relatively expensive operation that shouldn't change state. You should not use it if you don't need the result."]
 pub fn tile_cast<Data, Location>(
@@ -89,7 +90,8 @@ where
         let casted_to_distance = origin.tile.as_vec3() + ray.direction * expected_distance;
 
         // account for epsilon to be safe
-        let has_hit = Vec3::cmple((casted_to_distance - tile_translation_vec3).abs(), Vec3::splat(f32::EPSILON)).all();
+        // round distance because everything will be on grid
+        let has_hit = Vec3::cmple((casted_to_distance.round() - tile_translation_vec3).abs(), Vec3::splat(f32::EPSILON)).all();
 
         trace!("checking {tile_translation_vec3}; expected_distance: {expected_distance}; casted: {casted_to_distance}");
         trace!("{has_hit}");

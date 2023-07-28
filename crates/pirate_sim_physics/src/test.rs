@@ -38,7 +38,7 @@ fn complex_tile_cast_works() {
             ..Default::default()
         },
         Vec3::new(0., 1., 2.5),
-        TileStretch(32, 32),
+        TileStretch(32, 32), // this shouldn't matter, but put this in to test it
         entities.into_iter(),
         true,
     )
@@ -48,11 +48,11 @@ fn complex_tile_cast_works() {
         println!("{} : {}", e.data, e.translation,);
     }
 
-    assert_eq!(casted_entities.len(), 3);
+    assert_eq!(casted_entities.len(), 4);
     // should only include 0,1,3
     assert!(casted_entities
         .iter()
-        .all(|a| [0, 1, 3].iter().any(|n| a.data == *n)));
+        .all(|a| [0, 2, 1, 3].iter().any(|n| a.data == *n)));
 }
 #[test]
 fn tile_cast_works() {

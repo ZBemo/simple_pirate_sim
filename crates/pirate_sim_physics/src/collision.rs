@@ -150,12 +150,12 @@ fn tile_cast_collision(
 ) {
     use pirate_sim_core::utils::bvec_to_mask;
 
-    for &(_, entity, constraints) in &**predicted_map {
+    for &(predicted_location, entity, constraints) in &**predicted_map {
         let name = name_q
             .get(entity)
             .map_or("Unnamed".to_owned(), std::convert::Into::into);
 
-        trace!("checking collision of {name}");
+        trace!("checking collision of {name} at predictd_location {predicted_location}");
 
         let Some((vel, _)) = Option::zip(
             total_vel_q.get(entity).ok(),
@@ -187,7 +187,7 @@ fn tile_cast_collision(
             predicted_map
                 .iter()
                 .filter(|(_, e, _)| *e != entity)
-                .map(|(l, a, b)| ((a, b), l)), // put it so that constraint & entity id are in data tuple
+                .map(|(l, a, b)| ((a, b), l)), // put it so that constraint & entity id are in data field
             true,
         );
 
@@ -222,16 +222,26 @@ fn tile_cast_collision(
         //
         // TODO: perhaps more performant to do distance^2 > (vel).dot().abs() as it avoids a sqrt,
         // instead using a square
-        if (closest_entities[0].distance - get_or_empty(&ticker_q, entity).length()).abs()
-            > (vel.0 * time.delta_seconds()).length().abs()
-        {
+        //
+        // better idea; check closest_entities[0] predicted location against the abs of the
+        // entity's predicted location, see if it's further
+        //
+        // both more performant and likely more correct
+
+        let comp = IVec3::cmpge(
+            predicted_location * vel.0.signum().as_ivec3(),
+            closest_entities[0].translation * vel.0.signum().as_ivec3(),
+        );
+
+        trace!(
+            "cmp({}, {}) = {}",
+            predicted_location * vel.0.signum().as_ivec3(),
+            closest_entities[0].translation * vel.0.signum().as_ivec3(),
+            comp
+        );
+
+        if !comp.all() {
             trace!("No possible conflict close enough");
-            trace!(
-                "found that {} < {}",
-                closest_entities[0].distance.abs(),
-                ((vel.0 * time.delta_seconds()).length()
-                    + get_or_empty(&ticker_q, entity).length())
-            );
             continue;
         };
 
@@ -258,11 +268,13 @@ fn tile_cast_collision(
             || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
         // FIXME: this probably isn't truly the time to take constraints.move_along into account
+        // FIXME: will overestimate how much impulse to apply when time.delta() is too low/high
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * bvec_to_mask(constraints.move_along)
             * vel.0;
+        // / closest_entities[0].distance; // we need to account for ticker or delta time?
 
-        trace!("applying vel change {impulse}");
+        trace!("applying impulse -{impulse}");
 
         // SAFETY: we should have already returned if these queries are invalid
         let mut vel = unsafe { total_vel_q.get_mut(entity).unwrap_unchecked() };

@@ -27,6 +27,7 @@
  - [x] set up cargo clippy and lint 
  - [x] consider splitting long systems into piped systems where useful
  - [x] Look at updating the string type for console parsing to pare down on clones, consider a COW - not necessary as we want ownership
+ - [ ] change {Relative,Total}Velocity to {Relative,Total}
  - [ ]  use a macro that will either debug_assert!() or log an error/warn based on whether debug asserts are enabled
  - [ ] consider changing console::io::ConsoleOpen to an enum
  - [ ] Return an iterator from [`find_and_resolve_conflicts`](./src/physics/collider.rs:244)
