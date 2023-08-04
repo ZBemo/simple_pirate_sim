@@ -61,8 +61,8 @@ impl From<Vec3> for LastTotal {
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
 pub struct MantainedVelocity(pub Vec3);
 
-#[derive(Debug, Clone, Component, Default)]
-pub struct VelocityFromGround;
+#[derive(Clone, Component, Default)]
+pub struct FromGround;
 
 fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
     total_vel_q.iter_mut().for_each(|mut t| {
@@ -71,21 +71,21 @@ fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
 }
 
 /// replace T with the value of F
-fn update_last<F, T>(mut from_query: Query<(Ref<F>, &mut T)>)
+fn update_last<Current, Last>(mut from_query: Query<(Ref<Current>, &mut Last)>)
 where
-    F: std::ops::Deref<Target = Vec3> + Component,
-    T: From<Vec3> + Component,
+    Current: std::ops::Deref<Target = Vec3> + Component,
+    Last: From<Vec3> + Component,
 {
-    for (from, mut to) in from_query.iter_mut() {
-        if from.is_changed() {
-            *to = (**from).into();
+    for (current, mut last) in from_query.iter_mut() {
+        if current.is_changed() {
+            *last = (**current).into();
         }
     }
 }
 
 // this uses an oddly high amount of time even when no entities have VelocityFromGround
 fn propagate_from_ground(
-    entity_q: Query<Entity, With<VelocityFromGround>>,
+    entity_q: Query<Entity, With<FromGround>>,
     global_transform_q: Query<(Entity, &GlobalTransform), With<Collider>>,
     collider_q: Query<&Collider>,
     mut total_vel_q: Query<&mut TotalVelocity>,

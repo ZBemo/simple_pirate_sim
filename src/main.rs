@@ -9,7 +9,7 @@
 )]
 #![allow(clippy::cast_possible_truncation)]
 
-use bevy::{app::AppExit, prelude::*};
+use bevy::{app::AppExit, prelude::*, time::Stopwatch};
 use pirate_sim_controllers::{player::PlayerControllerBundle, WalkSpeed};
 
 use pirate_sim_core::tile_grid::TileStretch;
@@ -17,7 +17,9 @@ use pirate_sim_core::tile_grid::TileStretch;
 #[cfg(feature = "developer-tools")]
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
-use pirate_sim_physics::{Collider, PhysicsPlugin, Weight};
+use pirate_sim_physics as physics;
+
+use pirate_sim_physics::{movement, Collider, MovementGoal, PhysicsPlugin, Weight};
 use tile_objects::TileCamera;
 
 #[cfg(feature = "fps-diagnostics")]
@@ -38,12 +40,55 @@ struct PlayerBundle {
     collider: pirate_sim_physics::Collider,
     name: Name,
     player_controller_bundle: PlayerControllerBundle,
+    take_from_floor: physics::velocity::FromGround,
 }
 
 fn quit_on_eq(mut exit: EventWriter<AppExit>, keys: Res<Input<KeyCode>>) {
     if keys.pressed(KeyCode::Equals) {
         exit.send_default();
     }
+}
+
+#[derive(Debug, Component)]
+struct WalkPerimeter {
+    timer: Stopwatch,
+    pub amount_of_steps: u8,
+    pub speed: u8,
+}
+
+impl WalkPerimeter {
+    fn new(step_amount: u8, speed: u8) -> Self {
+        WalkPerimeter {
+            timer: Stopwatch::new(),
+            amount_of_steps: step_amount,
+            speed,
+        }
+    }
+}
+
+fn walk_perimeter(mut switch_q: Query<(&mut MovementGoal, &mut WalkPerimeter)>, time: Res<Time>) {
+    let elapsed = time.elapsed();
+
+    switch_q
+        .par_iter_mut()
+        .for_each_mut(|(mut movement_goal, mut walk_with_switch)| {
+            walk_with_switch.timer.tick(time.delta());
+
+            if walk_with_switch.timer.elapsed_secs() >= walk_with_switch.amount_of_steps as f32 {
+                trace!(" movement goal {}", movement_goal.0);
+                trace!(" movement goal signs {}", movement_goal.signum());
+
+                movement_goal.0 = match movement_goal.as_ivec3().signum() {
+                    IVec3::X => Vec3::Y,
+                    IVec3::NEG_X => Vec3::NEG_Y,
+                    IVec3::Y => Vec3::NEG_X,
+                    IVec3::NEG_Y => Vec3::X,
+                    _ => unreachable!(),
+                } * walk_with_switch.speed as f32;
+
+                walk_with_switch.timer.reset();
+            }
+        });
 }
 
 fn main() {
@@ -84,7 +129,8 @@ fn main() {
                 #[cfg(feature = "developer-tools")]
                 basic_commands::setup_basic_commands,
             ),
-        );
+        )
+        .add_systems(Update, walk_perimeter);
 
     #[cfg(feature = "developer-tools")]
     app.add_systems(Update, quit_on_eq);
@@ -209,9 +255,16 @@ fn setup(
             transform: Transform::from_translation(tilestretch.get_bevy(IVec3::new(1, 0, 0))),
             ..default()
         },
+        MovementGoal(Vec3::NEG_X),
+        WalkPerimeter::new(5, 1),
+        movement::MovementBundle::default(),
         tile_objects::TileObject::new(5, 6, 7),
-        Name::new("Random Wall"),
-        Collider::new(pirate_sim_physics::collision::Constraints::WALL),
+        Name::new("Moving floor"),
+        Collider::new(pirate_sim_physics::collision::Constraints {
+            pos_solid_planes: BVec3::new(false, false, true),
+            neg_solid_planes: BVec3::FALSE,
+            move_along: BVec3::FALSE,
+        }),
     ));
 
     // player
@@ -229,6 +282,7 @@ fn setup(
         walkspeed: WalkSpeed(5.),
         collider: Collider::new(pirate_sim_physics::collision::Constraints::ENTITY),
         name: Name::new("Player"),
+        take_from_floor: Default::default(),
     },));
 
     // continue this
