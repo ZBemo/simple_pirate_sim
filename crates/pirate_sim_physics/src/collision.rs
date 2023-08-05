@@ -21,7 +21,7 @@ use bevy_reflect::prelude::*;
 use bevy_time::Time;
 use bevy_transform::prelude::GlobalTransform;
 
-use pirate_sim_core::{utils::get_or_empty, PhysicsSet};
+use pirate_sim_core::{utils::get_or_zero, PhysicsSet};
 
 use crate::tile_cast;
 
@@ -179,7 +179,7 @@ fn tile_cast_collision(
         let hit_entities = tile_cast(
             tile_cast::Origin {
                 tile: translation,
-                ticker: utils::get_or_empty(&ticker_q, entity),
+                ticker: utils::get_or_zero(&ticker_q, entity),
             },
             **vel,
             *tile_stretch,

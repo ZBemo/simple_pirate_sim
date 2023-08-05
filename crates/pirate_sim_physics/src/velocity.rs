@@ -119,7 +119,7 @@ fn propagate_from_ground(
             if e.distance == 0. && constraints.neg_solid_planes.z
                 || e.distance - 1. <= f32::EPSILON && constraints.pos_solid_planes.z
             {
-                let floor_total_v = utils::get_or_empty(&total_vel_q, e.data);
+                let floor_total_v = utils::get_or_zero(&total_vel_q, e.data);
 
                 trace!("Adding total v {floor_total_v} from floor to entity above it");
 
