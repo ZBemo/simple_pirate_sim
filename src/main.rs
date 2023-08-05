@@ -40,7 +40,7 @@ struct PlayerBundle {
     collider: pirate_sim_physics::Collider,
     name: Name,
     player_controller_bundle: PlayerControllerBundle,
-    take_from_floor: physics::velocity::FromGround,
+    // take_from_floor: physics::velocity::FromGround,
 }
 
 fn quit_on_eq(mut exit: EventWriter<AppExit>, keys: Res<Input<KeyCode>>) {
@@ -167,8 +167,8 @@ mod fps_diagnostics {
             TextBundle::from_sections([text_section("Avg FPS: "), text_section("")]).with_style(
                 Style {
                     position_type: PositionType::Absolute,
-                    top: Val::Percent(10.),
-                    left: Val::Percent(10.),
+                    top: Val::Percent(3.),
+                    left: Val::Percent(1.),
                     ..default()
                 },
             ),
@@ -282,7 +282,7 @@ fn setup(
         walkspeed: WalkSpeed(5.),
         collider: Collider::new(pirate_sim_physics::collision::Constraints::ENTITY),
         name: Name::new("Player"),
-        take_from_floor: Default::default(),
+        // take_from_floor: Default::default(),
     },));
 
     // continue this

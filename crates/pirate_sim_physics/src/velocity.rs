@@ -10,9 +10,9 @@ use bevy_math::prelude::*;
 use bevy_reflect::prelude::*;
 use bevy_transform::prelude::*;
 
-use crate::{movement::Ticker, tile_cast, Collider};
+use crate::{tile_cast, Collider};
 
-use pirate_sim_core::system_sets::PhysicsSet;
+use pirate_sim_core::{system_sets::PhysicsSet, utils};
 
 /// The Velocity that an entity moves at individually. For example, if an entities parent has a
 /// [TotalVelocity] of (1,0,0) and the entity has a [RelativeVelocity] of (0,1,0) it will move (1,1,0)
@@ -59,10 +59,10 @@ impl From<Vec3> for LastTotal {
 /// A maintained velocity over time. Will be decayed based on certain constants by the physics
 /// engine
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
-pub struct MantainedVelocity(pub Vec3);
+pub struct Mantained(pub Vec3);
 
 #[derive(Clone, Component, Default)]
-pub struct FromGround;
+pub struct FromGround(Vec3);
 
 fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
     total_vel_q.iter_mut().for_each(|mut t| {
@@ -85,14 +85,15 @@ where
 
 // this uses an oddly high amount of time even when no entities have VelocityFromGround
 fn propagate_from_ground(
-    entity_q: Query<Entity, With<FromGround>>,
+    mut from_ground_q: Query<(Entity, &mut FromGround)>,
     global_transform_q: Query<(Entity, &GlobalTransform), With<Collider>>,
+    total_vel_q: Query<&TotalVelocity>,
     collider_q: Query<&Collider>,
-    mut total_vel_q: Query<&mut TotalVelocity>,
-    mut relative_vel_q: Query<&mut RelativeVelocity>,
     tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
 ) {
-    for e in entity_q.iter() {
+    for (e, mut from_ground) in from_ground_q.iter_mut() {
+        *from_ground = FromGround(Vec3::ZERO);
+
         let translation = global_transform_q
             .get(e)
             .expect("Velocity From Ground tagged with no transformBundle")
@@ -118,19 +119,11 @@ fn propagate_from_ground(
             if e.distance == 0. && constraints.neg_solid_planes.z
                 || e.distance == 1. && constraints.pos_solid_planes.z
             {
-                let floor_total_v = total_vel_q.get(e.data).map_or_else(|_| Vec3::ZERO, |t| t.0);
+                let floor_total_v = utils::get_or_empty(&total_vel_q, e.data);
 
                 trace!("Adding total v {floor_total_v} from floor to entity above it");
 
-                let mut e_total_v = total_vel_q
-                    .get_mut(e.data)
-                    .expect("Entity tagged velocity from ground should have VelocityBundle");
-                let mut e_rel_vel = relative_vel_q
-                    .get_mut(e.data)
-                    .expect("Entity tagged velocity from ground should have VelocityBundle");
-
-                e_total_v.0 += floor_total_v;
-                e_rel_vel.0 += floor_total_v;
+                from_ground.0 += floor_total_v;
             }
         }
     }
@@ -147,13 +140,14 @@ fn calculate_relative_velocity(
         &mut RelativeVelocity,
         Option<&super::MovementGoal>,
         Option<&super::Weight>,
-        Option<&MantainedVelocity>,
+        Option<&Mantained>,
+        Option<&FromGround>,
     )>,
 ) {
     for component in phsyics_components.iter_mut() {
         let mut new_relative_velocity = Vec3::splat(0.);
 
-        let (mut relative_velocity, movement_goal, weight, mantained) = component;
+        let (mut relative_velocity, movement_goal, weight, mantained, from_ground) = component;
 
         // it is up to the controller to ensure that the movement goal is reasonable
         if let Some(movement_goal) = movement_goal {
@@ -169,6 +163,10 @@ fn calculate_relative_velocity(
             new_relative_velocity += mantained.0;
         }
 
+        if let Some(from_ground) = from_ground {
+            new_relative_velocity += from_ground.0;
+        }
+
         relative_velocity.0 = new_relative_velocity;
     }
 }
@@ -176,7 +174,7 @@ fn calculate_relative_velocity(
 /// This function decays any persistent velocities.
 ///
 /// It needs a rework, and is currently not used
-fn decay_persistent_velocity(mut velocity: Query<&mut MantainedVelocity>) {
+fn decay_persistent_velocity(mut velocity: Query<&mut Mantained>) {
     const DECAY_CONST: f32 = 0.1;
     // TODO: use signs
 
