@@ -5,8 +5,7 @@ use bevy_math::prelude::*;
 use bevy_render::prelude::*;
 use bevy_transform::prelude::*;
 
-use super::MovementGoals;
-use crate::DIAG_SPEED;
+use crate::{MovementGoalTimer, DIAG_SPEED};
 #[cfg(feature = "developer-tools")]
 use pirate_sim_console as console;
 use pirate_sim_core::goals::MovementGoal;
@@ -17,8 +16,8 @@ pub struct Controller();
 
 #[derive(Bundle, Default)]
 pub struct PlayerControllerBundle {
-    movement_goals: MovementGoals,
     movement_goal: MovementGoal,
+    timer: MovementGoalTimer,
     controler: Controller,
 }
 
@@ -37,9 +36,16 @@ pub(super) fn camera_follow_player(
 }
 
 /// Handle player inputs to do with movement goals.
-pub(super) fn update_movement_goals(
+pub(super) fn update_movement_goal(
     char_input_events: Res<Input<KeyCode>>,
-    mut player: Query<(&mut MovementGoals, &super::WalkSpeed), With<Controller>>,
+    mut player: Query<
+        (
+            &mut MovementGoal,
+            &mut super::MovementGoalTimer,
+            &super::WalkSpeed,
+        ),
+        With<Controller>,
+    >,
     #[cfg(feature = "developer-tools")] console_open: Res<console::IsOpen>,
 ) {
     #[cfg(feature = "developer-tools")]
@@ -47,63 +53,39 @@ pub(super) fn update_movement_goals(
         return;
     }
 
-    let (mut movement_goals, walk_speed) = player.get_single_mut().expect("Player not found");
+    let (mut movement_goal, mut movement_goal_timer, walk_speed) =
+        player.get_single_mut().expect("Player not found");
 
-    // should never have to grow
-    let mut new_goals = Vec::with_capacity(7);
+    // return if no movement was requested
+    let Some(wanted_dir) = char_input_events
+        .get_pressed()
+        .fold(None, |acc, event| {
+                
+            match event {
+                KeyCode::W => Some(Vec3::Y),
+                KeyCode::A => Some(Vec3::NEG_X),
+                KeyCode::X => Some(Vec3::NEG_Y),
+                KeyCode::D => Some(Vec3::X),
+                KeyCode::E => Some(Vec3::X + Vec3::Y),
+                KeyCode::Q => Some(Vec3::NEG_X + Vec3::Y),
+                KeyCode::Z => Some(Vec3::NEG_Y + Vec3::NEG_X),
+                KeyCode::C => Some(Vec3::NEG_Y + Vec3::X),
+                _ => None,
+            }.map(|dir| dir + acc.unwrap_or(Vec3::ZERO))
+            
+        }) else {return};
 
-    for event in char_input_events.get_pressed() {
-        match event {
-            KeyCode::W => {
-                new_goals.push((Vec3::Y * walk_speed.0, 1. / walk_speed.0, 0));
-            }
-            KeyCode::A => {
-                new_goals.push((Vec3::X * walk_speed.0 * -1., 1. / walk_speed.0, 0));
-            }
-            KeyCode::X => {
-                new_goals.push((Vec3::Y * walk_speed.0 * -1., 1. / walk_speed.0, 0));
-            }
-            KeyCode::D => {
-                new_goals.push((Vec3::X * walk_speed.0, 1. / walk_speed.0, 0));
-            }
-            KeyCode::E => {
-                new_goals.push((
-                    (Vec3::Y + Vec3::X) * walk_speed.0 * DIAG_SPEED,
-                    1. / (walk_speed.0 * DIAG_SPEED),
-                    0,
-                ));
-            }
-            KeyCode::Q => {
-                new_goals.push((
-                    (Vec3::Y + Vec3::X * -1.) * walk_speed.0 * DIAG_SPEED,
-                    // should go one tile
-                    1. / (walk_speed.0 * DIAG_SPEED),
-                    0,
-                ));
-            }
-            KeyCode::Z => {
-                new_goals.push((
-                    (Vec3::Y + Vec3::X) * -1. * walk_speed.0 * DIAG_SPEED,
-                    1. / (walk_speed.0 * DIAG_SPEED),
-                    0,
-                ));
-            }
-            KeyCode::C => {
-                new_goals.push((
-                    (Vec3::Y * -1. + Vec3::X) * walk_speed.0 * DIAG_SPEED,
-                    1. / (walk_speed.0 * DIAG_SPEED),
-                    0,
-                ));
-            }
-            c => {
-                debug!("Ignoring unregistered char '{:?}'", c);
-            }
-        }
-    }
-    if !new_goals.is_empty() {
-        trace!("adding movement goals {:?}", new_goals);
+    let wanted_dir = wanted_dir.clamp(Vec3::NEG_ONE, Vec3::ONE);
 
-        // player's movement goal should only ever be updated by player input
-        movement_goals.0 = new_goals;
-    }
+    let amt_directions_requested =
+        (wanted_dir.y as i32).signum().abs() + (wanted_dir.x as i32).signum().abs();
+
+    let diagonal_loss = if amt_directions_requested == 2 {
+        DIAG_SPEED
+    } else {
+        1.
+    };
+
+    *movement_goal = MovementGoal(walk_speed.0 * diagonal_loss * wanted_dir);
+    *movement_goal_timer = MovementGoalTimer::new(1. / (walk_speed.0 * diagonal_loss));
 }
