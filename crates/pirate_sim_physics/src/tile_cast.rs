@@ -1,6 +1,8 @@
+
 use bevy_math::prelude::*;
 use bevy_log::trace;
 
+use bevy_reflect::Reflect;
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
 #[derive(Debug)]
@@ -41,6 +43,8 @@ pub struct Origin {
 ///
 /// It currently rounds the ray onto the grid, which while being accurate in a tile-based physics
 /// context, may lead to surprising results
+///
+/// TODO: get rid of include_origin, let caller deal with that if they care
 #[inline]
 #[must_use = "Tile casting is a relatively expensive operation that shouldn't change state. You should not use it if you don't need the result."]
 pub fn tile_cast<Data, Location>(
@@ -51,8 +55,16 @@ pub fn tile_cast<Data, Location>(
     include_origin: bool,
 ) -> impl Iterator<Item = Hit<Data>>
 where
-    Location: GetTileLocation,
+    Location: GetTileLocation 
 {
+    
+
+    let location_name = std::any::type_name::<Location>();
+    let data_name = std::any::type_name::<Data>();
+
+    let _span = bevy_log::info_span!("tile_cast", location_name = location_name, data_name = data_name).entered();
+    
+
     trace!(
         "starting cast at origin {}:{} with vel {}",
         origin.tile,
@@ -102,6 +114,8 @@ where
             distance: expected_distance,
         })
     })
+
+
 }
 
 #[cfg(feature = "developer-tools")]
