@@ -61,7 +61,7 @@ impl From<Vec3> for LastTotal {
 #[derive(Debug, Clone, Component, Default, Deref, DerefMut, Reflect)]
 pub struct Mantained(pub Vec3);
 
-#[derive(Clone, Component, Default)]
+#[derive(Clone, Component, Default, Reflect)]
 pub struct FromGround(Vec3);
 
 fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
@@ -84,6 +84,8 @@ where
 }
 
 // this uses an oddly high amount of time even when no entities have VelocityFromGround
+//
+// TODO: add ticker as well or something
 fn propagate_from_ground(
     mut from_ground_q: Query<(Entity, &mut FromGround)>,
     global_transform_q: Query<(Entity, &GlobalTransform), With<Collider>>,
@@ -92,8 +94,6 @@ fn propagate_from_ground(
     tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
 ) {
     for (e, mut from_ground) in from_ground_q.iter_mut() {
-        *from_ground = FromGround(Vec3::ZERO);
-
         let translation = global_transform_q
             .get(e)
             .expect("Velocity From Ground tagged with no transformBundle")
@@ -107,25 +107,29 @@ fn propagate_from_ground(
             },
             Vec3::NEG_Z,
             *tile_stretch,
-            global_transform_q.iter(),
+            global_transform_q.iter().filter(|(ce, _)| *ce != e),
             true,
         );
 
-        for e in below {
+        let total_floor_vel = below.fold(Vec3::ZERO, |acc, e| {
             let constraints = unsafe { collider_q.get(e.data).unwrap_unchecked() }.constraints;
 
             // FIXME: use epilson
             // since we tile_cast straight down then distance will only be along z plane
             if e.distance == 0. && constraints.neg_solid_planes.z
-                || e.distance == 1. && constraints.pos_solid_planes.z
+                || e.distance - 1. <= f32::EPSILON && constraints.pos_solid_planes.z
             {
                 let floor_total_v = utils::get_or_empty(&total_vel_q, e.data);
 
                 trace!("Adding total v {floor_total_v} from floor to entity above it");
 
-                from_ground.0 += floor_total_v;
+                acc + floor_total_v
+            } else {
+                acc
             }
-        }
+        });
+
+        from_ground.0 = total_floor_vel;
     }
 }
 
