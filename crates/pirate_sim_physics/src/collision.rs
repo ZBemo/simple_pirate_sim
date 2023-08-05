@@ -146,7 +146,6 @@ fn tile_cast_collision(
     name_q: Query<&Name>,
     tile_stretch: Res<TileStretch>,
     predicted_map: Res<CollisionMap>,
-    time: Res<Time>,
 ) {
     use pirate_sim_core::utils::bvec_to_mask;
 
@@ -320,26 +319,23 @@ fn calc_movement(
 ///
 /// TODO: I think it probably makes more sense to flatten it out to Vec<(IVec3,...)> for perf, etc
 fn build_collision_map(
-    collider_q: Query<(Entity, &Collider)>,
-    total_vel_q: Query<&TotalVelocity>,
-    ticker_q: Query<&Ticker>,
-    transform_q: Query<&GlobalTransform>,
+    collider_q: Query<(
+        Entity,
+        &Collider,
+        Option<&TotalVelocity>,
+        Option<&Ticker>,
+        &GlobalTransform,
+    )>,
     time: Res<Time>,
     tile_stretch: Res<TileStretch>,
     mut collision_map: ResMut<CollisionMap>,
 ) {
     collision_map.0 = collider_q
-        .into_iter()
-        .map(|(entity, c)| {
+        .iter()
+        .map(|(entity, c, total_v, ticker, transform)| {
             (
-                calc_movement(
-                    total_vel_q.get(entity).ok(),
-                    ticker_q.get(entity).ok(),
-                    time.delta_seconds(),
-                ) + transform_q
-                    .get(entity)
-                    .expect("Collider on entity with no transform")
-                    .location(*tile_stretch),
+                calc_movement(total_v, ticker, time.delta_seconds())
+                    + transform.location(*tile_stretch),
                 entity,
                 c.constraints,
             )
