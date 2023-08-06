@@ -1,6 +1,6 @@
 # Bugs 
- - [ ] when to right of collider pressing `daaz` in sequence will step onto that collider when it shouldn't - tilecasting error?
- - [ ] disabling default features doesn't disable bevy inspector egui
+ - [x] when to right of collider pressing `daaz` in sequence will step onto that collider when it shouldn't - tilecasting error?
+ - [x] disabling default features doesn't disable bevy inspector egui
 
 # Refactor
  - [x] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
@@ -8,12 +8,14 @@
       and we won't need to wait for every bevy crate to compile before compiling our crates, leading to significant comptime speedups
  - [ ] Move pirate_sim_game out to the outermost crate - no reason to just have a pass-through
  - [ ] get or empty should be get or ZERO
+ - [ ] have movement/velocity expose a predict_movement used to decide total movement
 
 # Performance
  - [x] split out into multiple crates?
- - [ ] mark public functions that should be inlined #[inline]
+ - [x] mark public functions that should be inlined #[inline]
+ - [x] test on windows to check if wslg is source of significant frame loss
+    - It is; using novsync gives around a 7-10 fps boost, and running on windows w/ vsync runs at consistent 60 fps
  - [ ] look into using Query::for_each instead of `for _ in query`
- - [ ] test on windows to check if wslg is source of significant frame loss
  - [ ] Put change detection back into total velocity propagation
  - [ ] Use trace!() less often
  - [ ] put tracing spans in perf critical systems
@@ -92,6 +94,10 @@ Physics-collision and resolution
      - [ ] tile update processing
     - [ ] dynamically update spritesheet colors
     - [ ] dynamically update tile sprites
+ - [ ] Settings
+    - [ ] input settings
+    - [ ] window settings
+    - [ ] graphical settings interface
  - [ ] ships
     - requires certain spritesheet features
     - [ ] ship rotate along z axis with half-steps
