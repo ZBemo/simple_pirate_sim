@@ -13,15 +13,6 @@ pub struct Hit<Data> {
     pub data: Data,
 }
 
-impl<Data: std::fmt::Display> std::fmt::Display for Hit<Data> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Hit: translation: {}, distance: {}, data: {}",
-            self.translation, self.distance, self.data
-        )
-    }
-}
 
 /// The origin of a tile-cast
 #[derive(Debug, Default)]
