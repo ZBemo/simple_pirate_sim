@@ -59,6 +59,6 @@ features = [
   "png", 
 
   # support both to be safe. If you're building for yourself you probably know which one to remove
-  "x11",
+  # "x11",
   "wayland"
 ]
