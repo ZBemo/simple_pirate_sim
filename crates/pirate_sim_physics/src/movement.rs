@@ -56,18 +56,21 @@ fn finalize_movement(
             ticker.0.z -= 1. * z_sign;
 
             debug_assert!(ticker.z.is_finite() && !ticker.z.is_nan());
+            assert!(ticker.z.signum() == z_sign);
         }
         while ticker.y * y_sign >= 1. {
             transform.translation.y += tile_stretch.0 as f32 * y_sign;
             ticker.0.y -= 1. * y_sign;
 
             debug_assert!(ticker.y.is_finite() && !ticker.y.is_nan());
+            assert!(ticker.z.signum() == z_sign);
         }
         while ticker.0.x * x_sign >= 1. {
             transform.translation.x += tile_stretch.1 as f32 * x_sign;
             ticker.0.x -= 1. * x_sign;
 
             debug_assert!(ticker.x.is_finite() && !ticker.x.is_nan());
+            assert!(ticker.z.signum() == z_sign);
         }
     }
 }
