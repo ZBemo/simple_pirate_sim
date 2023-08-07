@@ -51,20 +51,23 @@ fn finalize_movement(
         let y_sign = ticker.y.signum();
         let x_sign = ticker.x.signum();
 
-        while ticker.z.abs() >= 1. {
+        while ticker.z * z_sign >= 1. {
             transform.translation.z += z_sign;
             ticker.0.z -= 1. * z_sign;
-            debug!("Moved on Z");
+
+            debug_assert!(ticker.z.is_finite() && !ticker.z.is_nan());
         }
-        while ticker.y.abs() >= 1. {
+        while ticker.y * y_sign >= 1. {
             transform.translation.y += tile_stretch.0 as f32 * y_sign;
             ticker.0.y -= 1. * y_sign;
-            debug!("Moved on y");
+
+            debug_assert!(ticker.y.is_finite() && !ticker.y.is_nan());
         }
-        while ticker.0.x.abs() >= 1. {
+        while ticker.0.x * x_sign >= 1. {
             transform.translation.x += tile_stretch.1 as f32 * x_sign;
             ticker.0.x -= 1. * x_sign;
-            debug!("Moved on X");
+
+            debug_assert!(ticker.x.is_finite() && !ticker.x.is_nan());
         }
     }
 }
