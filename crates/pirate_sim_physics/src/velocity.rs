@@ -86,18 +86,23 @@ where
 // this uses an oddly high amount of time even when no entities have VelocityFromGround
 //
 // TODO: add ticker as well or something
+//
+// Maybe change to keep a list of entities that it should take from, and when that list changes copy
+// ticker over from entity as well
+//
+// TODO: once collision events + gravity in place we can just check on collision events from last
+// frame?
 fn propagate_from_ground(
     mut from_ground_q: Query<(Entity, &mut FromGround)>,
-    global_transform_q: Query<(Entity, &GlobalTransform), With<Collider>>,
+    global_transform_q: Query<(Entity, &Collider, &GlobalTransform)>,
     total_vel_q: Query<&TotalVelocity>,
-    collider_q: Query<&Collider>,
     tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
 ) {
     for (e, mut from_ground) in from_ground_q.iter_mut() {
         let translation = global_transform_q
             .get(e)
             .expect("Velocity From Ground tagged with no transformBundle")
-            .1
+            .2
             .translation();
 
         let below = tile_cast::tile_cast(
@@ -107,19 +112,22 @@ fn propagate_from_ground(
             },
             Vec3::NEG_Z,
             *tile_stretch,
-            global_transform_q.iter().filter(|(ce, _)| *ce != e),
+            global_transform_q
+                .iter()
+                .filter(|(ce, _, _)| *ce != e)
+                .map(|(ce, c, t)| ((ce, c), t)),
             true,
         );
 
         let total_floor_vel = below.fold(Vec3::ZERO, |acc, e| {
-            let constraints = unsafe { collider_q.get(e.data).unwrap_unchecked() }.constraints;
+            let constraints = e.data.1.constraints;
 
             // FIXME: use epilson
             // since we tile_cast straight down then distance will only be along z plane
             if e.distance == 0. && constraints.neg_solid_planes.z
                 || e.distance - 1. <= f32::EPSILON && constraints.pos_solid_planes.z
             {
-                let floor_total_v = utils::get_or_zero(&total_vel_q, e.data);
+                let floor_total_v = utils::get_or_zero(&total_vel_q, e.data.0);
 
                 trace!("Adding total v {floor_total_v} from floor to entity above it");
 
