@@ -278,8 +278,8 @@ fn tile_cast_collision(
         // FIXME: will overestimate how much impulse to apply when time.delta() is too low/high
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * bvec_to_mask(constraints.move_along)
-            * vel.0;
-        // / closest_entities[0].distance; // we need to account for ticker or delta time?
+            * vel.0
+            * stopping_factor;
 
         trace!("subtracting impulse {impulse}");
 
