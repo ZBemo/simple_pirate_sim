@@ -1,11 +1,9 @@
-
 use bevy_math::prelude::*;
 use bevy_log::trace;
 
-use bevy_reflect::Reflect;
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub struct Hit<Data> {
     /// The position of the hit on the tilegrid
     pub translation: IVec3,
