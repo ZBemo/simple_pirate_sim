@@ -266,6 +266,14 @@ fn tile_cast_collision(
         let needs_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
             || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
+        //  use the limit of 1/x as x approaches 0 (1) to make this function continuous and avoid
+        //  divide by zero bugs
+        let stopping_factor = if closest_entities[0].distance == 0. {
+            1.
+        } else {
+            1. / closest_entities[0].distance
+        };
+
         // FIXME: this probably isn't truly the time to take constraints.move_along into account
         // FIXME: will overestimate how much impulse to apply when time.delta() is too low/high
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
