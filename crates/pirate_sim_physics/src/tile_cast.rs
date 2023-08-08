@@ -1,9 +1,10 @@
 use bevy_math::prelude::*;
 use bevy_log::trace;
 
+use bevy_reflect::Reflect;
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy, Reflect)]
 pub struct Hit<Data> {
     /// The position of the hit on the tilegrid
     pub translation: IVec3,
@@ -11,6 +12,17 @@ pub struct Hit<Data> {
     pub distance: f32,
     /// The data passed in from the original iterator
     pub data: Data,
+}
+
+impl<Data> Hit<Data>
+{
+    pub fn map<U>(self, f: impl FnOnce(Data) -> U) -> Hit<U> {
+        Hit {
+            translation: self.translation,
+            distance: self.distance,
+            data: f(self.data)
+        }
+    }
 }
 
 
