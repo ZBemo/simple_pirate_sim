@@ -16,6 +16,7 @@ pub struct Hit<Data> {
 
 impl<Data> Hit<Data>
 {
+    /// Create a `Hit<U>` from `Fn(D) -> U`, only changing `U`
     pub fn map<U>(self, f: impl FnOnce(Data) -> U) -> Hit<U> {
         Hit {
             translation: self.translation,
