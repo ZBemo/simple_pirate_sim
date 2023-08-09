@@ -4,10 +4,11 @@ use bevy_log::trace;
 use bevy_reflect::Reflect;
 use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 
-#[derive(Debug,Clone,Copy, Reflect)]
+#[derive(Debug, Clone, Copy, Reflect)]
 pub struct Hit<Data> {
     /// The position of the hit on the tilegrid
     pub translation: IVec3,
+    pub offset: IVec3,
     /// the distance from Origin + Ticker
     pub distance: f32,
     /// The data passed in from the original iterator
@@ -18,7 +19,9 @@ impl<Data> Hit<Data>
 {
     /// Create a `Hit<U>` by applying `f` to hit.data
     pub fn map<U>(self, f: impl FnOnce(Data) -> U) -> Hit<U> {
+
         Hit {
+            offset: self.offset,
             translation: self.translation,
             distance: self.distance,
             data: f(self.data)
@@ -87,6 +90,7 @@ where
 
         if tile_translation == origin.tile {
             return (include_origin).then_some(Hit {
+                offset: IVec3::ZERO,
                 distance: 0.,
                 translation: tile_translation,
                 data,
@@ -112,6 +116,7 @@ where
 
         has_hit.then_some(Hit {
             data,
+            offset: tile_translation - origin.tile,
             translation: tile_translation,
             distance: expected_distance,
         })
