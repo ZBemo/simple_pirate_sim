@@ -8,6 +8,7 @@ use pirate_sim_core::tile_grid::{GetTileLocation, TileStretch};
 pub struct Hit<Data> {
     /// The position of the hit on the tilegrid
     pub translation: IVec3,
+    /// `self.translation - ray.origin`
     pub offset: IVec3,
     /// the distance from Origin + Ticker
     pub distance: f32,
