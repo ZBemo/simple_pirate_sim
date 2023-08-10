@@ -78,7 +78,7 @@ fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
 /// This can easily be made more generic, but as it's only used for Vec3, there's no need
 /// currently
 ///
-/// a more generic version would look like this
+/// a more generic version would look like this, but with more bounds on `F::Target`
 /// ```
 /// fn update_from_into<F, I>(mut from_query: Query<Ref<F>,&mut I>)
 ///     where
