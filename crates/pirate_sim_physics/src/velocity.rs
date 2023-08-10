@@ -105,7 +105,6 @@ fn propagate_from_ground(
     mut from_ground_q: Query<(Entity, &mut FromGround)>,
     collider_q: Query<&Collider>,
     total_vel_q: Query<&TotalVelocity>,
-    tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
 ) {
     from_ground_q.par_iter_mut().for_each_mut(|(e, mut f)| {
         let c = collider_q.get(e).expect("From ground with no collider");

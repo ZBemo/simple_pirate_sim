@@ -142,6 +142,64 @@ fn entity_collisions_are_updated_properly() {
 }
 
 #[test]
+fn entity_collision_works_with_floor() {
+    let mut app = App::new();
+
+    app.add_plugins(DefaultTestPlugin);
+    app.add_plugins(crate::PhysicsPlugin);
+
+    let move_id = app
+        .world
+        .spawn((
+            Name::new("Move"),
+            MovementBundle::default(),
+            Collider::new(Constraints::ENTITY),
+            TransformBundle::from_transform(Transform::from_xyz(0., 0., 0.)),
+            MovementGoal(Vec3::new(1., 1., 0.)),
+        ))
+        .id();
+
+    let wall_id = app
+        .world
+        .spawn((
+            Name::new("Wall"),
+            Collider::new(Constraints::WALL),
+            TransformBundle::from_transform(Transform::from_xyz(2., 2., 0.)),
+        ))
+        .id();
+
+    app.world.spawn((
+        Name::new("Floor"),
+        Collider::new(Constraints::FLOOR),
+        TransformBundle::from_transform(Transform::from_xyz(2., 2., 0.)),
+    ));
+    app.world.spawn((
+        Name::new("Floor"),
+        Collider::new(Constraints::FLOOR),
+        TransformBundle::from_transform(Transform::from_xyz(1., 1., 0.)),
+    ));
+
+    app.add_systems(PostUpdate, move |transform_q: Query<&GlobalTransform>| {
+        let wall_location = transform_q.get(wall_id).unwrap().translation();
+        let move_location = transform_q.get(move_id).unwrap().translation();
+
+        assert_ne!(wall_location, move_location);
+        assert_ne!(
+            wall_location.cmpge(wall_location),
+            BVec3::new(true, true, false)
+        );
+    });
+
+    // TODO: is this necessary?
+    app.cleanup();
+
+    // run long enough for Move to move x + 2, y +2
+    while app.world.resource::<Time>().elapsed_seconds() <= 3.1 {
+        app.update();
+    }
+}
+
+#[test]
 /// collision should work under super basic conditions
 fn collision_works_skips() {
     let mut app = App::new();
@@ -175,10 +233,7 @@ fn collision_works_skips() {
         let move_location = transform_q.get(move_id).unwrap().translation();
 
         assert_ne!(wall_location, move_location);
-        assert_ne!(
-            wall_location.cmpge(wall_location),
-            BVec3::new(true, true, false)
-        )
+        assert!((wall_location.cmpge(wall_location) ^ BVec3::new(true, true, false)).any());
     });
 
     // TODO: is this necessary?

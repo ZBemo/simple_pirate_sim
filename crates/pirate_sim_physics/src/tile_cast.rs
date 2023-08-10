@@ -65,9 +65,12 @@ where
 {
     
 
+    #[cfg(features = "bevy/trace")]
     let location_name = std::any::type_name::<Location>();
+    #[cfg(features = "bevy/trace")]
     let data_name = std::any::type_name::<Data>();
 
+    #[cfg(features = "bevy/trace")]
     let _span = bevy_log::info_span!("tile_cast", location_name = location_name, data_name = data_name).entered();
     
 

@@ -21,7 +21,7 @@ use bevy_reflect::prelude::*;
 use bevy_time::Time;
 use bevy_transform::prelude::GlobalTransform;
 
-use pirate_sim_core::PhysicsSet;
+use pirate_sim_core::{utils::bvec_to_mask, PhysicsSet};
 
 use crate::tile_cast;
 
@@ -86,6 +86,16 @@ impl Constraints {
         neg_solid_planes: BVec3::FALSE,
         move_along: BVec3::FALSE,
     };
+
+    fn wont_violate(&self, vel: Vec3) -> bool {
+        let signs = vel.as_ivec3().signum();
+
+        let check_neg = bvec_to_mask(self.pos_solid_planes).as_ivec3() * IVec3::NEG_ONE;
+        let check_pos = bvec_to_mask(self.neg_solid_planes).as_ivec3() * IVec3::ONE;
+        let signs_mask = signs.cmpeq(IVec3::ZERO);
+
+        (signs_mask | (check_neg.cmpne(signs) & check_pos.cmpne(signs))).all()
+    }
 }
 
 #[derive(Reflect, Debug, Clone)]
@@ -179,91 +189,59 @@ fn tile_cast_collision(
 
         trace!("Entity {} not skipped, checking for conflicts", name);
 
-        // tile cast on entities, filtering out the entity we're checking collisions for currently,
-        // as it can't collide with itself
-        //
-        // we could probably move a lot of filters/checks that are done post-raycast to the filter
-        // here, see line ~224
-        let hit_entities = tile_cast(
+        // once this is correct, instead of folding to closest entity and checking that, go through
+        // every possibly hit entity and bitor its constraints together
+        let possibly_hit_entities = predicted_map.iter().filter(|(opl, oe, oc)| {
+            // don't collide with ourselves
+            *oe != entity
+            // this entity is actually close enough to be hit
+                && IVec3::cmple(
+                   *opl * vel.0.signum().as_ivec3(),
+                    predicted_location * vel.0.signum().as_ivec3(),
+                )
+                .all()
+            //  add check against vel.0.signum()
+            && !oc.wont_violate(**vel)
+        });
+
+        let hit_entities: Vec<_> = tile_cast(
             tile_cast::Origin {
                 tile: translation,
                 ticker: utils::get_or_zero(&ticker_q, entity),
             },
             **vel,
             *tile_stretch,
-            predicted_map
-                .iter()
-                .filter(|(_, e, _)| *e != entity)
-                .map(|(l, a, b)| ((a, b), l)), // put it so that constraint & entity id are in data field
+            possibly_hit_entities.map(|(l, a, b)| ((a, b), l)), // put it so that constraint & entity id are in data field
             true,
-        );
+        )
+        .collect();
 
         // This fold should work because there's only one shortest distance so once we get the
         // vector of entities with that shortest distance it'll never get replaced
         //
         // This fold finds only the entities we will collide with, assuming we do collide. This is
         // used for future checks of things like
-        let closest_entities = hit_entities.fold(vec![], |mut acc, elem| {
-            if acc.is_empty() {
-                vec![elem]
-            } else {
-                let acc_d = acc[0].distance;
-                let elem_d = elem.distance;
-
-                // check against epilson just in case. Silences clippy lint
-                if (elem_d - acc_d).abs() <= f32::EPSILON {
-                    acc.push(elem);
-                    acc
-                } else if elem_d < acc_d {
-                    vec![elem]
-                } else {
-                    acc
-                }
-            }
-        });
-
-        if closest_entities.is_empty() {
-            trace!("No entities along way; continuing");
-            continue;
-        }
-
-        // we could move this up to filter before passing to raycasting to avoid checking raycasting on
-        // entities that know won't be a collision. Performance gains will be minimal, but
-        // possible, as essentially swaps out some number of Vec3::distance (exponenent/sqrt) for
-        // Vec3::cmpge (comparison and signum).
-        //
-        // even better, combine cmpge + a check that signums line up, could greatly diminish the
-        // amount of entities raycasted when checking collision for a large amount of colliders
-        // Could also check solid axes beforehand too.
-        let comp = IVec3::cmpge(
-            predicted_location * vel.0.signum().as_ivec3(),
-            closest_entities[0].translation * vel.0.signum().as_ivec3(),
-        );
-
-        trace!(
-            "cmp({}, {}) = {}",
-            predicted_location * vel.0.signum().as_ivec3(),
-            closest_entities[0].translation * vel.0.signum().as_ivec3(),
-            comp
-        );
-
-        if !comp.all() {
-            trace!("No possible conflict close enough");
+        let Some(closest_distance) = hit_entities.iter().fold(None, |acc, elem| {
+            Some(match acc {
+                Some(acc) if acc > elem.distance => acc,
+                _ => elem.distance,
+            })
+        }) else {
+            trace!("No possible hit");
             continue;
         };
 
         // .0 is negative plane, .1 is positive
-        let all_solid_axes =
-            closest_entities
-                .iter()
-                .fold((BVec3::FALSE, BVec3::FALSE), |acc, elem| {
-                    let constraints = elem.data.1;
+        let all_solid_axes = hit_entities
+            .iter()
+            .fold((BVec3::FALSE, BVec3::FALSE), |acc, elem| {
+                let constraints = elem.data.1;
 
-                    (
-                        acc.0 | constraints.neg_solid_planes,
-                        acc.0 | constraints.pos_solid_planes,
-                    )
-                });
+                (
+                    acc.0 | constraints.neg_solid_planes,
+                    acc.0 | constraints.pos_solid_planes,
+                )
+            });
 
         let total_vel_signs = vel.0.signum().as_ivec3();
 
@@ -276,19 +254,28 @@ fn tile_cast_collision(
 
         // to make this function continuous and avoid divide by zero bugs, multiply by 1 if
         // distance is 0. There might be a better thing to multiply but I'm not sure. Maybe 0?
-        let stopping_factor = if closest_entities[0].distance == 0. {
+        let stopping_factor = if closest_distance == 0. {
             1.
         } else {
-            1. / closest_entities[0].distance.round()
+            1. / closest_distance.round()
         };
 
-        // FIXME: this probably isn't truly the time to take constraints.move_along into account
+        // FIXME: If expected to collide with entities at two locations, stopping_factor will be
+        // incorrect
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * bvec_to_mask(constraints.move_along)
             * vel.0
             * stopping_factor;
 
         trace!("subtracting impulse {impulse}");
+
+        // update collision info
+        // FIXME: make it so on_tile is per entity
+        collider.collision = Some(EntityCollision {
+            other_entities: hit_entities.iter().map(|h| h.map(|(e, _)| *e)).collect(),
+            on_tile: predicted_location,
+            impulse,
+        });
 
         // SAFETY: we should have already returned if these queries are invalid
         let mut vel = unsafe { total_vel_q.get_mut(entity).unwrap_unchecked() };
@@ -298,16 +285,6 @@ fn tile_cast_collision(
         r_vel.0 -= impulse;
 
         // update collision info
-
-        // update collision info
-        collider.collision = Some(EntityCollision {
-            other_entities: closest_entities
-                .into_iter()
-                .map(|h| h.map(|(e, _)| *e))
-                .collect(),
-            on_tile: predicted_location,
-            impulse,
-        });
 
         trace!("new vel r: {} t: {}", r_vel.0, vel.0);
     }
@@ -382,4 +359,19 @@ impl bevy_app::Plugin for Plugin {
         )
         .init_resource::<CollisionMap>();
     }
+}
+
+#[cfg(test)]
+#[test]
+fn constraints_properly_report() {
+    let floor = Constraints::FLOOR;
+    let wall = Constraints::WALL;
+
+    let can_move_through_wall = wall.wont_violate(Vec3::new(1., 2., 3.));
+    let can_move_over_floor = floor.wont_violate(Vec3::new(1., 2., 0.));
+    let can_fall_through_floor = floor.wont_violate(Vec3::new(1., 2., -1.));
+
+    assert!(!can_move_through_wall);
+    assert!(!can_fall_through_floor);
+    assert!(can_move_over_floor);
 }
