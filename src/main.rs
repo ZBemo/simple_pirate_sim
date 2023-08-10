@@ -67,12 +67,12 @@ impl WalkPerimeter {
 }
 
 fn walk_perimeter(mut switch_q: Query<(&mut MovementGoal, &mut WalkPerimeter)>, time: Res<Time>) {
-    let elapsed = time.elapsed();
+    let delta = time.delta();
 
     switch_q
         .par_iter_mut()
         .for_each_mut(|(mut movement_goal, mut walk_with_switch)| {
-            walk_with_switch.timer.tick(time.delta());
+            walk_with_switch.timer.tick(delta);
 
             if walk_with_switch.timer.elapsed_secs() >= walk_with_switch.amount_of_steps as f32 {
                 trace!(" movement goal {}", movement_goal.0);
