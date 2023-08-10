@@ -1,6 +1,7 @@
 # Bugs 
  - [x] when to right of collider pressing `daaz` in sequence will step onto that collider when it shouldn't - tilecasting error?
  - [x] disabling default features doesn't disable bevy inspector egui
+ - [x] Collision checking allows you to move into a wall when there's a floor underneath
 
 # Refactor
  - [x] Get rid of crates/bevy; have every crate use bevy w/ features it needs or specific crates that it needs
