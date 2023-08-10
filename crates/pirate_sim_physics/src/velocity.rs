@@ -74,6 +74,20 @@ fn zero_total_vel(mut total_vel_q: Query<&mut TotalVelocity>) {
 }
 
 /// replace T with the value of F
+///
+/// This can easily be made more generic, but as it's only used for Vec3, there's no need
+/// currently
+///
+/// a more generic version would look like this
+/// ```
+/// fn update_from_into<F, I>(mut from_query: Query<Ref<F>,&mut I>)
+///     where
+///     F: std::ops::Deref + Component,
+///     I: From<<F as std::ops::Deref>::Target> + Component
+///     {
+///         // same body
+///     }
+/// ```
 fn update_last<Current, Last>(mut from_query: Query<(Ref<Current>, &mut Last)>)
 where
     Current: std::ops::Deref<Target = Vec3> + Component,
