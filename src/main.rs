@@ -40,7 +40,7 @@ struct PlayerBundle {
     collider: pirate_sim_physics::Collider,
     name: Name,
     player_controller_bundle: PlayerControllerBundle,
-    // take_from_floor: physics::velocity::FromGround,
+    take_from_floor: physics::velocity::FromGround,
 }
 
 fn quit_on_eq(mut exit: EventWriter<AppExit>, keys: Res<Input<KeyCode>>) {
@@ -96,7 +96,16 @@ fn main() {
 
     // bevy plugins
     app.add_plugins((
-        DefaultPlugins.set(ImagePlugin::default_nearest()),
+        DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Pirate sim".into(),
+                    present_mode: bevy::window::PresentMode::AutoNoVsync,
+                    ..default()
+                }),
+                ..default()
+            }),
         #[cfg(feature = "fps-diagnostics")]
         (FrameTimeDiagnosticsPlugin, fps_diagnostics::Plugin),
     ));
@@ -247,12 +256,11 @@ fn setup(
         Collider::new(pirate_sim_physics::collision::Constraints::WALL),
     ));
 
-    // moving wall
     commands.spawn((
         SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.clone(),
             sprite: TextureAtlasSprite::new(5),
-            transform: Transform::from_translation(tilestretch.get_bevy(IVec3::new(1, 0, 0))),
+            transform: Transform::from_translation(tilestretch.get_bevy(IVec3::new(1, 1, 0))),
             ..default()
         },
         MovementGoal(Vec3::NEG_X),
@@ -282,7 +290,7 @@ fn setup(
         walkspeed: WalkSpeed(5.),
         collider: Collider::new(pirate_sim_physics::collision::Constraints::ENTITY),
         name: Name::new("Player"),
-        // take_from_floor: Default::default(),
+        take_from_floor: Default::default(),
     },));
 
     // continue this

@@ -153,15 +153,27 @@ fn tile_cast_collision(
         let name = name_q
             .get(entity)
             .map_or("Unnamed".to_owned(), std::convert::Into::into);
+        let translation = transform_q
+            .get(entity)
+            .expect("Entity with collider but no transform")
+            .location(*tile_stretch);
 
-        trace!("checking collision of {name} at predictd_location {predicted_location}");
+        trace!("checking collision of {name} at predicted_location {predicted_location}, real location {translation}");
 
         let Some((vel, _)) = Option::zip(
             total_vel_q.get(entity).ok(),
             relative_vel_q.get(entity).ok(),
         ) else {
             trace!("entity has no velocity bundle; skipping");
-            continue;};
+            continue;
+        };
+
+        debug_assert!(
+            (translation.as_vec3() * vel.signum())
+                .cmple(predicted_location.as_vec3() * vel.signum())
+                .all(),
+            "Predicted to move backwards from velocity"
+        );
 
         if vel.0 == Vec3::ZERO {
             trace!("Entity not moving; skipping");
@@ -170,11 +182,6 @@ fn tile_cast_collision(
 
         trace!("Checking for conflicts for entity {}", name);
         trace!("Entity not skipped");
-
-        let translation = transform_q
-            .get(entity)
-            .expect("Entity with collider but no transform")
-            .location(*tile_stretch);
 
         let hit_entities = tile_cast(
             tile_cast::Origin {
