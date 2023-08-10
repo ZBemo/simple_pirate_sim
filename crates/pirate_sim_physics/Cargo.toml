@@ -22,3 +22,4 @@ bevy_app = "0.11"
 bevy_log = "0.11"
 bevy_core = "0.11"
 bevy_time = "0.11"
+# bevy_utils = { version = "0.11", default-features=false}

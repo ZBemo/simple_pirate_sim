@@ -7,7 +7,7 @@ use bevy_reflect::prelude::*;
 use bevy_time::Time;
 use bevy_transform::prelude::*;
 
-use pirate_sim_core::tile_grid::TileStretch;
+use pirate_sim_core::{tile_grid::TileStretch, utils::bvec_to_mask};
 
 use super::PhysicsSet;
 
@@ -75,10 +75,7 @@ fn finalize_movement(
     }
 }
 
-/// clear tickers when velocity is changed
-///
-/// TODO: check against last velocity; this will introduce a tiny cost of tracking
-/// lastTotalVelocity and lastRelativeVelocity, but probably make it a lot less buggier
+/// clear tickers when velocity is lessened
 fn clear_tickers(
     mut ticker_q: Query<
         (
@@ -90,9 +87,16 @@ fn clear_tickers(
     >,
 ) {
     ticker_q.for_each_mut(|(mut t, rv, lrv)| {
-        if **rv != **lrv {
-            t.0 = Vec3::ZERO;
-        }
+        let acceleration = **lrv - **rv;
+
+        // check  if acceleration has occurred opposite to the last direction
+        let mask = acceleration
+            .as_ivec3()
+            .signum()
+            .cmpeq(lrv.as_ivec3().signum())
+            | acceleration.cmpeq(Vec3::ZERO);
+
+        t.0 *= bvec_to_mask(mask);
     });
 }
 
@@ -113,6 +117,7 @@ impl bevy_app::Plugin for Plugin {
                 finalize_movement
                     .in_set(PhysicsSet::Movement)
                     .after(PhysicsSet::Collision),
+                // TODO: this is non-deterministic in regards to collision, which uses tickers
                 clear_tickers.after(PhysicsSet::Velocity),
             ),
         );

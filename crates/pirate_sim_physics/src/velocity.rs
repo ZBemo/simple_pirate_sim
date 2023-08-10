@@ -12,7 +12,10 @@ use bevy_transform::prelude::*;
 
 use crate::{tile_cast, Collider};
 
-use pirate_sim_core::{system_sets::PhysicsSet, utils};
+use pirate_sim_core::{
+    system_sets::PhysicsSet,
+    utils::{self, get_or_zero},
+};
 
 /// The Velocity that an entity moves at individually. For example, if an entities parent has a
 /// [TotalVelocity] of (1,0,0) and the entity has a [RelativeVelocity] of (0,1,0) it will move (1,1,0)
@@ -83,62 +86,46 @@ where
     }
 }
 
-// this uses an oddly high amount of time even when no entities have VelocityFromGround
-//
-// TODO: add ticker as well or something
-//
-// Maybe change to keep a list of entities that it should take from, and when that list changes copy
-// ticker over from entity as well
-//
-// TODO: once collision events + gravity in place we can just check on collision events from last
-// frame?
+// TODO: This runs in PostUpdate; make sure that makes sense
 fn propagate_from_ground(
     mut from_ground_q: Query<(Entity, &mut FromGround)>,
-    global_transform_q: Query<(Entity, &Collider, &GlobalTransform)>,
+    collider_q: Query<&Collider>,
     total_vel_q: Query<&TotalVelocity>,
     tile_stretch: Res<pirate_sim_core::tile_grid::TileStretch>,
 ) {
-    for (e, mut from_ground) in from_ground_q.iter_mut() {
-        let translation = global_transform_q
-            .get(e)
-            .expect("Velocity From Ground tagged with no transformBundle")
-            .2
-            .translation();
+    from_ground_q.par_iter_mut().for_each_mut(|(e, mut f)| {
+        let c = collider_q.get(e).expect("From ground with no collider");
 
-        let below = tile_cast::tile_cast(
-            tile_cast::Origin {
-                tile: tile_stretch.get_closest(translation),
-                ticker: Vec3::ZERO,
-            },
-            Vec3::NEG_Z,
-            *tile_stretch,
-            global_transform_q
-                .iter()
-                .filter(|(ce, _, _)| *ce != e)
-                .map(|(ce, c, t)| ((ce, c), t)),
-            true,
-        );
+        *f = FromGround(Vec3::ZERO);
 
-        let total_floor_vel = below.fold(Vec3::ZERO, |acc, e| {
-            let constraints = e.data.1.constraints;
+        let Some(collision) = c.collision() else {return };
 
-            // FIXME: use epilson
-            // since we tile_cast straight down then distance will only be along z plane
-            if e.distance == 0. && constraints.neg_solid_planes.z
-                || e.distance - 1. <= f32::EPSILON && constraints.pos_solid_planes.z
-            {
-                let floor_total_v = utils::get_or_zero(&total_vel_q, e.data.0);
+        let total_from_ground = collision
+            .other_entities
+            .iter()
+            .filter(|&&oe| {
+                let oc = collider_q
+                    .get(oe.data)
+                    .expect("Entity in collision should have collider");
 
-                trace!("Adding total v {floor_total_v} from floor to entity above it");
+                (oe.offset.z == -1 && oc.constraints.pos_solid_planes.z)
+                    || (oe.offset.z == 0 && oc.constraints.neg_solid_planes.z)
+            })
+            .fold(Vec3::ZERO, |acc, hit| {
+                acc + get_or_zero(&total_vel_q, hit.data)
+            });
 
-                acc + floor_total_v
-            } else {
-                acc
-            }
-        });
+        // add total_from_ground
 
-        from_ground.0 = total_floor_vel;
-    }
+        *f = FromGround(total_from_ground);
+
+        // .iter_mut()
+        // .filter_map(|(e, c, f)| c.collision().map(|c| (e, c, f)))
+        // .for_each(|(e, c, f)| {
+        //     // check if any of them are below / on same tile with right z masks
+        //     todo!()
+        // });
+    });
 }
 
 /// Takes all factors that could affect a physics component's velocity on each frame and then
@@ -168,7 +155,9 @@ fn calculate_relative_velocity(
 
         // maybe gravity should be part of maintained velocity
         if let Some(weight) = weight {
-            new_relative_velocity.z -= weight.0 * super::GRAVITY;
+            if **weight != 0. {
+                new_relative_velocity.z -= super::GRAVITY;
+            }
         }
 
         if let Some(mantained) = mantained {
@@ -354,17 +343,14 @@ impl bevy_app::Plugin for Plugin {
         app.add_systems(Update, zero_total_vel.before(calculate_relative_velocity))
             .add_systems(
                 Update,
-                (
-                    calculate_relative_velocity,
-                    propagate_velocities,
-                    propagate_from_ground,
-                )
+                (calculate_relative_velocity, propagate_velocities)
                     .chain()
                     .in_set(PhysicsSet::Velocity),
             )
             .add_systems(
                 PostUpdate,
                 (
+                    propagate_from_ground,
                     update_last::<TotalVelocity, LastTotal>,
                     update_last::<RelativeVelocity, LastRelative>,
                 ),

@@ -21,7 +21,7 @@ use bevy_reflect::prelude::*;
 use bevy_time::Time;
 use bevy_transform::prelude::GlobalTransform;
 
-use pirate_sim_core::{utils::get_or_zero, PhysicsSet};
+use pirate_sim_core::PhysicsSet;
 
 use crate::tile_cast;
 
@@ -36,29 +36,6 @@ use pirate_sim_core::utils;
 
 #[derive(Resource, Deref, Debug, Default, Reflect)]
 pub struct CollisionMap(Vec<(IVec3, Entity, Constraints)>);
-
-/// An event where there was an entity collision
-///
-/// TODO: replace with [`TileCollision`] or do both
-#[derive(Debug, Clone, Event)]
-pub struct EntityCollision {
-    pub entity: Entity,
-    pub tile: IVec3,
-    pub conflict_along: BVec3,
-    pub colliding_with: Vec<Entity>,
-}
-
-impl EntityCollision {
-    #[must_use]
-    pub fn was_in_conflict(&self) -> bool {
-        self.conflict_along.any()
-    }
-}
-
-// send out collision events
-fn send_collission_events(collision_map: Res<CollisionMap>, transform_q: Query<&GlobalTransform>) {
-    todo!()
-}
 
 /// constraints put onto a collider and its collisions
 #[derive(Debug, Clone, Copy, Reflect)]
@@ -90,8 +67,16 @@ impl Constraints {
         move_along: BVec3::FALSE,
     };
     pub const ENTITY: Self = Self {
-        pos_solid_planes: BVec3::TRUE,
-        neg_solid_planes: BVec3::TRUE,
+        pos_solid_planes: BVec3 {
+            x: true,
+            y: true,
+            z: false,
+        },
+        neg_solid_planes: BVec3 {
+            x: true,
+            y: true,
+            z: false,
+        },
 
         move_along: BVec3::TRUE,
     };
@@ -103,6 +88,13 @@ impl Constraints {
     };
 }
 
+#[derive(Reflect, Debug, Clone)]
+pub struct EntityCollision {
+    pub other_entities: Vec<tile_cast::Hit<Entity>>,
+    pub on_tile: IVec3,
+    pub impulse: Vec3,
+}
+
 /// Currently, transform scale is not taken into account when calculating collision
 ///
 /// Any entity with a collider must also have a transform
@@ -111,36 +103,32 @@ impl Constraints {
 #[derive(Component, Debug, Reflect)]
 pub struct Collider {
     pub constraints: Constraints,
+    collision: Option<EntityCollision>,
 }
 
 impl Collider {
     #[must_use]
+    #[inline] // inline(always)?
+    pub fn collision(&self) -> Option<&EntityCollision> {
+        self.collision.as_ref()
+    }
+
+    #[must_use]
     #[inline]
     pub fn new(constraints: Constraints) -> Self {
-        Self { constraints }
+        Self {
+            constraints,
+            collision: None,
+        }
     }
 }
 
-fn log_collisions(mut events: EventReader<EntityCollision>, name_q: Query<&Name>) {
-    for event in events.iter() {
-        trace!(
-            "Entity: {} collided at {}, with {} other entities, collision axes: {}",
-            name_q.get(event.entity).ok().map_or_else(
-                || "Unnamed entity".to_string(),
-                std::string::ToString::to_string
-            ),
-            event.tile,
-            event.colliding_with.len(),
-            event.conflict_along
-        );
-    }
-}
-
-// TODO: We don't account for ticker when tile casting
 #[allow(clippy::too_many_lines)]
+/// Use tile casting to implement smooth collision impulses
 fn tile_cast_collision(
     mut total_vel_q: Query<&mut TotalVelocity>,
     mut relative_vel_q: Query<&mut RelativeVelocity>,
+    mut collider_q: Query<&mut Collider>,
     transform_q: Query<&GlobalTransform>,
     ticker_q: Query<&Ticker>,
     name_q: Query<&Name>,
@@ -149,7 +137,15 @@ fn tile_cast_collision(
 ) {
     use pirate_sim_core::utils::bvec_to_mask;
 
+    // see build_collision_map
     for &(predicted_location, entity, constraints) in &**predicted_map {
+        // SAFETY: entity was originally taken from a query over <(Entity, &Collider)> in the
+        // current frame
+        let mut collider = unsafe { collider_q.get_mut(entity).unwrap_unchecked() };
+
+        // clear collider.collisions. This isn't really the right place to do this but it's fine
+        collider.collision = None;
+
         let name = name_q
             .get(entity)
             .map_or("Unnamed".to_owned(), std::convert::Into::into);
@@ -168,6 +164,7 @@ fn tile_cast_collision(
             continue;
         };
 
+        // This should never happen. Leave it in as common-sense assert
         debug_assert!(
             (translation.as_vec3() * vel.signum())
                 .cmple(predicted_location.as_vec3() * vel.signum())
@@ -180,9 +177,13 @@ fn tile_cast_collision(
             continue;
         }
 
-        trace!("Checking for conflicts for entity {}", name);
-        trace!("Entity not skipped");
+        trace!("Entity {} not skipped, checking for conflicts", name);
 
+        // tile cast on entities, filtering out the entity we're checking collisions for currently,
+        // as it can't collide with itself
+        //
+        // we could probably move a lot of filters/checks that are done post-raycast to the filter
+        // here, see line ~224
         let hit_entities = tile_cast(
             tile_cast::Origin {
                 tile: translation,
@@ -199,6 +200,9 @@ fn tile_cast_collision(
 
         // This fold should work because there's only one shortest distance so once we get the
         // vector of entities with that shortest distance it'll never get replaced
+        //
+        // This fold finds only the entities we will collide with, assuming we do collide. This is
+        // used for future checks of things like
         let closest_entities = hit_entities.fold(vec![], |mut acc, elem| {
             if acc.is_empty() {
                 vec![elem]
@@ -223,17 +227,14 @@ fn tile_cast_collision(
             continue;
         }
 
-        // this could probably be quicker. Check if it will move far enough in this frame to hit
-        // the entity
+        // we could move this up to filter before passing to raycasting to avoid checking raycasting on
+        // entities that know won't be a collision. Performance gains will be minimal, but
+        // possible, as essentially swaps out some number of Vec3::distance (exponenent/sqrt) for
+        // Vec3::cmpge (comparison and signum).
         //
-        // TODO: perhaps more performant to do distance^2 > (vel).dot().abs() as it avoids a sqrt,
-        // instead using a square
-        //
-        // better idea; check closest_entities[0] predicted location against the abs of the
-        // entity's predicted location, see if it's further
-        //
-        // both more performant and likely more correct
-
+        // even better, combine cmpge + a check that signums line up, could greatly diminish the
+        // amount of entities raycasted when checking collision for a large amount of colliders
+        // Could also check solid axes beforehand too.
         let comp = IVec3::cmpge(
             predicted_location * vel.0.signum().as_ivec3(),
             closest_entities[0].translation * vel.0.signum().as_ivec3(),
@@ -273,16 +274,15 @@ fn tile_cast_collision(
         let needs_change_z = total_vel_signs.z == 1 && all_solid_axes.0.z
             || total_vel_signs.z == -1 && all_solid_axes.1.z;
 
-        //  use the limit of 1/x as x approaches 0 (1) to make this function continuous and avoid
-        //  divide by zero bugs
+        // to make this function continuous and avoid divide by zero bugs, multiply by 1 if
+        // distance is 0. There might be a better thing to multiply but I'm not sure. Maybe 0?
         let stopping_factor = if closest_entities[0].distance == 0. {
             1.
         } else {
-            1. / closest_entities[0].distance
+            1. / closest_entities[0].distance.round()
         };
 
         // FIXME: this probably isn't truly the time to take constraints.move_along into account
-        // FIXME: will overestimate how much impulse to apply when time.delta() is too low/high
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * bvec_to_mask(constraints.move_along)
             * vel.0
@@ -296,6 +296,18 @@ fn tile_cast_collision(
 
         vel.0 -= impulse;
         r_vel.0 -= impulse;
+
+        // update collision info
+
+        // update collision info
+        collider.collision = Some(EntityCollision {
+            other_entities: closest_entities
+                .into_iter()
+                .map(|h| h.map(|(e, _)| *e))
+                .collect(),
+            on_tile: predicted_location,
+            impulse,
+        });
 
         trace!("new vel r: {} t: {}", r_vel.0, vel.0);
     }
@@ -368,7 +380,6 @@ impl bevy_app::Plugin for Plugin {
                 .chain()
                 .in_set(PhysicsSet::Collision),
         )
-        .add_event::<EntityCollision>()
         .init_resource::<CollisionMap>();
     }
 }

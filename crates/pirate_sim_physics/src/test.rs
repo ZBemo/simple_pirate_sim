@@ -137,6 +137,11 @@ fn collision_works_basic() {
 }
 
 #[test]
+fn entity_collisions_are_updated_properly() {
+    todo!()
+}
+
+#[test]
 /// collision should work under super basic conditions
 fn collision_works_skips() {
     let mut app = App::new();
