@@ -189,14 +189,13 @@ fn tile_cast_collision(
         let possibly_hit_entities = predicted_map.iter().filter(|(opl, oe, oc)| {
             // don't collide with ourselves
             *oe != entity
-            // this entity is actually close enough to be hit; FIXME: doesn't take into account
-            // ticker?
+            // this entity is actually close enough to be hit; 
                 && IVec3::cmple(
-                    (*opl * vel.0.signum().as_ivec3()),//.as_vec3(),
-                    (predicted_location * vel.0.signum().as_ivec3())//.as_vec3() + ticker,
+                    *opl * vel.0.signum().as_ivec3(),
+                    predicted_location * vel.0.signum().as_ivec3()
                 )
                 .all()
-            //  add check against vel.0.signum()
+            //  add check against vel.0.signum(), 
             && !oc.wont_violate(**vel)
         });
 

@@ -109,10 +109,10 @@ fn clear_tickers(
     >,
 ) {
     ticker_q.for_each_mut(|(mut t, rv, lrv, name)| {
+        // acceleration = change in v = current vel - last vel. Approximates a derivative
         let acceleration = **rv - **lrv;
 
-        // will be true if acceleration is ZERO or in the same direction of velocity
-        // IE if velocity has not moved towards zero
+        // will be true if vel has not slowed down on that individual axis
         let mask = acceleration
             .as_ivec3()
             .signum()

@@ -46,8 +46,6 @@ pub struct Origin {
 ///
 /// It currently rounds the ray onto the grid, which while being accurate in a tile-based physics
 /// context, may lead to surprising results
-///
-/// TODO: get rid of include_origin, let caller deal with that if they care
 #[inline]
 #[must_use = "Tile casting is a relatively expensive operation that shouldn't change state. You should not use it if you don't need the result."]
 pub fn tile_cast<Data, Location>(
@@ -86,6 +84,10 @@ where
     };
 
     entity_pool.filter_map(move |(data, transform)| {
+        // TODO: filter some common sense stuff before calling distance; ie check that the
+        // translation is in the right direction, etc
+
+
         // cast to grid
         let tile_translation = transform.location(tile_stretch);
         let tile_translation_vec3 = tile_translation.as_vec3();
@@ -111,8 +113,8 @@ where
         // account for epsilon to be safe
         // round distance because everything will be on grid
         //
-        // FIXME: instead of rounding check if they're within Vec3::ONE of each other. as that will
-        // be on same tile
+        // FIXME: instead of rounding check if they're within Vec3::ONE of each other. As that
+        // should be on same tile
         let has_hit = Vec3::cmple(
             (casted_to_distance.round() - tile_translation_vec3).abs(),
             Vec3::splat(f32::EPSILON),
