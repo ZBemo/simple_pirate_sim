@@ -140,6 +140,14 @@ fn entity_collisions_are_updated_properly() {
 }
 
 #[test]
+#[ignore]
+fn collision_works_weird_normalize() {
+    todo!(
+        "test that collision works when normalizing vel results in one axis rounding down to zero"
+    );
+}
+
+#[test]
 fn entity_collision_works_with_floor() {
     let mut app = App::new();
 
