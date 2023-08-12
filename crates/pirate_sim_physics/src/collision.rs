@@ -87,21 +87,31 @@ impl Constraints {
         move_along: BVec3::FALSE,
     };
 
-    fn wont_violate(&self, vel: Vec3) -> bool {
+    /// Returns true if a velocity won't violate the constraints
+    ///
+    /// TODO: should probably return a `BVec3`, as it carries more info
+    #[must_use]
+    pub fn violates_solidity(&self, vel: Vec3) -> bool {
         let signs = vel.as_ivec3().signum();
 
         let check_neg = bvec_to_mask(self.pos_solid_planes).as_ivec3() * IVec3::NEG_ONE;
         let check_pos = bvec_to_mask(self.neg_solid_planes).as_ivec3() * IVec3::ONE;
         let signs_mask = signs.cmpeq(IVec3::ZERO);
 
-        (signs_mask | (check_neg.cmpne(signs) & check_pos.cmpne(signs))).all()
+        !((signs_mask | (check_neg.cmpne(signs) & check_pos.cmpne(signs))).all())
+    }
+
+    /// Returns a BVec where axes are true if applying impulse would violate constraints along that
+    /// axis
+    #[must_use]
+    pub fn violates_movement(&self, impulse: Vec3) -> BVec3 {
+        impulse.as_ivec3().signum().cmpne(IVec3::ZERO) & self.move_along
     }
 }
 
 #[derive(Reflect, Debug, Clone)]
 pub struct EntityCollision {
     pub other_entities: Vec<tile_cast::Hit<Entity>>,
-    pub on_tile: IVec3,
     pub impulse: Vec3,
 }
 
@@ -196,7 +206,7 @@ fn tile_cast_collision(
                 )
                 .all()
             //  add check against vel.0.signum(), 
-            && !oc.wont_violate(**vel)
+            && oc.violates_solidity(**vel)
         });
 
         let hit_entities: Vec<_> = tile_cast(
@@ -270,7 +280,6 @@ fn tile_cast_collision(
         // FIXME: make it so on_tile is per entity
         collider.collision = Some(EntityCollision {
             other_entities: hit_entities.iter().map(|h| h.map(|(e, _)| *e)).collect(),
-            on_tile: predicted_location,
             impulse,
         });
 
@@ -364,11 +373,11 @@ fn constraints_properly_report() {
     let floor = Constraints::FLOOR;
     let wall = Constraints::WALL;
 
-    let can_move_through_wall = wall.wont_violate(Vec3::new(1., 2., 3.));
-    let can_move_over_floor = floor.wont_violate(Vec3::new(1., 2., 0.));
-    let can_fall_through_floor = floor.wont_violate(Vec3::new(1., 2., -1.));
+    let cant_move_through_wall = wall.violates_solidity(Vec3::new(1., 2., 3.));
+    let can_move_over_floor = floor.violates_solidity(Vec3::new(1., 2., 0.));
+    let cant_fall_through_floor = floor.violates_solidity(Vec3::new(1., 2., -1.));
 
-    assert!(!can_move_through_wall);
-    assert!(!can_fall_through_floor);
-    assert!(can_move_over_floor);
+    assert!(cant_move_through_wall);
+    assert!(cant_fall_through_floor);
+    assert!(!can_move_over_floor);
 }
