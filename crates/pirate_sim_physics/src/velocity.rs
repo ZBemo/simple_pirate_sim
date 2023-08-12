@@ -342,7 +342,7 @@ unsafe fn propagate_recursive(
 ///
 /// This bundle allows an entity to be acted on by all systems in the velocity module/plugin
 #[derive(Bundle, Debug, Default)]
-pub struct VelocityBundle {
+pub(crate) struct VelocityBundle {
     total: RelativeVelocity,
     relative_total: TotalVelocity,
     last_total: LastTotal,
