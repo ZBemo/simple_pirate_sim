@@ -40,7 +40,6 @@ fn complex_tile_cast_works() {
         Vec3::new(0., 1., 2.5),
         TileStretch(32, 32), // this shouldn't matter, but put this in to test it
         entities.into_iter(),
-        true,
     )
     .collect::<Vec<_>>();
 
@@ -74,8 +73,7 @@ fn tile_cast_works() {
         },
         Vec3::new(0., 1., 1.),
         TileStretch(1, 1),
-        entities.into_iter(),
-        false,
+        entities.into_iter().filter(|a| a.1 != IVec3::new(0, 1, 1)),
     )
     .collect::<Vec<_>>();
 

@@ -1,4 +1,5 @@
 use bevy_app::prelude::*;
+use bevy_core::Name;
 use bevy_derive::Deref;
 use bevy_ecs::prelude::*;
 use bevy_log::prelude::*;
@@ -32,6 +33,7 @@ fn finalize_movement(
         &mut Transform,
         &mut Ticker,
         &super::velocity::RelativeVelocity,
+        Option<&Name>,
     )>,
     tile_stretch: Res<TileStretch>,
     time: Res<Time>,
@@ -43,22 +45,33 @@ fn finalize_movement(
 
     let delta_time = time.delta_seconds();
 
-    for (mut transform, mut ticker, total_velocity) in phsyics_components.iter_mut() {
+    for (mut transform, mut ticker, relative_velocity, name) in phsyics_components.iter_mut() {
         // update ticker, only apply velocity * delta to keep time consistent
-        ticker.0 += **total_velocity * delta_time;
+        ticker.0 += **relative_velocity * delta_time;
 
         let z_sign = ticker.z.signum();
         let y_sign = ticker.y.signum();
         let x_sign = ticker.x.signum();
+        let mut moved = false;
 
         while ticker.z * z_sign >= 1. {
+            moved = true;
+
             transform.translation.z += z_sign;
             ticker.0.z -= 1. * z_sign;
 
+            if let Some(name) = name {
+                debug_assert!(
+                    *name != Name::new("Player"),
+                    "Guard against player falling when on floor"
+                );
+            };
             debug_assert!(ticker.z.is_finite() && !ticker.z.is_nan());
             assert!(ticker.z.signum() == z_sign);
         }
         while ticker.y * y_sign >= 1. {
+            moved = true;
+
             transform.translation.y += tile_stretch.0 as f32 * y_sign;
             ticker.0.y -= 1. * y_sign;
 
@@ -66,12 +79,20 @@ fn finalize_movement(
             assert!(ticker.z.signum() == z_sign);
         }
         while ticker.0.x * x_sign >= 1. {
+            moved = true;
+
             transform.translation.x += tile_stretch.1 as f32 * x_sign;
             ticker.0.x -= 1. * x_sign;
 
             debug_assert!(ticker.x.is_finite() && !ticker.x.is_nan());
             assert!(ticker.z.signum() == z_sign);
         }
+
+        trace!(
+            "{} moved: {}",
+            name.map_or("Unnamed".to_string(), ToString::to_string),
+            moved,
+        );
     }
 }
 
@@ -82,19 +103,27 @@ fn clear_tickers(
             &mut Ticker,
             &crate::velocity::RelativeVelocity,
             &crate::velocity::LastRelative,
+            Option<&Name>,
         ),
         Changed<crate::velocity::RelativeVelocity>,
     >,
 ) {
-    ticker_q.for_each_mut(|(mut t, rv, lrv)| {
-        let acceleration = **lrv - **rv;
+    ticker_q.for_each_mut(|(mut t, rv, lrv, name)| {
+        let acceleration = **rv - **lrv;
 
-        // check  if acceleration has occurred opposite to the last direction
+        // will be true if acceleration is ZERO or in the same direction of velocity
+        // IE if velocity has not moved towards zero
         let mask = acceleration
             .as_ivec3()
             .signum()
             .cmpeq(lrv.as_ivec3().signum())
             | acceleration.cmpeq(Vec3::ZERO);
+
+        trace!(
+            "Clearing ticker for entity {} with mask {}",
+            name.map_or("Unnamed".to_string(), ToString::to_string),
+            mask
+        );
 
         t.0 *= bvec_to_mask(mask);
     });
@@ -118,7 +147,9 @@ impl bevy_app::Plugin for Plugin {
                     .in_set(PhysicsSet::Movement)
                     .after(PhysicsSet::Collision),
                 // TODO: this is non-deterministic in regards to collision, which uses tickers
-                clear_tickers.after(PhysicsSet::Velocity),
+                clear_tickers
+                    .after(PhysicsSet::Velocity)
+                    .before(PhysicsSet::Collision),
             ),
         );
     }

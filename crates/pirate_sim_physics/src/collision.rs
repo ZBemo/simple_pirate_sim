@@ -145,8 +145,6 @@ fn tile_cast_collision(
     tile_stretch: Res<TileStretch>,
     predicted_map: Res<CollisionMap>,
 ) {
-    use pirate_sim_core::utils::bvec_to_mask;
-
     // see build_collision_map
     for &(predicted_location, entity, constraints) in &**predicted_map {
         // SAFETY: entity was originally taken from a query over <(Entity, &Collider)> in the
@@ -156,48 +154,46 @@ fn tile_cast_collision(
         // clear collider.collisions. This isn't really the right place to do this but it's fine
         collider.collision = None;
 
-        let name = name_q
-            .get(entity)
-            .map_or("Unnamed".to_owned(), std::convert::Into::into);
-        let translation = transform_q
-            .get(entity)
-            .expect("Entity with collider but no transform")
-            .location(*tile_stretch);
-
-        trace!("checking collision of {name} at predicted_location {predicted_location}, real location {translation}");
-
         let Some((vel, _)) = Option::zip(
             total_vel_q.get(entity).ok(),
             relative_vel_q.get(entity).ok(),
         ) else {
-            trace!("entity has no velocity bundle; skipping");
             continue;
         };
+
+        let name = name_q
+            .get(entity)
+            .map_or("Unnamed".to_owned(), ToString::to_string);
+        let translation = transform_q
+            .get(entity)
+            .expect("Entity with collider but no transform")
+            .location(*tile_stretch);
 
         // This should never happen. Leave it in as common-sense assert
         debug_assert!(
             (translation.as_vec3() * vel.signum())
                 .cmple(predicted_location.as_vec3() * vel.signum())
                 .all(),
-            "Predicted to move backwards from velocity"
+            "Predicted to move opposite of velocity"
         );
 
         if vel.0 == Vec3::ZERO {
-            trace!("Entity not moving; skipping");
             continue;
         }
 
-        trace!("Entity {} not skipped, checking for conflicts", name);
+        let ticker = utils::get_or_zero(&ticker_q, entity);
+        trace!("checking collision of {name} at predicted_location {predicted_location}, real location {translation}:{ticker}");
 
         // once this is correct, instead of folding to closest entity and checking that, go through
         // every possibly hit entity and bitor its constraints together
         let possibly_hit_entities = predicted_map.iter().filter(|(opl, oe, oc)| {
             // don't collide with ourselves
             *oe != entity
-            // this entity is actually close enough to be hit
+            // this entity is actually close enough to be hit; FIXME: doesn't take into account
+            // ticker?
                 && IVec3::cmple(
-                   *opl * vel.0.signum().as_ivec3(),
-                    predicted_location * vel.0.signum().as_ivec3(),
+                    (*opl * vel.0.signum().as_ivec3()),//.as_vec3(),
+                    (predicted_location * vel.0.signum().as_ivec3())//.as_vec3() + ticker,
                 )
                 .all()
             //  add check against vel.0.signum()
@@ -207,12 +203,11 @@ fn tile_cast_collision(
         let hit_entities: Vec<_> = tile_cast(
             tile_cast::Origin {
                 tile: translation,
-                ticker: utils::get_or_zero(&ticker_q, entity),
+                ticker,
             },
             **vel,
             *tile_stretch,
             possibly_hit_entities.map(|(l, a, b)| ((a, b), l)), // put it so that constraint & entity id are in data field
-            true,
         )
         .collect();
 
@@ -254,10 +249,10 @@ fn tile_cast_collision(
 
         // to make this function continuous and avoid divide by zero bugs, multiply by 1 if
         // distance is 0. There might be a better thing to multiply but I'm not sure. Maybe 0?
-        let stopping_factor = if closest_distance == 0. {
+        let stopping_factor = if closest_distance.round() == 0. {
             1.
         } else {
-            1. / closest_distance.round()
+            closest_distance.round()
         };
 
         // FIXME: If expected to collide with entities at two locations, stopping_factor will be
@@ -265,9 +260,12 @@ fn tile_cast_collision(
         let impulse = bvec_to_mask(BVec3::new(needs_change_x, needs_change_y, needs_change_z))
             * bvec_to_mask(constraints.move_along)
             * vel.0
-            * stopping_factor;
+            / stopping_factor;
 
         trace!("subtracting impulse {impulse}");
+        trace!("with stopping factor {stopping_factor}");
+        debug_assert!(stopping_factor.is_finite());
+        debug_assert!(impulse.is_finite());
 
         // update collision info
         // FIXME: make it so on_tile is per entity
