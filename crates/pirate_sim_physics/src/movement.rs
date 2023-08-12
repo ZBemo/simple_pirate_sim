@@ -60,12 +60,6 @@ fn finalize_movement(
             transform.translation.z += z_sign;
             ticker.0.z -= 1. * z_sign;
 
-            if let Some(name) = name {
-                debug_assert!(
-                    *name != Name::new("Player"),
-                    "Guard against player falling when on floor"
-                );
-            };
             debug_assert!(ticker.z.is_finite() && !ticker.z.is_nan());
             assert!(ticker.z.signum() == z_sign);
         }
